@@ -1,2 +1,2 @@
 # Swarmathon-ROS
-Private clone of the official Swarmathon-ROS code for Swarmathon 2016.
+Private fork of the official Swarmathon-ROS code for Swarmathon 2016.
