@@ -38,9 +38,10 @@ float mobilityLoopTimeStep = 0.1; //time between the mobility loop calls
 float status_publish_interval = 5;
 float killSwitchTimeout = 10;
 std_msgs::Int16 targetDetected; //ID of the detected target
+std_msgs::Int16 targetCollected; //ID of the collected target
 bool targetsCollected [256] = {0}; //array of booleans indicating whether each target ID has been found
+bool targetsDetected [256] = {0};
 geometry_msgs::Pose2D targetPositions[256];
-int clusterSize = -1;
 
 // state machine states
 #define STATE_MACHINE_TRANSFORM	0
@@ -52,6 +53,7 @@ geometry_msgs::Twist velocity;
 char host[128];
 string publishedName;
 string memberNames[6];
+bool sent_name = false;
 int swarmSize = 0;
 char prev_state_machine[128];
 
@@ -61,6 +63,7 @@ ros::Publisher stateMachinePublish;
 ros::Publisher status_publisher;
 ros::Publisher targetCollectedPublish;
 ros::Publisher targetDetectedPublish;
+ros::Publisher targetPositionPublish;
 ros::Publisher namePublish;
 
 //Subscribers
@@ -71,6 +74,7 @@ ros::Subscriber obstacleSubscriber;
 ros::Subscriber odometrySubscriber;
 ros::Subscriber targetsCollectedSubscriber;
 ros::Subscriber targetDetectedSubscriber;
+ros::Subscriber targetPositionSubscriber;
 ros::Subscriber nameSubscriber;
 
 //Timers
@@ -82,8 +86,9 @@ ros::Timer killSwitchTimer;
 void sigintEventHandler(int signal);
 
 //Callback handlers
-void idHandler(const std::msgs::String::ConstPtr& message);
-void targetDetectedHandler(const geometry_msgs::Pose2D::ConstPtr& message);
+void idHandler(const std_msgs::String::ConstPtr& message);
+void targetDetectedHandler(const std_msgs::Int16::ConstPtr& message);
+void targetPositionHandler(const geometry_msgs::Pose2D::ConstPtr& message);
 void joyCmdHandler(const geometry_msgs::Twist::ConstPtr& message);
 void modeHandler(const std_msgs::UInt8::ConstPtr& message);
 void targetHandler(const std_msgs::Int16::ConstPtr& tagInfo);
@@ -130,14 +135,15 @@ int main(int argc, char **argv) {
     odometrySubscriber = mNH.subscribe((publishedName + "/odom/ekf"), 10, odometryHandler);
     targetsCollectedSubscriber = mNH.subscribe(("targetsCollected"), 10, targetsCollectedHandler);
     targetDetectedSubscriber = mNH.subscribe(("targetsDetected"), 10, targetDetectedHandler);
+    targetPositionSubscriber = mNH.subscribe(("targetPositions"), 10, targetPositionHandler);
 
-    namePublish = mNH.advertise<std::msgs::String>(("identities"), 1, true);
+    namePublish = mNH.advertise<std_msgs::String>(("identities"), 1, true);
     status_publisher = mNH.advertise<std_msgs::String>((publishedName + "/status"), 1, true);
     velocityPublish = mNH.advertise<geometry_msgs::Twist>((publishedName + "/velocity"), 10);
     stateMachinePublish = mNH.advertise<std_msgs::String>((publishedName + "/state_machine"), 1, true);
     targetCollectedPublish = mNH.advertise<std_msgs::Int16>(("targetsCollected"), 1, true);
-    targetDetectedPublish = mNH.advertise<geometry_msgs::Pose2D>(("targetsDetected"), 1, true);
-
+    targetDetectedPublish = mNH.advertise<std_msgs::Int16>(("targetsDetected"), 1, true);
+    targetPositionPublish = mNH.advertise<geometry_msgs::Pose2D>(("targetPositions"), 1, true);
 
     publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
     killSwitchTimer = mNH.createTimer(ros::Duration(killSwitchTimeout), killSwitchTimerEventHandler);
@@ -180,18 +186,21 @@ void mobilityStateMachine(const ros::TimerEvent&) {
 					}
 					//Otherwise, reset target and select new random uniform heading
 					else {
+                        targetCollectedPublish.publish(targetDetected);
 						targetDetected.data = -1;
 						goalLocation.theta = rng->uniformReal(0, 2 * M_PI);
 					}
 				}
 				//Otherwise, assign a new goal
 				else {
-					 //select new heading from Gaussian distribution around current heading
-					goalLocation.theta = rng->gaussian(currentLocation.theta, 0.25);
-					
-					//select new position 50 cm from current location
-					goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
-					goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
+                    if(publishedName == "ajax" || publishedName == "achilles") {
+                        //select new heading from Gaussian distribution around current heading
+                        goalLocation.theta = rng->gaussian(currentLocation.theta, 0.25);
+
+                        //select new position 50 cm from current location
+                        goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
+                        goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
+                    }
 				}
 				
 				//Purposefully fall through to next case without breaking
@@ -266,46 +275,34 @@ void setVelocity(double linearVel, double angularVel)
  * ROS CALLBACK HANDLERS
  ************************/
 
-void idHandler(const std::msgs::String::ConstPtr &message) {
-
-    //online insertion sort the names lexicographically
-    int insert_idx = 0;
-    string name = message.data;
-    while(insert_idx < swarmSize && memberNames[insert_idx] < name) {
-        insert_idx++;
-    }
-
-    string tmp = memberNames[insert_idx];
-    memberNames[insert_idx] = name;
-    insert_idx++;
-
-    if(insert_idx < 6) {
-        memberNames[insert_idx] = tmp;
-    } else {
-        nameSubscriber.shutdown(); //it'd be a waste of resources to keep this subscribed
-    }
-}
-
 void targetHandler(const std_msgs::Int16::ConstPtr& message) {
 	//if target has not previously been detected 
     if (targetDetected.data == -1) {
         targetDetected = *message;
-        
-        //check if target has not yet been collected
-        if (!targetsCollected[targetDetected.data]) { 
-	        //set angle to center as goal heading
-			goalLocation.theta = M_PI + atan2(currentLocation.y, currentLocation.x);
-			
-			//set center as goal position
-			goalLocation.x = 0.0;
-			goalLocation.y = 0.0;
-			
-			//publish detected target
-			targetCollectedPublish.publish(targetDetected);
-			
-			//switch to transform state to trigger return to center
-			stateMachineState = STATE_MACHINE_TRANSFORM;
-		}
+
+        //check if target has not yet been detected
+        if(!targetsDetected[targetDetected.data]) {
+
+            //publish detected target
+            targetDetectedPublish.publish(targetDetected);
+            targetPositionPublish.publish(currentLocation);
+
+        }
+
+        if(!targetsCollected[targetDetected.data]) {
+
+            goalLocation.theta = atan2(0.0 - currentLocation.y, 0.0 - currentLocation.x);
+            goalLocation.x = 0.0;
+            goalLocation.y = 0.0;
+
+            //switch to transform state to trigger return to center
+            stateMachineState = STATE_MACHINE_TRANSFORM;
+
+        } else {
+
+            targetDetected.data = -1;
+
+        }
     }
 }
 
@@ -357,9 +354,15 @@ void joyCmdHandler(const geometry_msgs::Twist::ConstPtr& message) {
       } 
 }
 
-
 void publishStatusTimerEventHandler(const ros::TimerEvent&)
 {
+  if(!sent_name) {
+      std_msgs::String name_msg;
+      name_msg.data = publishedName.c_str();
+      namePublish.publish(name_msg);
+      sent_name = true;
+  }
+
   std_msgs::String msg;
   msg.data = "online";
   status_publisher.publish(msg);
@@ -383,4 +386,56 @@ void sigintEventHandler(int sig)
 {
      // All the default sigint handler does is call shutdown()
      ros::shutdown();
+}
+
+/***************************
+ * CUSTOM CALLBACK HANDLERS
+ ***************************/
+
+void idHandler(const std_msgs::String::ConstPtr& message) {
+
+    if(swarmSize > 6) {
+        return;
+    }
+
+    int insert_idx = swarmSize - 1;
+    string name = message->data;
+
+    while(insert_idx >= 0 && name < memberNames[insert_idx]) {
+        memberNames[insert_idx + 1] = memberNames[insert_idx];
+        insert_idx--;
+    }
+
+    memberNames[insert_idx + 1] = name;
+
+    if(swarmSize < 6) {
+        swarmSize++;
+    } else {
+        nameSubscriber.shutdown(); //it'd be a waste of resources to keep this subscribed
+    }
+
+}
+
+void targetDetectedHandler(const std_msgs::Int16::ConstPtr& message) {
+    if(targetDetected.data == -1) {
+        targetDetected = *message;
+        targetsDetected[targetDetected.data] = 1;
+    }
+}
+
+void targetPositionHandler(const geometry_msgs::Pose2D::ConstPtr& message) {
+
+    if(targetDetected.data != -1) {
+        targetPositions[targetDetected.data] = *message;
+    }
+
+    if(targetCollected.data == -1) {
+        geometry_msgs::Pose2D tmp = *message;
+
+        goalLocation.theta = atan2(tmp.y - currentLocation.y, tmp.x - currentLocation.x);
+        goalLocation.x = tmp.x;
+        goalLocation.y = tmp.y;
+
+        stateMachineState = STATE_MACHINE_TRANSFORM;
+    }
 }
