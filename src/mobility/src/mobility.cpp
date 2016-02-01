@@ -15,6 +15,9 @@
 #include <geometry_msgs/Twist.h>
 #include <nav_msgs/Odometry.h>
 
+//STL data types
+#include <vector>
+
 // To handle shutdown signals so the node quits properly in response to "rosnode kill"
 #include <ros/ros.h>
 #include <signal.h>
@@ -36,6 +39,8 @@ float status_publish_interval = 5;
 float killSwitchTimeout = 10;
 std_msgs::Int16 targetDetected; //ID of the detected target
 bool targetsCollected [256] = {0}; //array of booleans indicating whether each target ID has been found
+geometry_msgs::Pose2D targetPositions[256];
+int clusterSize = -1;
 
 // state machine states
 #define STATE_MACHINE_TRANSFORM	0
@@ -46,6 +51,8 @@ int stateMachineState = STATE_MACHINE_TRANSFORM;
 geometry_msgs::Twist velocity;
 char host[128];
 string publishedName;
+string memberNames[6];
+int swarmSize = 0;
 char prev_state_machine[128];
 
 //Publishers
@@ -53,6 +60,8 @@ ros::Publisher velocityPublish;
 ros::Publisher stateMachinePublish;
 ros::Publisher status_publisher;
 ros::Publisher targetCollectedPublish;
+ros::Publisher targetDetectedPublish;
+ros::Publisher namePublish;
 
 //Subscribers
 ros::Subscriber joySubscriber;
@@ -61,6 +70,8 @@ ros::Subscriber targetSubscriber;
 ros::Subscriber obstacleSubscriber;
 ros::Subscriber odometrySubscriber;
 ros::Subscriber targetsCollectedSubscriber;
+ros::Subscriber targetDetectedSubscriber;
+ros::Subscriber nameSubscriber;
 
 //Timers
 ros::Timer stateMachineTimer;
@@ -71,6 +82,8 @@ ros::Timer killSwitchTimer;
 void sigintEventHandler(int signal);
 
 //Callback handlers
+void idHandler(const std::msgs::String::ConstPtr& message);
+void targetDetectedHandler(const geometry_msgs::Pose2D::ConstPtr& message);
 void joyCmdHandler(const geometry_msgs::Twist::ConstPtr& message);
 void modeHandler(const std_msgs::UInt8::ConstPtr& message);
 void targetHandler(const std_msgs::Int16::ConstPtr& tagInfo);
@@ -109,17 +122,22 @@ int main(int argc, char **argv) {
 
     signal(SIGINT, sigintEventHandler); // Register the SIGINT event handler so the node can shutdown properly
 
+    nameSubscriber = mNH.subscribe("identities", 10, idHandler);
     joySubscriber = mNH.subscribe((publishedName + "/joystick"), 10, joyCmdHandler);
     modeSubscriber = mNH.subscribe((publishedName + "/mode"), 1, modeHandler);
     targetSubscriber = mNH.subscribe((publishedName + "/targets"), 10, targetHandler);
     obstacleSubscriber = mNH.subscribe((publishedName + "/obstacle"), 10, obstacleHandler);
     odometrySubscriber = mNH.subscribe((publishedName + "/odom/ekf"), 10, odometryHandler);
     targetsCollectedSubscriber = mNH.subscribe(("targetsCollected"), 10, targetsCollectedHandler);
+    targetDetectedSubscriber = mNH.subscribe(("targetsDetected"), 10, targetDetectedHandler);
 
+    namePublish = mNH.advertise<std::msgs::String>(("identities"), 1, true);
     status_publisher = mNH.advertise<std_msgs::String>((publishedName + "/status"), 1, true);
     velocityPublish = mNH.advertise<geometry_msgs::Twist>((publishedName + "/velocity"), 10);
     stateMachinePublish = mNH.advertise<std_msgs::String>((publishedName + "/state_machine"), 1, true);
     targetCollectedPublish = mNH.advertise<std_msgs::Int16>(("targetsCollected"), 1, true);
+    targetDetectedPublish = mNH.advertise<geometry_msgs::Pose2D>(("targetsDetected"), 1, true);
+
 
     publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
     killSwitchTimer = mNH.createTimer(ros::Duration(killSwitchTimeout), killSwitchTimerEventHandler);
@@ -247,6 +265,26 @@ void setVelocity(double linearVel, double angularVel)
 /***********************
  * ROS CALLBACK HANDLERS
  ************************/
+
+void idHandler(const std::msgs::String::ConstPtr &message) {
+
+    //online insertion sort the names lexicographically
+    int insert_idx = 0;
+    string name = message.data;
+    while(insert_idx < swarmSize && memberNames[insert_idx] < name) {
+        insert_idx++;
+    }
+
+    string tmp = memberNames[insert_idx];
+    memberNames[insert_idx] = name;
+    insert_idx++;
+
+    if(insert_idx < 6) {
+        memberNames[insert_idx] = tmp;
+    } else {
+        nameSubscriber.shutdown(); //it'd be a waste of resources to keep this subscribed
+    }
+}
 
 void targetHandler(const std_msgs::Int16::ConstPtr& message) {
 	//if target has not previously been detected 
