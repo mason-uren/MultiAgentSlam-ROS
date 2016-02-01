@@ -33,6 +33,7 @@ void setVelocity(double linearVel, double angularVel);
 //Numeric Variables
 geometry_msgs::Pose2D currentLocation;
 geometry_msgs::Pose2D goalLocation;
+geometry_msgs::Pose2D savedPosition;
 int currentMode = 0;
 float mobilityLoopTimeStep = 0.1; //time between the mobility loop calls
 float status_publish_interval = 5;
@@ -54,6 +55,7 @@ char host[128];
 string publishedName;
 string memberNames[6];
 bool sent_name = false;
+bool avoiding_obstacle = false;
 int swarmSize = 0;
 char prev_state_machine[128];
 
@@ -108,6 +110,7 @@ int main(int argc, char **argv) {
     goalLocation.theta = rng->uniformReal(0, 2 * M_PI); //set initial random heading
     
     targetDetected.data = -1; //initialize target detected
+    targetCollected.data = -1;
     
     //select initial search position 50 cm from center (0,0)
 	goalLocation.x = 0.5 * cos(goalLocation.theta);
@@ -174,7 +177,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
 					stateMachineState = STATE_MACHINE_TRANSLATE; //translate
 				}
 				//If returning with a target
-				else if (targetDetected.data != -1) {
+                else if (targetCollected.data != -1) {
 					//If goal has not yet been reached
 					if (hypot(0.0 - currentLocation.x, 0.0 - currentLocation.y) > 0.5) {
 				        //set angle to center as goal heading
@@ -186,14 +189,25 @@ void mobilityStateMachine(const ros::TimerEvent&) {
 					}
 					//Otherwise, reset target and select new random uniform heading
 					else {
-                        targetCollectedPublish.publish(targetDetected);
-						targetDetected.data = -1;
+                        targetCollectedPublish.publish(targetCollected);
+                        targetCollected.data = -1;
+                        targetDetected.data = -1;
 						goalLocation.theta = rng->uniformReal(0, 2 * M_PI);
 					}
 				}
 				//Otherwise, assign a new goal
 				else {
-                    if(publishedName == "ajax" || publishedName == "achilles") {
+                    if(avoiding_obstacle) {
+                        avoiding_obstacle = false;
+
+                        goalLocation = savedPosition;
+
+                        savedPosition.theta = rng->gaussian(currentLocation.theta, 0.25);
+                        savedPosition.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
+                        savedPosition.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
+
+                    } else {
+
                         //select new heading from Gaussian distribution around current heading
                         goalLocation.theta = rng->gaussian(currentLocation.theta, 0.25);
 
@@ -212,10 +226,10 @@ void mobilityStateMachine(const ros::TimerEvent&) {
 			case STATE_MACHINE_ROTATE: {
 				stateMachineMsg.data = "ROTATING";
 			    if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) > 0.1) {
-					setVelocity(0.0, 0.2); //rotate left
+                    setVelocity(0.0, 0.2); //rotate left
 			    }
 			    else if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) < -0.1) {
-					setVelocity(0.0, -0.2); //rotate right
+                    setVelocity(0.0, -0.2); //rotate right
 				}
 				else {
 					setVelocity(0.0, 0.0); //stop
@@ -230,7 +244,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
 			case STATE_MACHINE_TRANSLATE: {
 				stateMachineMsg.data = "TRANSLATING";
 				if (fabs(angles::shortest_angular_distance(currentLocation.theta, atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x))) < M_PI_2) {
-					setVelocity(0.3, 0.0);
+                    setVelocity(0.3, 0.0);
 				}
 				else {
 					setVelocity(0.0, 0.0); //stop
@@ -289,7 +303,9 @@ void targetHandler(const std_msgs::Int16::ConstPtr& message) {
 
         }
 
-        if(!targetsCollected[targetDetected.data]) {
+        if(!targetsCollected[targetDetected.data] && targetCollected.data == -1) {
+
+            targetCollected = *message;
 
             goalLocation.theta = atan2(0.0 - currentLocation.y, 0.0 - currentLocation.x);
             goalLocation.x = 0.0;
@@ -312,15 +328,18 @@ void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
 }
 
 void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
-	if (message->data > 0) {
+    if (message->data > 0) {
+
+        savedPosition = goalLocation;
+
 		//obstacle on right side
-		if (message->data == 1) {
+        if (message->data == 1) {
 			//select new heading 0.2 radians to the left
 			goalLocation.theta = currentLocation.theta + 0.2;
 		}
 		
 		//obstacle in front or on left side
-		else if (message->data == 2) {
+        else if (message->data == 2) {
 			//select new heading 0.2 radians to the right
 			goalLocation.theta = currentLocation.theta - 0.2;
 		}
@@ -328,6 +347,8 @@ void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
 		//select new position 50 cm from current location
 		goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
 		goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
+
+        avoiding_obstacle = true;
 		
 		//switch to transform state to trigger collision avoidance
 		stateMachineState = STATE_MACHINE_TRANSFORM;
@@ -418,23 +439,18 @@ void idHandler(const std_msgs::String::ConstPtr& message) {
 
 void targetDetectedHandler(const std_msgs::Int16::ConstPtr& message) {
     if(targetDetected.data == -1) {
-        targetDetected = *message;
-        targetsDetected[targetDetected.data] = 1;
+        targetsDetected[message->data] = 1;
     }
 }
 
 void targetPositionHandler(const geometry_msgs::Pose2D::ConstPtr& message) {
 
-    if(targetDetected.data != -1) {
-        targetPositions[targetDetected.data] = *message;
-    }
-
     if(targetCollected.data == -1) {
         geometry_msgs::Pose2D tmp = *message;
 
-        goalLocation.theta = atan2(tmp.y - currentLocation.y, tmp.x - currentLocation.x);
-        goalLocation.x = tmp.x;
-        goalLocation.y = tmp.y;
+        goalLocation.x = tmp.x + cos(tmp.theta) * 0.5;
+        goalLocation.y = tmp.y + sin(tmp.theta) * 0.5;
+        goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
 
         stateMachineState = STATE_MACHINE_TRANSFORM;
     }
