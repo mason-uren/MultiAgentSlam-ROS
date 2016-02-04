@@ -17,6 +17,7 @@
 
 //STL data types
 #include <vector>
+#include <sstream>
 
 // To handle shutdown signals so the node quits properly in response to "rosnode kill"
 #include <ros/ros.h>
@@ -58,15 +59,14 @@ bool sent_name = false;
 bool avoiding_obstacle = false;
 int swarmSize = 0;
 char prev_state_machine[128];
+vector<std_msgs::Int16> uncollected;
 
 //Publishers
 ros::Publisher velocityPublish;
 ros::Publisher stateMachinePublish;
 ros::Publisher status_publisher;
 ros::Publisher targetCollectedPublish;
-ros::Publisher targetDetectedPublish;
-ros::Publisher targetPositionPublish;
-ros::Publisher namePublish;
+ros::Publisher messagePublish;
 
 //Subscribers
 ros::Subscriber joySubscriber;
@@ -75,9 +75,7 @@ ros::Subscriber targetSubscriber;
 ros::Subscriber obstacleSubscriber;
 ros::Subscriber odometrySubscriber;
 ros::Subscriber targetsCollectedSubscriber;
-ros::Subscriber targetDetectedSubscriber;
-ros::Subscriber targetPositionSubscriber;
-ros::Subscriber nameSubscriber;
+ros::Subscriber messageSubscriber;
 
 //Timers
 ros::Timer stateMachineTimer;
@@ -88,9 +86,7 @@ ros::Timer killSwitchTimer;
 void sigintEventHandler(int signal);
 
 //Callback handlers
-void idHandler(const std_msgs::String::ConstPtr& message);
-void targetDetectedHandler(const std_msgs::Int16::ConstPtr& message);
-void targetPositionHandler(const geometry_msgs::Pose2D::ConstPtr& message);
+void messageHandler(const std_msgs::String::ConstPtr& message);
 void joyCmdHandler(const geometry_msgs::Twist::ConstPtr& message);
 void modeHandler(const std_msgs::UInt8::ConstPtr& message);
 void targetHandler(const std_msgs::Int16::ConstPtr& tagInfo);
@@ -130,23 +126,19 @@ int main(int argc, char **argv) {
 
     signal(SIGINT, sigintEventHandler); // Register the SIGINT event handler so the node can shutdown properly
 
-    nameSubscriber = mNH.subscribe("identities", 10, idHandler);
     joySubscriber = mNH.subscribe((publishedName + "/joystick"), 10, joyCmdHandler);
     modeSubscriber = mNH.subscribe((publishedName + "/mode"), 1, modeHandler);
     targetSubscriber = mNH.subscribe((publishedName + "/targets"), 10, targetHandler);
     obstacleSubscriber = mNH.subscribe((publishedName + "/obstacle"), 10, obstacleHandler);
     odometrySubscriber = mNH.subscribe((publishedName + "/odom/ekf"), 10, odometryHandler);
     targetsCollectedSubscriber = mNH.subscribe(("targetsCollected"), 10, targetsCollectedHandler);
-    targetDetectedSubscriber = mNH.subscribe(("targetsDetected"), 10, targetDetectedHandler);
-    targetPositionSubscriber = mNH.subscribe(("targetPositions"), 10, targetPositionHandler);
+    messageSubscriber = mNH.subscribe(("messages"), 10, messageHandler);
 
-    namePublish = mNH.advertise<std_msgs::String>(("identities"), 1, true);
     status_publisher = mNH.advertise<std_msgs::String>((publishedName + "/status"), 1, true);
     velocityPublish = mNH.advertise<geometry_msgs::Twist>((publishedName + "/velocity"), 10);
     stateMachinePublish = mNH.advertise<std_msgs::String>((publishedName + "/state_machine"), 1, true);
     targetCollectedPublish = mNH.advertise<std_msgs::Int16>(("targetsCollected"), 1, true);
-    targetDetectedPublish = mNH.advertise<std_msgs::Int16>(("targetsDetected"), 1, true);
-    targetPositionPublish = mNH.advertise<geometry_msgs::Pose2D>(("targetPositions"), 1, true);
+    messagePublish = mNH.advertise<std_msgs::String>(("messages"), 10, true);
 
     publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
     killSwitchTimer = mNH.createTimer(ros::Duration(killSwitchTimeout), killSwitchTimerEventHandler);
@@ -200,20 +192,35 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     if(avoiding_obstacle) {
                         avoiding_obstacle = false;
 
-                        goalLocation = savedPosition;
+                        goalLocation.x = savedPosition.x;
+                        goalLocation.y = savedPosition.y;
+                        goalLocation.theta = savedPosition.theta;
 
                         savedPosition.theta = rng->gaussian(currentLocation.theta, 0.25);
                         savedPosition.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
                         savedPosition.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
 
                     } else {
+                        if(uncollected.empty()) {
+                            //select new heading from Gaussian distribution around current heading
 
-                        //select new heading from Gaussian distribution around current heading
-                        goalLocation.theta = rng->gaussian(currentLocation.theta, 0.25);
+                            goalLocation.theta = rng->gaussian(currentLocation.theta, 0.25);
 
-                        //select new position 50 cm from current location
-                        goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
-                        goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
+                            //select new position 50 cm from current location
+                            goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
+                            goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
+
+                        } else {
+                            int i = uncollected.size() - 1;
+                            while(i > 0 && targetsCollected[uncollected[i].data]) {
+                                i--;
+                                uncollected.pop_back();
+                            }
+
+                            goalLocation.x = targetPositions[uncollected[i].data].x;
+                            goalLocation.y = targetPositions[uncollected[i].data].y;
+                            goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
+                        }
                     }
 				}
 				
@@ -290,18 +297,25 @@ void setVelocity(double linearVel, double angularVel)
  ************************/
 
 void targetHandler(const std_msgs::Int16::ConstPtr& message) {
+
+    //check if target has not yet been detected
+    if(!targetsDetected[message->data]) {
+
+        stringstream formatter;
+
+        double x = currentLocation.x + cos(currentLocation.theta) * 0.3;
+        double y = currentLocation.y + sin(currentLocation.theta) * 0.3;
+        formatter << "D" << " " << message->data << " " << x << " " << y;
+        std_msgs::String msg;
+        msg.data = formatter.str();
+
+        messagePublish.publish(msg);
+    }
+
 	//if target has not previously been detected 
     if (targetDetected.data == -1) {
         targetDetected = *message;
 
-        //check if target has not yet been detected
-        if(!targetsDetected[targetDetected.data]) {
-
-            //publish detected target
-            targetDetectedPublish.publish(targetDetected);
-            targetPositionPublish.publish(currentLocation);
-
-        }
 
         if(!targetsCollected[targetDetected.data] && targetCollected.data == -1) {
 
@@ -316,10 +330,13 @@ void targetHandler(const std_msgs::Int16::ConstPtr& message) {
 
         } else {
 
+            uncollected.push_back(*message);
             targetDetected.data = -1;
 
         }
+
     }
+
 }
 
 void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
@@ -330,7 +347,9 @@ void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
 void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
     if (message->data > 0) {
 
-        savedPosition = goalLocation;
+        savedPosition.x = goalLocation.x;
+        savedPosition.y = goalLocation.y;
+        savedPosition.theta = goalLocation.theta;
 
 		//obstacle on right side
         if (message->data == 1) {
@@ -379,8 +398,9 @@ void publishStatusTimerEventHandler(const ros::TimerEvent&)
 {
   if(!sent_name) {
       std_msgs::String name_msg;
-      name_msg.data = publishedName.c_str();
-      namePublish.publish(name_msg);
+      name_msg.data = "I ";
+      name_msg.data = name_msg.data + publishedName;
+      messagePublish.publish(name_msg);
       sent_name = true;
   }
 
@@ -413,45 +433,82 @@ void sigintEventHandler(int sig)
  * CUSTOM CALLBACK HANDLERS
  ***************************/
 
-void idHandler(const std_msgs::String::ConstPtr& message) {
+void messageHandler(const std_msgs::String::ConstPtr& message)
+{
+    string msg = message->data;
+    stringstream converter;
 
-    if(swarmSize > 6) {
-        return;
+    size_t type_pos = msg.find_first_of(" ");
+    string type = msg.substr(0, type_pos);
+    msg = msg.substr(type_pos+1);
+
+    vector<string> msg_parts;
+
+    size_t cur_tok = msg.find_first_of(" ");;
+    while(cur_tok != string::npos) {
+        msg_parts.push_back(msg.substr(0, cur_tok));
+        msg = msg.substr(cur_tok + 1);
+        cur_tok = msg.find_first_of(" ");
     }
 
-    int insert_idx = swarmSize - 1;
-    string name = message->data;
+    msg_parts.push_back(msg);
 
-    while(insert_idx >= 0 && name < memberNames[insert_idx]) {
-        memberNames[insert_idx + 1] = memberNames[insert_idx];
-        insert_idx--;
-    }
+    if(type == "I") {
 
-    memberNames[insert_idx + 1] = name;
+        if(swarmSize > 6) {
+            return;
+        }
 
-    if(swarmSize < 6) {
-        swarmSize++;
-    } else {
-        nameSubscriber.shutdown(); //it'd be a waste of resources to keep this subscribed
-    }
+        int insert_idx = swarmSize - 1;
+        string name = msg_parts[0];
 
-}
+        while(insert_idx >= 0 && name < memberNames[insert_idx]) {
+            memberNames[insert_idx + 1] = memberNames[insert_idx];
+            insert_idx--;
+        }
 
-void targetDetectedHandler(const std_msgs::Int16::ConstPtr& message) {
-    if(targetDetected.data == -1) {
-        targetsDetected[message->data] = 1;
-    }
-}
+        memberNames[insert_idx + 1] = name;
 
-void targetPositionHandler(const geometry_msgs::Pose2D::ConstPtr& message) {
+        if(swarmSize < 6) {
+            swarmSize++;
+        }
 
-    if(targetCollected.data == -1) {
-        geometry_msgs::Pose2D tmp = *message;
+    } else if(type == "D") {
+        std_msgs::Int16 tmp;
+        double x, y;
+        x = y = 0.0;
 
-        goalLocation.x = tmp.x + cos(tmp.theta) * 0.5;
-        goalLocation.y = tmp.y + sin(tmp.theta) * 0.5;
-        goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
+        tmp.data = -1; //uninitialized data is the worst to debug
 
-        stateMachineState = STATE_MACHINE_TRANSFORM;
+        converter << msg_parts[0];
+        converter >> tmp.data;
+        converter.str("");
+        converter.clear();
+
+        converter << msg_parts[1];
+        converter >> x;
+        converter.str("");
+        converter.clear();
+
+        converter << msg_parts[2];
+        converter >> y;
+        converter.str("");
+        converter.clear();
+
+        targetsDetected[tmp.data] = 1;
+        targetPositions[tmp.data].x = x;
+        targetPositions[tmp.data].y = y;
+
+        uncollected.push_back(tmp);
+
+        if(targetCollected.data == -1) {
+            double theta = atan2(currentLocation.y - y, currentLocation.x - x);
+
+            goalLocation.x = x;
+            goalLocation.y = y;
+            goalLocation.theta = theta;
+
+            stateMachineState = STATE_MACHINE_TRANSFORM;
+        }
     }
 }
