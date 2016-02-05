@@ -55,6 +55,7 @@ geometry_msgs::Twist velocity;
 char host[128];
 string publishedName;
 string memberNames[6];
+int self_idx = -1;
 bool sent_name = false;
 bool avoiding_obstacle = false;
 int swarmSize = 0;
@@ -201,7 +202,9 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                         savedPosition.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
 
                     } else {
-                        if(uncollected.empty()) {
+                        //this way one will always be collecting
+                        if(uncollected.size() < self_idx) {
+
                             //select new heading from Gaussian distribution around current heading
 
                             goalLocation.theta = rng->gaussian(currentLocation.theta, 0.25);
@@ -211,15 +214,17 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                             goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
 
                         } else {
-                            int i = uncollected.size() - 1;
-                            while(i > 0 && targetsCollected[uncollected[i].data]) {
-                                i--;
+                            int lower_bound = self_idx * (uncollected.size() / swarmSize);
+                            int idx = (self_idx + 1) * (uncollected.size() / swarmSize) - 1;
+                            while(idx >= lower_bound && targetsCollected[uncollected[idx].data]) {
+                                idx--;
                                 uncollected.pop_back();
                             }
 
-                            goalLocation.x = targetPositions[uncollected[i].data].x;
-                            goalLocation.y = targetPositions[uncollected[i].data].y;
+                            goalLocation.x = targetPositions[uncollected[idx].data].x;
+                            goalLocation.y = targetPositions[uncollected[idx].data].y;
                             goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
+                            uncollected.pop_back();
                         }
                     }
 				}
@@ -455,7 +460,7 @@ void messageHandler(const std_msgs::String::ConstPtr& message)
 
     if(type == "I") {
 
-        if(swarmSize > 6) {
+        if(swarmSize >= 6) {
             return;
         }
 
@@ -464,10 +469,19 @@ void messageHandler(const std_msgs::String::ConstPtr& message)
 
         while(insert_idx >= 0 && name < memberNames[insert_idx]) {
             memberNames[insert_idx + 1] = memberNames[insert_idx];
+
+            if(memberNames[insert_idx + 1] == publishedName) {
+                self_idx = insert_idx + 1;
+            }
+
             insert_idx--;
         }
 
         memberNames[insert_idx + 1] = name;
+
+        if(memberNames[insert_idx + 1] == publishedName) {
+            self_idx = insert_idx + 1;
+        }
 
         if(swarmSize < 6) {
             swarmSize++;
@@ -482,6 +496,8 @@ void messageHandler(const std_msgs::String::ConstPtr& message)
 
         converter << msg_parts[0];
         converter >> tmp.data;
+
+        //resetting the stringstream is required to enter different data
         converter.str("");
         converter.clear();
 
