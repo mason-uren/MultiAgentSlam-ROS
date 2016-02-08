@@ -34,7 +34,7 @@ void setVelocity(double linearVel, double angularVel);
 //Numeric Variables
 geometry_msgs::Pose2D currentLocation;
 geometry_msgs::Pose2D goalLocation;
-geometry_msgs::Pose2D savedPosition;
+vector<geometry_msgs::Pose2D> savedPositions;
 int currentMode = 0;
 float mobilityLoopTimeStep = 0.1; //time between the mobility loop calls
 float status_publish_interval = 5;
@@ -49,6 +49,7 @@ geometry_msgs::Pose2D targetPositions[256];
 #define STATE_MACHINE_TRANSFORM	0
 #define STATE_MACHINE_ROTATE	1
 #define STATE_MACHINE_TRANSLATE	2
+#define STATE_MACHINE_INIT      3
 int stateMachineState = STATE_MACHINE_TRANSFORM;
 
 geometry_msgs::Twist velocity;
@@ -57,10 +58,11 @@ string publishedName;
 string memberNames[6];
 int self_idx = -1;
 bool sent_name = false;
-bool avoiding_obstacle = false;
 int swarmSize = 0;
+bool avoiding_obstacle = false;
 char prev_state_machine[128];
 vector<std_msgs::Int16> uncollected;
+double search_distance = 1.5;
 
 //Publishers
 ros::Publisher velocityPublish;
@@ -108,10 +110,6 @@ int main(int argc, char **argv) {
     
     targetDetected.data = -1; //initialize target detected
     targetCollected.data = -1;
-    
-    //select initial search position 50 cm from center (0,0)
-	goalLocation.x = 0.5 * cos(goalLocation.theta);
-	goalLocation.y = 0.5 * sin(goalLocation.theta);
 
     if (argc >= 2) {
         publishedName = argv[1];
@@ -193,39 +191,25 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     if(avoiding_obstacle) {
                         avoiding_obstacle = false;
 
-                        goalLocation.x = savedPosition.x;
-                        goalLocation.y = savedPosition.y;
-                        goalLocation.theta = savedPosition.theta;
+                        while(savedPositions.size() > 1) {
+                            savedPositions.pop_back();
+                        }
 
-                        savedPosition.theta = rng->gaussian(currentLocation.theta, 0.25);
-                        savedPosition.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
-                        savedPosition.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
+                        goalLocation.x = savedPositions.back().x;
+                        goalLocation.y = savedPositions.back().y;
+                        goalLocation.theta = savedPositions.back().theta;
+
+                        savedPositions.pop_back();
 
                     } else {
-                        //this way one will always be collecting
-                        if(uncollected.size() < self_idx) {
 
-                            //select new heading from Gaussian distribution around current heading
-
-                            goalLocation.theta = rng->gaussian(currentLocation.theta, 0.25);
-
-                            //select new position 50 cm from current location
-                            goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
-                            goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
-
-                        } else {
-                            int lower_bound = self_idx * (uncollected.size() / swarmSize);
-                            int idx = (self_idx + 1) * (uncollected.size() / swarmSize) - 1;
-                            while(idx >= lower_bound && targetsCollected[uncollected[idx].data]) {
-                                idx--;
-                                uncollected.pop_back();
-                            }
-
-                            goalLocation.x = targetPositions[uncollected[idx].data].x;
-                            goalLocation.y = targetPositions[uncollected[idx].data].y;
-                            goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
-                            uncollected.pop_back();
+                        if(swarmSize >= 3) {
+                            double angle = (2 * M_PI) * ((double)(self_idx) / swarmSize);
+                            goalLocation.x = 1.5 * cos(angle);
+                            goalLocation.y = 1.5 * sin(angle);
+                            goalLocation.theta = angle;
                         }
+
                     }
 				}
 				
@@ -264,7 +248,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
 				}
 			    break;
 			}
-		
+
 			default: {
 			    break;
 			}
@@ -287,7 +271,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
 void setVelocity(double linearVel, double angularVel) 
 {
   // Stopping and starting the timer causes it to start counting from 0 again.
-  // As long as this is called before the kill swith timer reaches killSwitchTimeout seconds
+  // As long as this is called before the kill switch timer reaches killSwitchTimeout seconds
   // the rover's kill switch wont be called.
   //killSwitchTimer.stop();
   //killSwitchTimer.start();
@@ -352,9 +336,7 @@ void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
 void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
     if (message->data > 0) {
 
-        savedPosition.x = goalLocation.x;
-        savedPosition.y = goalLocation.y;
-        savedPosition.theta = goalLocation.theta;
+        savedPositions.push_back(goalLocation);
 
 		//obstacle on right side
         if (message->data == 1) {
