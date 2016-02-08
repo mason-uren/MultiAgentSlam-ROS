@@ -15,6 +15,10 @@
 #include <geometry_msgs/Twist.h>
 #include <nav_msgs/Odometry.h>
 
+//STL data types
+#include <vector>
+#include <sstream>
+
 // To handle shutdown signals so the node quits properly in response to "rosnode kill"
 #include <ros/ros.h>
 #include <signal.h>
@@ -30,12 +34,16 @@ void setVelocity(double linearVel, double angularVel);
 //Numeric Variables
 geometry_msgs::Pose2D currentLocation;
 geometry_msgs::Pose2D goalLocation;
+geometry_msgs::Pose2D savedPosition;
 int currentMode = 0;
 float mobilityLoopTimeStep = 0.1; //time between the mobility loop calls
 float status_publish_interval = 5;
 float killSwitchTimeout = 10;
 std_msgs::Int16 targetDetected; //ID of the detected target
+std_msgs::Int16 targetCollected; //ID of the collected target
 bool targetsCollected [256] = {0}; //array of booleans indicating whether each target ID has been found
+bool targetsDetected [256] = {0};
+geometry_msgs::Pose2D targetPositions[256];
 
 // state machine states
 #define STATE_MACHINE_TRANSFORM	0
@@ -46,13 +54,19 @@ int stateMachineState = STATE_MACHINE_TRANSFORM;
 geometry_msgs::Twist velocity;
 char host[128];
 string publishedName;
+string memberNames[6];
+bool sent_name = false;
+bool avoiding_obstacle = false;
+int swarmSize = 0;
 char prev_state_machine[128];
+vector<std_msgs::Int16> uncollected;
 
 //Publishers
 ros::Publisher velocityPublish;
 ros::Publisher stateMachinePublish;
 ros::Publisher status_publisher;
 ros::Publisher targetCollectedPublish;
+ros::Publisher messagePublish;
 
 //Subscribers
 ros::Subscriber joySubscriber;
@@ -61,6 +75,7 @@ ros::Subscriber targetSubscriber;
 ros::Subscriber obstacleSubscriber;
 ros::Subscriber odometrySubscriber;
 ros::Subscriber targetsCollectedSubscriber;
+ros::Subscriber messageSubscriber;
 
 //Timers
 ros::Timer stateMachineTimer;
@@ -71,6 +86,7 @@ ros::Timer killSwitchTimer;
 void sigintEventHandler(int signal);
 
 //Callback handlers
+void messageHandler(const std_msgs::String::ConstPtr& message);
 void joyCmdHandler(const geometry_msgs::Twist::ConstPtr& message);
 void modeHandler(const std_msgs::UInt8::ConstPtr& message);
 void targetHandler(const std_msgs::Int16::ConstPtr& tagInfo);
@@ -90,6 +106,7 @@ int main(int argc, char **argv) {
     goalLocation.theta = rng->uniformReal(0, 2 * M_PI); //set initial random heading
     
     targetDetected.data = -1; //initialize target detected
+    targetCollected.data = -1;
     
     //select initial search position 50 cm from center (0,0)
 	goalLocation.x = 0.5 * cos(goalLocation.theta);
@@ -115,11 +132,13 @@ int main(int argc, char **argv) {
     obstacleSubscriber = mNH.subscribe((publishedName + "/obstacle"), 10, obstacleHandler);
     odometrySubscriber = mNH.subscribe((publishedName + "/odom/ekf"), 10, odometryHandler);
     targetsCollectedSubscriber = mNH.subscribe(("targetsCollected"), 10, targetsCollectedHandler);
+    messageSubscriber = mNH.subscribe(("messages"), 10, messageHandler);
 
     status_publisher = mNH.advertise<std_msgs::String>((publishedName + "/status"), 1, true);
     velocityPublish = mNH.advertise<geometry_msgs::Twist>((publishedName + "/velocity"), 10);
     stateMachinePublish = mNH.advertise<std_msgs::String>((publishedName + "/state_machine"), 1, true);
     targetCollectedPublish = mNH.advertise<std_msgs::Int16>(("targetsCollected"), 1, true);
+    messagePublish = mNH.advertise<std_msgs::String>(("messages"), 10, true);
 
     publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
     killSwitchTimer = mNH.createTimer(ros::Duration(killSwitchTimeout), killSwitchTimerEventHandler);
@@ -150,7 +169,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
 					stateMachineState = STATE_MACHINE_TRANSLATE; //translate
 				}
 				//If returning with a target
-				else if (targetDetected.data != -1) {
+                else if (targetCollected.data != -1) {
 					//If goal has not yet been reached
 					if (hypot(0.0 - currentLocation.x, 0.0 - currentLocation.y) > 0.5) {
 				        //set angle to center as goal heading
@@ -162,18 +181,47 @@ void mobilityStateMachine(const ros::TimerEvent&) {
 					}
 					//Otherwise, reset target and select new random uniform heading
 					else {
-						targetDetected.data = -1;
+                        targetCollectedPublish.publish(targetCollected);
+                        targetCollected.data = -1;
+                        targetDetected.data = -1;
 						goalLocation.theta = rng->uniformReal(0, 2 * M_PI);
 					}
 				}
 				//Otherwise, assign a new goal
 				else {
-					 //select new heading from Gaussian distribution around current heading
-					goalLocation.theta = rng->gaussian(currentLocation.theta, 0.25);
-					
-					//select new position 50 cm from current location
-					goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
-					goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
+                    if(avoiding_obstacle) {
+                        avoiding_obstacle = false;
+
+                        goalLocation.x = savedPosition.x;
+                        goalLocation.y = savedPosition.y;
+                        goalLocation.theta = savedPosition.theta;
+
+                        savedPosition.theta = rng->gaussian(currentLocation.theta, 0.25);
+                        savedPosition.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
+                        savedPosition.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
+
+                    } else {
+                        if(uncollected.empty()) {
+                            //select new heading from Gaussian distribution around current heading
+
+                            goalLocation.theta = rng->gaussian(currentLocation.theta, 0.25);
+
+                            //select new position 50 cm from current location
+                            goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
+                            goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
+
+                        } else {
+                            int i = uncollected.size() - 1;
+                            while(i > 0 && targetsCollected[uncollected[i].data]) {
+                                i--;
+                                uncollected.pop_back();
+                            }
+
+                            goalLocation.x = targetPositions[uncollected[i].data].x;
+                            goalLocation.y = targetPositions[uncollected[i].data].y;
+                            goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
+                        }
+                    }
 				}
 				
 				//Purposefully fall through to next case without breaking
@@ -185,10 +233,10 @@ void mobilityStateMachine(const ros::TimerEvent&) {
 			case STATE_MACHINE_ROTATE: {
 				stateMachineMsg.data = "ROTATING";
 			    if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) > 0.1) {
-					setVelocity(0.0, 0.2); //rotate left
+                    setVelocity(0.0, 0.2); //rotate left
 			    }
 			    else if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) < -0.1) {
-					setVelocity(0.0, -0.2); //rotate right
+                    setVelocity(0.0, -0.2); //rotate right
 				}
 				else {
 					setVelocity(0.0, 0.0); //stop
@@ -203,7 +251,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
 			case STATE_MACHINE_TRANSLATE: {
 				stateMachineMsg.data = "TRANSLATING";
 				if (fabs(angles::shortest_angular_distance(currentLocation.theta, atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x))) < M_PI_2) {
-					setVelocity(0.3, 0.0);
+                    setVelocity(0.3, 0.0);
 				}
 				else {
 					setVelocity(0.0, 0.0); //stop
@@ -249,26 +297,46 @@ void setVelocity(double linearVel, double angularVel)
  ************************/
 
 void targetHandler(const std_msgs::Int16::ConstPtr& message) {
+
+    //check if target has not yet been detected
+    if(!targetsDetected[message->data]) {
+
+        stringstream formatter;
+
+        double x = currentLocation.x + cos(currentLocation.theta) * 0.3;
+        double y = currentLocation.y + sin(currentLocation.theta) * 0.3;
+        formatter << "D" << " " << message->data << " " << x << " " << y;
+        std_msgs::String msg;
+        msg.data = formatter.str();
+
+        messagePublish.publish(msg);
+    }
+
 	//if target has not previously been detected 
     if (targetDetected.data == -1) {
         targetDetected = *message;
-        
-        //check if target has not yet been collected
-        if (!targetsCollected[targetDetected.data]) { 
-	        //set angle to center as goal heading
-			goalLocation.theta = M_PI + atan2(currentLocation.y, currentLocation.x);
-			
-			//set center as goal position
-			goalLocation.x = 0.0;
-			goalLocation.y = 0.0;
-			
-			//publish detected target
-			targetCollectedPublish.publish(targetDetected);
-			
-			//switch to transform state to trigger return to center
-			stateMachineState = STATE_MACHINE_TRANSFORM;
-		}
+
+
+        if(!targetsCollected[targetDetected.data] && targetCollected.data == -1) {
+
+            targetCollected = *message;
+
+            goalLocation.theta = atan2(0.0 - currentLocation.y, 0.0 - currentLocation.x);
+            goalLocation.x = 0.0;
+            goalLocation.y = 0.0;
+
+            //switch to transform state to trigger return to center
+            stateMachineState = STATE_MACHINE_TRANSFORM;
+
+        } else {
+
+            uncollected.push_back(*message);
+            targetDetected.data = -1;
+
+        }
+
     }
+
 }
 
 void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
@@ -277,15 +345,20 @@ void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
 }
 
 void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
-	if (message->data > 0) {
+    if (message->data > 0) {
+
+        savedPosition.x = goalLocation.x;
+        savedPosition.y = goalLocation.y;
+        savedPosition.theta = goalLocation.theta;
+
 		//obstacle on right side
-		if (message->data == 1) {
+        if (message->data == 1) {
 			//select new heading 0.2 radians to the left
 			goalLocation.theta = currentLocation.theta + 0.2;
 		}
 		
 		//obstacle in front or on left side
-		else if (message->data == 2) {
+        else if (message->data == 2) {
 			//select new heading 0.2 radians to the right
 			goalLocation.theta = currentLocation.theta - 0.2;
 		}
@@ -293,6 +366,8 @@ void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
 		//select new position 50 cm from current location
 		goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
 		goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
+
+        avoiding_obstacle = true;
 		
 		//switch to transform state to trigger collision avoidance
 		stateMachineState = STATE_MACHINE_TRANSFORM;
@@ -319,9 +394,16 @@ void joyCmdHandler(const geometry_msgs::Twist::ConstPtr& message) {
       } 
 }
 
-
 void publishStatusTimerEventHandler(const ros::TimerEvent&)
 {
+  if(!sent_name) {
+      std_msgs::String name_msg;
+      name_msg.data = "I ";
+      name_msg.data = name_msg.data + publishedName;
+      messagePublish.publish(name_msg);
+      sent_name = true;
+  }
+
   std_msgs::String msg;
   msg.data = "online";
   status_publisher.publish(msg);
@@ -345,4 +427,88 @@ void sigintEventHandler(int sig)
 {
      // All the default sigint handler does is call shutdown()
      ros::shutdown();
+}
+
+/***************************
+ * CUSTOM CALLBACK HANDLERS
+ ***************************/
+
+void messageHandler(const std_msgs::String::ConstPtr& message)
+{
+    string msg = message->data;
+    stringstream converter;
+
+    size_t type_pos = msg.find_first_of(" ");
+    string type = msg.substr(0, type_pos);
+    msg = msg.substr(type_pos+1);
+
+    vector<string> msg_parts;
+
+    size_t cur_tok = msg.find_first_of(" ");;
+    while(cur_tok != string::npos) {
+        msg_parts.push_back(msg.substr(0, cur_tok));
+        msg = msg.substr(cur_tok + 1);
+        cur_tok = msg.find_first_of(" ");
+    }
+
+    msg_parts.push_back(msg);
+
+    if(type == "I") {
+
+        if(swarmSize > 6) {
+            return;
+        }
+
+        int insert_idx = swarmSize - 1;
+        string name = msg_parts[0];
+
+        while(insert_idx >= 0 && name < memberNames[insert_idx]) {
+            memberNames[insert_idx + 1] = memberNames[insert_idx];
+            insert_idx--;
+        }
+
+        memberNames[insert_idx + 1] = name;
+
+        if(swarmSize < 6) {
+            swarmSize++;
+        }
+
+    } else if(type == "D") {
+        std_msgs::Int16 tmp;
+        double x, y;
+        x = y = 0.0;
+
+        tmp.data = -1; //uninitialized data is the worst to debug
+
+        converter << msg_parts[0];
+        converter >> tmp.data;
+        converter.str("");
+        converter.clear();
+
+        converter << msg_parts[1];
+        converter >> x;
+        converter.str("");
+        converter.clear();
+
+        converter << msg_parts[2];
+        converter >> y;
+        converter.str("");
+        converter.clear();
+
+        targetsDetected[tmp.data] = 1;
+        targetPositions[tmp.data].x = x;
+        targetPositions[tmp.data].y = y;
+
+        uncollected.push_back(tmp);
+
+        if(targetCollected.data == -1) {
+            double theta = atan2(currentLocation.y - y, currentLocation.x - x);
+
+            goalLocation.x = x;
+            goalLocation.y = y;
+            goalLocation.theta = theta;
+
+            stateMachineState = STATE_MACHINE_TRANSFORM;
+        }
+    }
 }
