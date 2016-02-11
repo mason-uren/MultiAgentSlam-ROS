@@ -19,14 +19,14 @@
 #include <vector>
 #include <sstream>
 
+//Custom data structures
+#include "path.hpp"
+
 // To handle shutdown signals so the node quits properly in response to "rosnode kill"
 #include <ros/ros.h>
 #include <signal.h>
 
 using namespace std;
-
-//Random number generator
-random_numbers::RandomNumberGenerator* rng;	
 
 //Mobility Logic Functions
 void setVelocity(double linearVel, double angularVel);
@@ -104,9 +104,6 @@ int main(int argc, char **argv) {
 
     gethostname(host, sizeof (host));
     string hostname(host);
-
-    rng = new random_numbers::RandomNumberGenerator(); //instantiate random number generator
-    goalLocation.theta = rng->uniformReal(0, 2 * M_PI); //set initial random heading
     
     targetDetected.data = -1; //initialize target detected
     targetCollected.data = -1;
@@ -183,7 +180,6 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                         targetCollectedPublish.publish(targetCollected);
                         targetCollected.data = -1;
                         targetDetected.data = -1;
-						goalLocation.theta = rng->uniformReal(0, 2 * M_PI);
 					}
 				}
 				//Otherwise, assign a new goal
