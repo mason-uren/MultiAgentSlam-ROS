@@ -49,11 +49,12 @@ geometry_msgs::Pose2D targetPositions[256];
 #define STATE_MACHINE_TRANSFORM	0
 #define STATE_MACHINE_ROTATE	1
 #define STATE_MACHINE_TRANSLATE	2
-#define X_TRAVEL 0
-#define Y_TRAVEL 1
-#define X_CORNER 2
-#define Y_CORNER 3
-#define WAIT 4
+#define INITIAL 9
+#define X_TRAVEL 10
+#define Y_TRAVEL 11
+#define X_CORNER 12
+#define Y_CORNER 13
+#define WAIT 14
 
 
 geometry_msgs::Twist velocity;
@@ -133,21 +134,28 @@ int main(int argc, char **argv) {
         cout << "No Name Selected. Default is: " << publishedName << endl;
     }
 
-    if (publishedName == "aeneas")
-    {
+   // if (publishedName == "aeneas")
+   // {
         // x_sig = -1;
          
         // stateMachineState = X_TRAVEL;
         // goalLocation.x = -5.5;
         // goalLocation.y = 0.0;  
-    }
+  //  }
     if (publishedName == "ajax")
     {
-  	  stateMachineState = X_TRAVEL;
+      stateMachineState = INITIAL;
           goalLocation.x = 6.5;
           y_increment *= -1;
           goalLocation.y = 0.0;
-	  goalLocation.theta = M_PI_2;
+      goalLocation.theta = 0;
+    }
+    else
+    {
+        stateMachineState = WAIT;
+        goalLocation.x = 0.0;
+        goalLocation.y = 0.0;
+        goalLocation.theta = 0.0;
     }
     
 
@@ -186,72 +194,115 @@ void mobilityStateMachine(const ros::TimerEvent&)
 	if (currentMode != 2 && currentMode != 3) return;
         switch(stateMachineState)
         {
+            case INITIAL:
+            {
+            if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) > 0.1)
+              {
+                 setVelocity(0.0, 0.2); //rotate left
+              }
+            else if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) < -0.1)
+              {
+                setVelocity(0.0, -0.2); //rotate right
+              }
+            else
+              {
+                setVelocity(0.0,0.0);
+              //  goalLocation.x = currentLocation.x;
+              //  goalLocation.y = currentLocation.y-1;
+                goalLocation.theta = M_PI_2;
+                stateMachineState = X_TRAVEL;
+              }
+            break;
+            }
             case X_TRAVEL:
             {
                 stateMachineMsg.data = "X_TRAVEL";
-                if (fabs(angles::shortest_angular_distance(currentLocation.theta, atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x))) < M_PI_2) {
-                    setVelocity(0.3, 0.2);
-                }
-                else {
+                if (fabs(angles::shortest_angular_distance(currentLocation.theta, atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x))) < M_PI_2)
+                  {
+                    setVelocity(0.3, 0.0);
+                  }
+                    //  if (currentLocation.y < 3.0 && currentLocation.y > -3.0 )
+                else
+                  {
                     setVelocity(0.0, 0.0); //stop
-                    goalLocation.x = currentLocation.x;
-                    goalLocation.y = currentLocation.y + 1;
-		    goalLocation.theta = M_PI_2;
+
                     stateMachineState = X_CORNER; //move back to transform step
-                }
+                  }
                 break;
             }
             case X_CORNER:
             {
                 stateMachineMsg.data = "X_CORNER";
-                if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) > 0.1) {
-                    setVelocity(0.0, 0.2); //rotate left
-                }
-                else if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) < -0.1) {
+                if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) > 0.1)
+                  {
+                     setVelocity(0.0, 0.2); //rotate left
+                  }
+                else if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) < -0.1)
+                  {
                     setVelocity(0.0, -0.2); //rotate right
-                }
-                else {
-                    setVelocity(0.0, 0.0); //stop
-                    stateMachineState = Y_TRAVEL; //move to translate step
-                }
-		break;
-            }
+                  }
+                else
+                  {
+                    setVelocity(0.0,0.0);
+                    goalLocation.x = currentLocation.x;
+                    goalLocation.y = currentLocation.y+1.0;
+                    goalLocation.theta = M_PI;
+                    stateMachineState = Y_TRAVEL;
+                  }
+                break;
+                //if ()
+
+                //else {
+                //    setVelocity(0.0, 0.0); //stop
+               // setVelocity(0.0, M_PI_2);
+              //  stateMachineState = Y_TRAVEL; //move to translate step
+                //}
+             }
             case Y_TRAVEL:
             {
                 stateMachineMsg.data = "Y_TRAVEL";
-                if (fabs(angles::shortest_angular_distance(currentLocation.theta, atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x))) < M_PI_2) {
-                    setVelocity(0.3, 0.0);
-                }
-                else {
+              if (fabs(angles::shortest_angular_distance(currentLocation.theta, atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x))) < M_PI_2)
+               // if (currentLocation.x > goalLocation.x)
+                  {
+                         setVelocity(0.3, 0.0);
+                  }
+                else
+                  {
                     setVelocity(0.0, 0.0); //stop
-                    goalLocation.x = currentLocation.x * -1;
-                    goalLocation.y = currentLocation.y;
-		    goalLocation.theta = M_PI_2;
+
                     stateMachineState = Y_CORNER; //move back to transform step
-                }
+                  }
                 break;
             }
             case Y_CORNER:
             {
                 stateMachineMsg.data = "Y_CORNER";
-                if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) > 0.1) {
+                if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) > 0.1)
+                {
                     setVelocity(0.0, 0.2); //rotate left
                 }
-                else if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) < -0.1) {
+                else if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) < -0.1)
+                {
                     setVelocity(0.0, -0.2); //rotate right
                 }
-                else {
+                else
+                {
                     setVelocity(0.0, 0.0); //stop
+                    goalLocation.x = currentLocation.x * -1;
+                    goalLocation.y = currentLocation.y;
+                    goalLocation.theta = M_PI_2;
                     stateMachineState = X_TRAVEL; //move to translate step
                 }
+                break;
             }
-            break;
+
 	case WAIT:
 	{
 		  setVelocity(0.0, 0.0); //stop
 		  stateMachineState = WAIT;
+          break;
 	}
-	break;
+
     }
      
 }
@@ -299,12 +350,12 @@ void targetHandler(const std_msgs::Int16::ConstPtr& message) {
 
             targetCollected = *message;
 
-            goalLocation.theta = atan2(0.0 - currentLocation.y, 0.0 - currentLocation.x);
-            goalLocation.x = 0.0;
-            goalLocation.y = 0.0;
+         //   goalLocation.theta = atan2(0.0 - currentLocation.y, 0.0 - currentLocation.x);
+         //   goalLocation.x = 0.0;
+         //   goalLocation.y = 0.0;
 
             //switch to transform state to trigger return to center
-            stateMachineState = STATE_MACHINE_TRANSFORM;
+       //     stateMachineState = STATE_MACHINE_TRANSFORM;
 
         } else {
 
@@ -323,6 +374,10 @@ void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
 }
 
 void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
+    if (message->data == 2 && stateMachineState != WAIT)
+    {
+    //    stateMachineState = X_CORNER;
+    }
     if (message->data > 0) {
 
         savedPosition.x = goalLocation.x;
@@ -332,23 +387,23 @@ void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
 		//obstacle on right side
         if (message->data == 1) {
 			//select new heading 0.2 radians to the left
-			goalLocation.theta = currentLocation.theta + 0.2;
+        //	goalLocation.theta = currentLocation.theta + 0.2;
 		}
 		
 		//obstacle in front or on left side
         else if (message->data == 2) {
 			//select new heading 0.2 radians to the right
-			goalLocation.theta = currentLocation.theta - 0.2;
+        //	goalLocation.theta = currentLocation.theta - 0.2;
 		}
 							
 		//select new position 50 cm from current location
-		goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
-		goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
+        //goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
+        //goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
 
         avoiding_obstacle = true;
 		
 		//switch to transform state to trigger collision avoidance
-		stateMachineState = STATE_MACHINE_TRANSFORM;
+    //	stateMachineState = STATE_MACHINE_TRANSFORM;
 	}
 }
 
@@ -482,11 +537,11 @@ void messageHandler(const std_msgs::String::ConstPtr& message)
         if(targetCollected.data == -1) {
             double theta = atan2(currentLocation.y - y, currentLocation.x - x);
 
-            goalLocation.x = x;
-            goalLocation.y = y;
-            goalLocation.theta = theta;
+         //   goalLocation.x = x;
+         //   goalLocation.y = y;
+           // goalLocation.theta = theta;
 
-            stateMachineState = STATE_MACHINE_TRANSFORM;
+          //  stateMachineState = STATE_MACHINE_TRANSFORM;
         }
     }
 }
