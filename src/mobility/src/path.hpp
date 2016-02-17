@@ -1,8 +1,8 @@
 #ifndef PATH_HPP
 #define PATH_HPP
 
-#include <tf/transform_datatypes.h>
-#include <geometry_msgs/Pose2D.h>
+#include </opt/ros/indigo/include/tf/transform_datatypes.h>
+#include </opt/ros/indigo/include/geometry_msgs/Pose2D.h>
 
 namespace csuci {
 
@@ -37,6 +37,8 @@ namespace csuci {
             PathNode* next;
             PathNode* prev;
 
+            void RemoveSelf();
+
             friend class Path;
     };
 
@@ -45,9 +47,12 @@ namespace csuci {
             Path();
             ~Path();
 
+            void Add(double curr_x, double curr_y, double curr_theta, double x, double y);
             void Insert(size_t idx, double curr_x, double curr_y, double curr_theta, double x, double y);
             PathNode* Get(size_t idx);
             void Remove(size_t idx);
+
+            size_t Size() const;
 
         private:
             PathNode* head;

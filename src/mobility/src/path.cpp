@@ -58,9 +58,11 @@ namespace csuci {
         next->travel_time = next_turn_time + next_move_time;
 
         PathNode* node = next;
-        while(node && node->next) {
-            node->indx = node->indx + 1;
-            node = node->next;
+        if(node && node->next->indx == indx) {
+            while(node && node->next) {
+                node->indx = node->indx + 1;
+                node = node->next;
+            }
         }
 
     }
@@ -123,6 +125,24 @@ namespace csuci {
         return indx;
     }
 
+    void PathNode::RemoveSelf()
+    {
+        if(prev) {
+            prev->next = this->next;
+        }
+
+        if(next) {
+            next->prev = this->prev;
+
+            PathNode* node = next;
+
+            while(node) {
+                node->indx -= 1;
+                node = node->next;
+            }
+        }
+    }
+
 
     Path::Path()
     {
@@ -142,6 +162,11 @@ namespace csuci {
         }
     }
 
+    void Path::Add(double curr_x, double curr_y, double curr_theta, double x, double y)
+    {
+        Insert(size, curr_x, curr_y, curr_theta, x, y);
+    }
+
     void Path::Insert(size_t idx, double curr_x, double curr_y, double curr_theta, double x, double y)
     {
         if(head == NULL) {
@@ -154,18 +179,77 @@ namespace csuci {
             }
 
             if(node == head) {
-
+                if(node->indx >= idx) {
+                    node->prev = new PathNode(curr_x, curr_y, curr_theta, x, y);
+                    node->prev->next = node;
+                    head = node->prev;
+                } else {
+                    head->next = new PathNode(head, x, y);
+                    tail = head->next;
+                }
+            } else if(node == tail) {
+                node->next = new PathNode(tail, x, y);
+                tail = node->next;
+            } else {
+                PathNode* pn = new PathNode(node->prev, node, x, y);
             }
         }
+
+        size++;
     }
 
     PathNode* Path::Get(size_t idx)
     {
+        if(head) {
+            PathNode* node = head;
+            size_t i = 0;
 
+            while(node && i < idx) {
+                i = node->indx;
+                node = node->next;
+            }
+
+            if(node->indx == i) {
+                return node;
+            } else {
+                return (PathNode*) NULL;
+            }
+        } else {
+            return (PathNode*) NULL;
+        }
     }
 
     void Path::Remove(size_t idx)
     {
+        if(head) {
+            PathNode* node = head;
+            size_t i = 0;
 
+            while(node && i != idx) {
+                i = node->indx;
+                node = node->next;
+            }
+
+            if(node == NULL) {
+                return;
+            }
+
+            if(node == head) {
+                head = node->next;
+            }
+
+            if(node == tail) {
+                tail = node->prev;
+            }
+
+            node->RemoveSelf();
+            delete node;
+            size--;
+        }
+    }
+
+    size_t Path::Size() const
+    {
+        return size;
     }
 }
