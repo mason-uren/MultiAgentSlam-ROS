@@ -19,22 +19,25 @@
 #include <vector>
 #include <sstream>
 
+//Custom data structures
+#include "path.hpp"
+
 // To handle shutdown signals so the node quits properly in response to "rosnode kill"
 #include <ros/ros.h>
 #include <signal.h>
 
 using namespace std;
-
-//Random number generator
-random_numbers::RandomNumberGenerator* rng;	
+using namespace csuci;
 
 //Mobility Logic Functions
 void setVelocity(double linearVel, double angularVel);
 
+random_numbers::RandomNumberGenerator* rng;
+
 //Numeric Variables
 geometry_msgs::Pose2D currentLocation;
 geometry_msgs::Pose2D goalLocation;
-geometry_msgs::Pose2D savedPosition;
+vector<geometry_msgs::Pose2D> savedPositions;
 int currentMode = 0;
 float mobilityLoopTimeStep = 0.1; //time between the mobility loop calls
 float status_publish_interval = 5;
@@ -44,36 +47,23 @@ std_msgs::Int16 targetCollected; //ID of the collected target
 bool targetsCollected [256] = {0}; //array of booleans indicating whether each target ID has been found
 bool targetsDetected [256] = {0};
 geometry_msgs::Pose2D targetPositions[256];
+Path path;
 
 // state machine states
 #define STATE_MACHINE_TRANSFORM	0
 #define STATE_MACHINE_ROTATE	1
 #define STATE_MACHINE_TRANSLATE	2
-#define INITIAL 9
-#define X_TRAVEL 10
-#define Y_TRAVEL 11
-#define X_CORNER 12
-#define Y_CORNER 13
-#define WAIT 14
-
+int stateMachineState = TRANSFORM;
 
 geometry_msgs::Twist velocity;
 char host[128];
-int stateMachineState = WAIT;
 string publishedName;
 string memberNames[6];
+int self_idx = -1;
 bool sent_name = false;
 bool avoiding_obstacle = false;
 int swarmSize = 0;
 char prev_state_machine[128];
-int x_sig = 1;
-int y_sig = 1;
-float y_increment = 1.0;
-float y_value = 0.0;
-float wall_location = 6.5;
-float saved_x = 0.0;
-float saved_y = 0.0;
-float saved_theta = 0.0;
 vector<std_msgs::Int16> uncollected;
 
 //Publishers
@@ -116,15 +106,9 @@ int main(int argc, char **argv) {
 
     gethostname(host, sizeof (host));
     string hostname(host);
-
-    rng = new random_numbers::RandomNumberGenerator(); //instantiate random number generator
-    //goalLocation.theta = rng->uniformReal(0, 2 * M_PI); //set initial random heading
     
     targetDetected.data = -1; //initialize target detected
     targetCollected.data = -1;
-    
-    //select initial search position 50 cm from center (0,0)
-	
 
     if (argc >= 2) {
         publishedName = argv[1];
@@ -134,32 +118,11 @@ int main(int argc, char **argv) {
         cout << "No Name Selected. Default is: " << publishedName << endl;
     }
 
-   // if (publishedName == "aeneas")
-   // {
-        // x_sig = -1;
-         
-        // stateMachineState = X_TRAVEL;
-        // goalLocation.x = -5.5;
-        // goalLocation.y = 0.0;  
-  //  }
-    if (publishedName == "ajax")
-    {
-      stateMachineState = INITIAL;
-          goalLocation.x = 6.5;
-          y_increment *= -1;
-          goalLocation.y = 0.0;
-      goalLocation.theta = 0;
-    }
-    else
-    {
-        stateMachineState = WAIT;
-        goalLocation.x = 0.0;
-        goalLocation.y = 0.0;
-        goalLocation.theta = 0.0;
-    }
-    
+    rng = new random_numbers::RandomNumberGenerator();
 
-       
+    double r = rng->uniformReal(0.5, 10.0);
+    double t = rng->uniformReal(0, 2 * M_PI);
+
     // NoSignalHandler so we can catch SIGINT ourselves and shutdown the node
     ros::init(argc, argv, (publishedName + "_MOBILITY"), ros::init_options::NoSigintHandler);
     ros::NodeHandle mNH;
@@ -190,121 +153,134 @@ int main(int argc, char **argv) {
 }
 void mobilityStateMachine(const ros::TimerEvent&)
 {
-    std_msgs::String stateMachineMsg;
-	if (currentMode != 2 && currentMode != 3) return;
-        switch(stateMachineState)
-        {
-            case INITIAL:
-            {
-            if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) > 0.1)
-              {
-                 setVelocity(0.0, 0.2); //rotate left
-              }
-            else if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) < -0.1)
-              {
-                setVelocity(0.0, -0.2); //rotate right
-              }
-            else
-              {
-                setVelocity(0.0,0.0);
-              //  goalLocation.x = currentLocation.x;
-              //  goalLocation.y = currentLocation.y-1;
-                goalLocation.theta = M_PI_2;
-                stateMachineState = X_TRAVEL;
-              }
-            break;
-            }
-            case X_TRAVEL:
-            {
-                stateMachineMsg.data = "X_TRAVEL";
-                if (fabs(angles::shortest_angular_distance(currentLocation.theta, atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x))) < M_PI_2)
-                  {
-                    setVelocity(0.3, 0.0);
-                  }
-                    //  if (currentLocation.y < 3.0 && currentLocation.y > -3.0 )
-                else
-                  {
-                    setVelocity(0.0, 0.0); //stop
+    std_msgs::String stateMachineMsg;    
+    if (currentMode == 2 || currentMode == 3) { //Robot is in automode
 
-                    stateMachineState = X_CORNER; //move back to transform step
-                  }
-                break;
-            }
-            case X_CORNER:
-            {
-                stateMachineMsg.data = "X_CORNER";
-                if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) > 0.1)
-                  {
-                     setVelocity(0.0, 0.2); //rotate left
-                  }
-                else if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) < -0.1)
-                  {
-                    setVelocity(0.0, -0.2); //rotate right
-                  }
-                else
-                  {
-                    setVelocity(0.0,0.0);
-                    goalLocation.x = currentLocation.x;
-                    goalLocation.y = currentLocation.y+1.0;
-                    goalLocation.theta = M_PI;
-                    stateMachineState = Y_TRAVEL;
-                  }
-                break;
-                //if ()
+		switch(stateMachineState) {
+			
+			//Select rotation or translation based on required adjustment
+			//If no adjustment needed, select new goal
+			case STATE_MACHINE_TRANSFORM: {
+				stateMachineMsg.data = "TRANSFORMING";
+				//If angle between current and goal is significant
+				if (fabs(angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta)) > 0.1) {
+					stateMachineState = STATE_MACHINE_ROTATE; //rotate
+				}
+				//If goal has not yet been reached
+				else if (fabs(angles::shortest_angular_distance(currentLocation.theta, atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x))) < M_PI_2) {
+					stateMachineState = STATE_MACHINE_TRANSLATE; //translate
+				}
+				//If returning with a target
+                else if (targetCollected.data != -1) {
+					//If goal has not yet been reached
+					if (hypot(0.0 - currentLocation.x, 0.0 - currentLocation.y) > 0.5) {
+				        //set angle to center as goal heading
+						goalLocation.theta = M_PI + atan2(currentLocation.y, currentLocation.x);
+						
+						//set center as goal position
+						goalLocation.x = 0.0;
+						goalLocation.y = 0.0;
+					}
+					//Otherwise, reset target and select new random uniform heading
+					else {
+                        targetCollectedPublish.publish(targetCollected);
+                        targetCollected.data = -1;
+                        targetDetected.data = -1;
+					}
+				}
+				//Otherwise, assign a new goal
+				else {
+                    if(avoiding_obstacle) {
+                        avoiding_obstacle = false;
 
-                //else {
-                //    setVelocity(0.0, 0.0); //stop
-               // setVelocity(0.0, M_PI_2);
-              //  stateMachineState = Y_TRAVEL; //move to translate step
-                //}
-             }
-            case Y_TRAVEL:
-            {
-                stateMachineMsg.data = "Y_TRAVEL";
-              if (fabs(angles::shortest_angular_distance(currentLocation.theta, atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x))) < M_PI_2)
-               // if (currentLocation.x > goalLocation.x)
-                  {
-                         setVelocity(0.3, 0.0);
-                  }
-                else
-                  {
-                    setVelocity(0.0, 0.0); //stop
+                        while(savedPositions.size() > 1) {
+                            savedPositions.pop_back();
+                        }
 
-                    stateMachineState = Y_CORNER; //move back to transform step
-                  }
-                break;
-            }
-            case Y_CORNER:
-            {
-                stateMachineMsg.data = "Y_CORNER";
-                if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) > 0.1)
-                {
+                        goalLocation.x = savedPositions.back().x;
+                        goalLocation.y = savedPositions.back().y;
+                        goalLocation.theta = savedPositions.back().theta;
+
+                        savedPositions.pop_back();
+
+                    } else {
+
+                        if(swarmSize >= 3) {
+                            if(path.Size() == 0) {
+
+                                for(int i = 0; i < 6; i++) {
+                                    double r = rng->uniformReal(0.5, 10.0);
+                                    double t = rng->uniformReal(0, 2 * M_PI);
+                                    path.Add(currentLocation.x, currentLocation.y, currentLocation.theta, r * cos(t), r * sin(t));
+                                }
+
+                            } else {
+                                PathNode* n = path.Get(0);
+                                if(n != NULL) {
+                                    goalLocation.x = n->Goal().x;
+                                    goalLocation.y = n->Goal().y;
+                                    goalLocation.theta = n->Goal().theta;
+                                }
+                                path.Remove(0);
+                            }
+                        }
+
+                    }
+				}
+				
+				//Purposefully fall through to next case without breaking
+			}
+			
+			//Calculate angle between currentLocation.theta and goalLocation.theta
+			//Rotate left or right depending on sign of angle
+			//Stay in this state until angle is minimized
+            case STATE_MACHINE_ROTATE: {
+                stateMachineMsg.data = "ROTATING";
+                if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) > 0.1) {
                     setVelocity(0.0, 0.2); //rotate left
                 }
-                else if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) < -0.1)
-                {
+                else if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) < -0.1) {
                     setVelocity(0.0, -0.2); //rotate right
                 }
-                else
-                {
+                else {
                     setVelocity(0.0, 0.0); //stop
-                    goalLocation.x = currentLocation.x * -1;
-                    goalLocation.y = currentLocation.y;
-                    goalLocation.theta = M_PI_2;
-                    stateMachineState = X_TRAVEL; //move to translate step
+                    stateMachineState = STATE_MACHINE_TRANSLATE; //move to translate step
                 }
                 break;
             }
 
-	case WAIT:
-	{
-		  setVelocity(0.0, 0.0); //stop
-		  stateMachineState = WAIT;
-          break;
-	}
+            //Calculate angle between currentLocation.x/y and goalLocation.x/y
+            //Drive forward
+            //Stay in this state until angle is at least PI/2
+            case STATE_MACHINE_TRANSLATE: {
+                stateMachineMsg.data = "TRANSLATING";
+                if (fabs(angles::shortest_angular_distance(currentLocation.theta, atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x))) < M_PI_2) {
+                    setVelocity(0.3, 0.0);
+                }
+                else {
+                    setVelocity(0.0, 0.0); //stop
+                    stateMachineState = STATE_MACHINE_TRANSFORM; //move back to transform step
+                }
+                break;
+            }
 
+            default: {
+                break;
+            }
+        }
+
+    } else { // mode is NOT auto
+
+        // publish current state for the operator to see
+        stateMachineMsg.data = "WAITING";
     }
-     
+
+    // publish state machine string for user, only if it has changed, though
+    if (strcmp(stateMachineMsg.data.c_str(), prev_state_machine) != 0) {
+        stateMachinePublish.publish(stateMachineMsg);
+        sprintf(prev_state_machine, "%s", stateMachineMsg.data.c_str());
+    }
+
 }
 
 
@@ -379,10 +355,13 @@ void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
     //    stateMachineState = X_CORNER;
     }
     if (message->data > 0) {
+        geometry_msgs::Pose2D savedPosition;
 
         savedPosition.x = goalLocation.x;
         savedPosition.y = goalLocation.y;
         savedPosition.theta = goalLocation.theta;
+
+        savedPositions.push_back(savedPosition);
 
 		//obstacle on right side
         if (message->data == 1) {
@@ -531,6 +510,8 @@ void messageHandler(const std_msgs::String::ConstPtr& message)
         targetsDetected[tmp.data] = 1;
         targetPositions[tmp.data].x = x;
         targetPositions[tmp.data].y = y;
+
+        path.Add(currentLocation.x, currentLocation.y, currentLocation.theta, x, y);
 
         uncollected.push_back(tmp);
 
