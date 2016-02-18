@@ -153,8 +153,7 @@ int main(int argc, char **argv) {
 }
 void mobilityStateMachine(const ros::TimerEvent&)
 {
-    std_msgs::String stateMachineMsg;
-    
+    std_msgs::String stateMachineMsg;    
     if (currentMode == 2 || currentMode == 3) { //Robot is in automode
 
 		switch(stateMachineState) {
@@ -327,12 +326,12 @@ void targetHandler(const std_msgs::Int16::ConstPtr& message) {
 
             targetCollected = *message;
 
-            goalLocation.theta = atan2(0.0 - currentLocation.y, 0.0 - currentLocation.x);
-            goalLocation.x = 0.0;
-            goalLocation.y = 0.0;
+         //   goalLocation.theta = atan2(0.0 - currentLocation.y, 0.0 - currentLocation.x);
+         //   goalLocation.x = 0.0;
+         //   goalLocation.y = 0.0;
 
             //switch to transform state to trigger return to center
-            stateMachineState = STATE_MACHINE_TRANSFORM;
+       //     stateMachineState = STATE_MACHINE_TRANSFORM;
 
         } else {
 
@@ -351,6 +350,10 @@ void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
 }
 
 void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
+    if (message->data == 2 && stateMachineState != WAIT)
+    {
+    //    stateMachineState = X_CORNER;
+    }
     if (message->data > 0) {
         geometry_msgs::Pose2D savedPosition;
 
@@ -363,23 +366,23 @@ void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
 		//obstacle on right side
         if (message->data == 1) {
 			//select new heading 0.2 radians to the left
-			goalLocation.theta = currentLocation.theta + 0.2;
+        //	goalLocation.theta = currentLocation.theta + 0.2;
 		}
 		
 		//obstacle in front or on left side
         else if (message->data == 2) {
 			//select new heading 0.2 radians to the right
-			goalLocation.theta = currentLocation.theta - 0.2;
+        //	goalLocation.theta = currentLocation.theta - 0.2;
 		}
 							
 		//select new position 50 cm from current location
-		goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
-		goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
+        //goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
+        //goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
 
         avoiding_obstacle = true;
 		
 		//switch to transform state to trigger collision avoidance
-		stateMachineState = STATE_MACHINE_TRANSFORM;
+    //	stateMachineState = STATE_MACHINE_TRANSFORM;
 	}
 }
 
@@ -515,11 +518,11 @@ void messageHandler(const std_msgs::String::ConstPtr& message)
         if(targetCollected.data == -1) {
             double theta = atan2(currentLocation.y - y, currentLocation.x - x);
 
-            goalLocation.x = x;
-            goalLocation.y = y;
-            goalLocation.theta = theta;
+         //   goalLocation.x = x;
+         //   goalLocation.y = y;
+           // goalLocation.theta = theta;
 
-            stateMachineState = STATE_MACHINE_TRANSFORM;
+          //  stateMachineState = STATE_MACHINE_TRANSFORM;
         }
     }
 }
