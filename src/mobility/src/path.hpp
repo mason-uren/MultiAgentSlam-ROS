@@ -26,12 +26,15 @@ namespace csuci {
             PathNode* Prev();
 
             const geometry_msgs::Pose2D& Goal() const;
-            double TravelTime() const;
+            double TotalTravelTime() const;
+            double TurnTime() const;
+            double MoveTime() const;
             int Index() const;
 
         private:
             geometry_msgs::Pose2D goal_pose;
-            double travel_time;
+            double move_time;
+            double turn_time;
             int indx;
 
             PathNode* next;
@@ -51,6 +54,8 @@ namespace csuci {
             void Insert(size_t idx, double curr_x, double curr_y, double curr_theta, double x, double y);
             PathNode* Get(size_t idx);
             void Remove(size_t idx);
+            void RemoveRange(size_t start, size_t end);
+            void RemoveAfter(size_t idx);
 
             size_t Size() const;
 

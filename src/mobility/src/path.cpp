@@ -10,10 +10,9 @@ namespace csuci {
         goal_pose.y = y;
         goal_pose.theta = atan2(y - curr_y, x - curr_x);
 
-        double turn_time = (goal_pose.theta - curr_theta) / DEFAULT_ANG_VELOCITY;
-        double move_time = hypot(goal_pose.x - curr_x, goal_pose.y - curr_y) / DEFAULT_VELOCITY;
+        turn_time = (goal_pose.theta - curr_theta) / DEFAULT_ANG_VELOCITY;
+        move_time = hypot(goal_pose.x - curr_x, goal_pose.y - curr_y) / DEFAULT_VELOCITY;
 
-        travel_time = turn_time + move_time;
         indx = 0;
     }
 
@@ -28,10 +27,9 @@ namespace csuci {
         goal_pose.y = y;
         goal_pose.theta = atan2(y - prev->goal_pose.y, x - prev->goal_pose.x);
 
-        double turn_time = (goal_pose.theta - prev->goal_pose.theta) / DEFAULT_ANG_VELOCITY;
-        double move_time = hypot(goal_pose.x - prev->goal_pose.x, goal_pose.y - prev->goal_pose.y) / DEFAULT_VELOCITY;
+        turn_time = (goal_pose.theta - prev->goal_pose.theta) / DEFAULT_ANG_VELOCITY;
+        move_time = hypot(goal_pose.x - prev->goal_pose.x, goal_pose.y - prev->goal_pose.y) / DEFAULT_VELOCITY;
 
-        travel_time = turn_time + move_time;
         indx = prev->indx + 1;
     }
 
@@ -46,16 +44,16 @@ namespace csuci {
         goal_pose.y = y;
         goal_pose.theta = atan2(y - prev->goal_pose.y, x - prev->goal_pose.x);
 
-        double turn_time = (goal_pose.theta - prev->goal_pose.theta) / DEFAULT_ANG_VELOCITY;
-        double move_time = hypot(goal_pose.x - prev->goal_pose.x, goal_pose.y - prev->goal_pose.y) / DEFAULT_VELOCITY;
+        turn_time = (goal_pose.theta - prev->goal_pose.theta) / DEFAULT_ANG_VELOCITY;
+        move_time = hypot(goal_pose.x - prev->goal_pose.x, goal_pose.y - prev->goal_pose.y) / DEFAULT_VELOCITY;
 
-        travel_time = turn_time + move_time;
         indx = prev->indx + 1;
 
         double next_turn_time = (next->goal_pose.theta - goal_pose.theta) / DEFAULT_ANG_VELOCITY;
         double next_move_time = hypot(next->goal_pose.x - goal_pose.x, next->goal_pose.y - goal_pose.y) / DEFAULT_VELOCITY;
 
-        next->travel_time = next_turn_time + next_move_time;
+        next->turn_time = next_turn_time;
+        next->move_time = next_move_time;
 
         PathNode* node = next;
         if(node && node->next->indx == indx) {
@@ -76,7 +74,8 @@ namespace csuci {
         goal_pose.y = pn.goal_pose.y;
         goal_pose.theta = pn.goal_pose.theta;
 
-        travel_time = pn.travel_time;
+        move_time = pn.move_time;
+        turn_time = pn.turn_time;
         indx = pn.indx;
     }
 
@@ -94,7 +93,8 @@ namespace csuci {
         goal_pose.y = pn.goal_pose.y;
         goal_pose.theta = pn.goal_pose.theta;
 
-        travel_time = pn.travel_time;
+        move_time = pn.move_time;
+        turn_time = pn.turn_time;
         indx = pn.indx;
 
         return *this;
@@ -115,9 +115,19 @@ namespace csuci {
         return goal_pose;
     }
 
-    double PathNode::TravelTime() const
+    double PathNode::TotalTravelTime() const
     {
-        return travel_time;
+        return turn_time + move_time;
+    }
+
+    double PathNode::TurnTime() const
+    {
+        return turn_time;
+    }
+
+    double PathNode::MoveTime() const
+    {
+        return move_time;
     }
 
     int PathNode::Index() const
@@ -246,6 +256,58 @@ namespace csuci {
             delete node;
             size--;
         }
+    }
+
+    void Path::RemoveRange(size_t start, size_t end)
+    {
+        if(head) {
+            PathNode* node = head;
+            size_t i = 0;
+
+            if(end < start) {
+                size_t tmp = end;
+                end = start;
+                start = tmp;
+            }
+
+            while(node && i < start) {
+                i = node->indx;
+                node = node->next;
+            }
+
+            if(node == NULL) {
+                return;
+            }
+
+            PathNode* next_node = NULL;
+
+            while(node && i <= end) {
+                next_node = node->next;
+
+                if(node == head) {
+                    head = node->next;
+                }
+
+                if(node == tail) {
+                    tail = node->prev;
+                }
+
+                node->RemoveSelf();
+                delete node;
+                node = next_node;
+                size--;
+
+                if(node) {
+                    i = node->indx;
+                }
+            }
+
+        }
+    }
+
+    void Path::RemoveAfter(size_t idx)
+    {
+        RemoveRange(idx, size-1);
     }
 
     size_t Path::Size() const

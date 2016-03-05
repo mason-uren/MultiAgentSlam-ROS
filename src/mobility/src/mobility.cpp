@@ -47,24 +47,23 @@ std_msgs::Int16 targetCollected; //ID of the collected target
 bool targetsCollected [256] = {0}; //array of booleans indicating whether each target ID has been found
 bool targetsDetected [256] = {0};
 geometry_msgs::Pose2D targetPositions[256];
-Path path;
 
 // state machine states
 #define STATE_MACHINE_TRANSFORM	0
 #define STATE_MACHINE_ROTATE	1
 #define STATE_MACHINE_TRANSLATE	2
-int stateMachineState = TRANSFORM;
+int stateMachineState = STATE_MACHINE_TRANSFORM;
 
 geometry_msgs::Twist velocity;
 char host[128];
 string publishedName;
 string memberNames[6];
+Path paths[6];
 int self_idx = -1;
 bool sent_name = false;
 bool avoiding_obstacle = false;
 int swarmSize = 0;
 char prev_state_machine[128];
-vector<std_msgs::Int16> uncollected;
 
 //Publishers
 ros::Publisher velocityPublish;
@@ -102,6 +101,11 @@ void publishStatusTimerEventHandler(const ros::TimerEvent& event);
 void targetsCollectedHandler(const std_msgs::Int16::ConstPtr& message);
 void killSwitchTimerEventHandler(const ros::TimerEvent& event);
 
+void identityMessage(vector<string> msg_parts);
+void detectedMessage(vector<string> msg_parts);
+void pointAddedMessage(vector<string> msgParts);
+void pointRemovedMessage(vector<string> msgParts);
+
 int main(int argc, char **argv) {
 
     gethostname(host, sizeof (host));
@@ -119,9 +123,6 @@ int main(int argc, char **argv) {
     }
 
     rng = new random_numbers::RandomNumberGenerator();
-
-    double r = rng->uniformReal(0.5, 10.0);
-    double t = rng->uniformReal(0, 2 * M_PI);
 
     // NoSignalHandler so we can catch SIGINT ourselves and shutdown the node
     ros::init(argc, argv, (publishedName + "_MOBILITY"), ros::init_options::NoSigintHandler);
@@ -206,23 +207,15 @@ void mobilityStateMachine(const ros::TimerEvent&)
 
                     } else {
 
-                        if(swarmSize >= 3) {
-                            if(path.Size() == 0) {
-
-                                for(int i = 0; i < 6; i++) {
-                                    double r = rng->uniformReal(0.5, 10.0);
-                                    double t = rng->uniformReal(0, 2 * M_PI);
-                                    path.Add(currentLocation.x, currentLocation.y, currentLocation.theta, r * cos(t), r * sin(t));
-                                }
+                        if(swarmSize >= 3 && self_idx >= 0) {
+                            if(paths[self_idx].Size() == 0) {
 
                             } else {
-                                PathNode* n = path.Get(0);
+                                PathNode* n = paths[self_idx].Get(0);
                                 if(n != NULL) {
-                                    goalLocation.x = n->Goal().x;
-                                    goalLocation.y = n->Goal().y;
-                                    goalLocation.theta = n->Goal().theta;
+                                    goalLocation = n->Goal();
                                 }
-                                path.Remove(0);
+                                paths[self_idx].Remove(0);
                             }
                         }
 
@@ -322,8 +315,9 @@ void targetHandler(const std_msgs::Int16::ConstPtr& message) {
     if (targetDetected.data == -1) {
         targetDetected = *message;
 
-
         if(!targetsCollected[targetDetected.data] && targetCollected.data == -1) {
+
+            paths[self_idx].Insert(0, 0.0, 0.0, -atan2(currentLocation.y, currentLocation.x), currentLocation.x, currentLocation.y);
 
             targetCollected = *message;
 
@@ -336,7 +330,6 @@ void targetHandler(const std_msgs::Int16::ConstPtr& message) {
 
         } else {
 
-            uncollected.push_back(*message);
             targetDetected.data = -1;
 
         }
@@ -445,7 +438,6 @@ void sigintEventHandler(int sig)
 void messageHandler(const std_msgs::String::ConstPtr& message)
 {
     string msg = message->data;
-    stringstream converter;
 
     size_t type_pos = msg.find_first_of(" ");
     string type = msg.substr(0, type_pos);
@@ -464,62 +456,171 @@ void messageHandler(const std_msgs::String::ConstPtr& message)
 
     if(type == "I") {
 
-        if(swarmSize > 6) {
-            return;
-        }
-
-        int insert_idx = swarmSize - 1;
-        string name = msg_parts[0];
-
-        while(insert_idx >= 0 && name < memberNames[insert_idx]) {
-            memberNames[insert_idx + 1] = memberNames[insert_idx];
-            insert_idx--;
-        }
-
-        memberNames[insert_idx + 1] = name;
-
-        if(swarmSize < 6) {
-            swarmSize++;
-        }
+        identityMessage(msg_parts);
 
     } else if(type == "D") {
-        std_msgs::Int16 tmp;
-        double x, y;
-        x = y = 0.0;
 
-        tmp.data = -1; //uninitialized data is the worst to debug
+        detectedMessage(msg_parts);
 
-        converter << msg_parts[0];
-        converter >> tmp.data;
-        converter.str("");
-        converter.clear();
+    } else if(type == "PA") {
 
-        converter << msg_parts[1];
-        converter >> x;
-        converter.str("");
-        converter.clear();
+        pointAddedMessage(msg_parts);
 
-        converter << msg_parts[2];
-        converter >> y;
-        converter.str("");
-        converter.clear();
+    } else if(type == "PR") {
 
-        targetsDetected[tmp.data] = 1;
-        targetPositions[tmp.data].x = x;
-        targetPositions[tmp.data].y = y;
+        pointRemovedMessage(msg_parts);
 
-        path.Add(currentLocation.x, currentLocation.y, currentLocation.theta, x, y);
+    }
+}
 
-        uncollected.push_back(tmp);
+void identityMessage(vector<string> msg_parts)
+{
+    if(swarmSize > 6) {
+        return;
+    }
 
-        if(targetCollected.data == -1) {
-            double theta = atan2(currentLocation.y - y, currentLocation.x - x);
+    int insert_idx = swarmSize - 1;
+    string name = msg_parts[0];
 
-            goalLocation.x = x;
-            goalLocation.y = y;
-            goalLocation.theta = theta;
+    while(insert_idx >= 0 && name < memberNames[insert_idx]) {
+        memberNames[insert_idx + 1] = memberNames[insert_idx];
+        insert_idx--;
+    }
 
-            stateMachineState = STATE_MACHINE_TRANSFORM;
-        }
+    memberNames[insert_idx + 1] = name;
+    self_idx = insert_idx + 1;
+
+    if(swarmSize < 6) {
+        swarmSize++;
+    }
+}
+
+void detectedMessage(vector<string> msg_parts)
+{
+    stringstream converter;
+
+    std_msgs::Int16 tmp;
+    double x, y;
+    x = y = 0.0;
+
+    tmp.data = -1; //uninitialized data is the worst to debug
+
+    converter << msg_parts[0];
+    converter >> tmp.data;
+    converter.str("");
+    converter.clear();
+
+    converter << msg_parts[1];
+    converter >> x;
+    converter.str("");
+    converter.clear();
+
+    converter << msg_parts[2];
+    converter >> y;
+    converter.str("");
+    converter.clear();
+
+    targetsDetected[tmp.data] = 1;
+    targetPositions[tmp.data].x = x;
+    targetPositions[tmp.data].y = y;
+
+    paths[self_idx].Add(currentLocation.x, currentLocation.y, currentLocation.theta, x, y);
+
+    if(targetCollected.data == -1) {
+        double theta = atan2(currentLocation.y - y, currentLocation.x - x);
+
+        goalLocation.x = x;
+        goalLocation.y = y;
+        goalLocation.theta = theta;
+
+        stateMachineState = STATE_MACHINE_TRANSFORM;
+    }
+
+}
+
+void pointAddedMessage(vector<string> msg_parts)
+{
+    stringstream converter;
+
+    int rover_id = -1;
+    size_t idx = (size_t)(-1);
+    double cx, cy, ct, x, y;
+    cx = cy = ct = x = y = 0.0;
+
+    converter << msg_parts[0];
+    converter >> rover_id;
+    converter.str("");
+    converter.clear();
+
+    if(rover_id == self_idx) {
+        return;
+    }
+
+    converter << msg_parts[1];
+    converter >> idx;
+    converter.str("");
+    converter.clear();
+
+    converter << msg_parts[2];
+    converter >> cx;
+    converter.str("");
+    converter.clear();
+
+    converter << msg_parts[3];
+    converter >> cy;
+    converter.str("");
+    converter.clear();
+
+    converter << msg_parts[4];
+    converter >> ct;
+    converter.str("");
+    converter.clear();
+
+    converter << msg_parts[5];
+    converter >> x;
+    converter.str("");
+    converter.clear();
+
+    converter << msg_parts[6];
+    converter >> y;
+    converter.str("");
+    converter.clear();
+
+    if(rover_id > 0 && rover_id != self_idx) {
+        paths[rover_id].Insert(idx, cx, cy, ct, x, y);
+    }
+}
+
+void pointRemovedMessage(vector<string> msg_parts)
+{
+    stringstream converter;
+
+    int rover_id = -1;
+    size_t idx_start, idx_end;
+    idx_start = idx_end = (size_t)(-1);
+    double cx, cy, ct, x, y;
+    cx = cy = ct = x = y = 0.0;
+
+    converter << msg_parts[0];
+    converter >> rover_id;
+    converter.str("");
+    converter.clear();
+
+    if(rover_id == self_idx) {
+        return;
+    }
+
+    converter << msg_parts[1];
+    converter >> idx_start;
+    converter.str("");
+    converter.clear();
+
+    converter << msg_parts[2];
+    converter >> idx_end;
+    converter.str("");
+    converter.clear();
+
+    if(rover_id > 0 && rover_id != self_idx) {
+        paths[rover_id].RemoveRange(idx_start, idx_end);
     }
 }
