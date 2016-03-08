@@ -15,24 +15,20 @@
 #include <geometry_msgs/Twist.h>
 #include <nav_msgs/Odometry.h>
 
-//STL data types
-#include <vector>
-#include <sstream>
-
-//Custom data structures
-#include "path.hpp"
-
 // To handle shutdown signals so the node quits properly in response to "rosnode kill"
 #include <ros/ros.h>
 #include <signal.h>
 
+//Custom message passing
+#include "messages.hpp"
+
 using namespace std;
-using namespace csuci;
+
+//Random number generator
+random_numbers::RandomNumberGenerator* rng;	
 
 //Mobility Logic Functions
 void setVelocity(double linearVel, double angularVel);
-
-random_numbers::RandomNumberGenerator* rng;
 
 //Numeric Variables
 geometry_msgs::Pose2D currentLocation;
@@ -47,6 +43,7 @@ std_msgs::Int16 targetCollected; //ID of the collected target
 bool targetsCollected [256] = {0}; //array of booleans indicating whether each target ID has been found
 bool targetsDetected [256] = {0};
 geometry_msgs::Pose2D targetPositions[256];
+Path paths[6];
 
 // state machine states
 #define STATE_MACHINE_TRANSFORM	0
@@ -58,7 +55,6 @@ geometry_msgs::Twist velocity;
 char host[128];
 string publishedName;
 string memberNames[6];
-Path paths[6];
 int self_idx = -1;
 bool sent_name = false;
 bool avoiding_obstacle = false;
@@ -90,7 +86,6 @@ ros::Timer killSwitchTimer;
 void sigintEventHandler(int signal);
 
 //Callback handlers
-void messageHandler(const std_msgs::String::ConstPtr& message);
 void joyCmdHandler(const geometry_msgs::Twist::ConstPtr& message);
 void modeHandler(const std_msgs::UInt8::ConstPtr& message);
 void targetHandler(const std_msgs::Int16::ConstPtr& tagInfo);
@@ -101,28 +96,29 @@ void publishStatusTimerEventHandler(const ros::TimerEvent& event);
 void targetsCollectedHandler(const std_msgs::Int16::ConstPtr& message);
 void killSwitchTimerEventHandler(const ros::TimerEvent& event);
 
-void identityMessage(vector<string> msg_parts);
-void detectedMessage(vector<string> msg_parts);
-void pointAddedMessage(vector<string> msgParts);
-void pointRemovedMessage(vector<string> msgParts);
+void messagePasser(const std_msgs::String::ConstPtr& message);
 
 int main(int argc, char **argv) {
 
     gethostname(host, sizeof (host));
     string hostname(host);
+
+    rng = new random_numbers::RandomNumberGenerator(); //instantiate random number generator
+    goalLocation.theta = rng->uniformReal(0, 2 * M_PI); //set initial random heading
     
     targetDetected.data = -1; //initialize target detected
-    targetCollected.data = -1;
+    
+    //select initial search position 50 cm from center (0,0)
+	goalLocation.x = 0.5 * cos(goalLocation.theta);
+	goalLocation.y = 0.5 * sin(goalLocation.theta);
 
     if (argc >= 2) {
         publishedName = argv[1];
-    } else {
         cout << "Welcome to the world of tomorrow " << publishedName << "!  Mobility module started." << endl;
+    } else {
         publishedName = hostname;
         cout << "No Name Selected. Default is: " << publishedName << endl;
     }
-
-    rng = new random_numbers::RandomNumberGenerator();
 
     // NoSignalHandler so we can catch SIGINT ourselves and shutdown the node
     ros::init(argc, argv, (publishedName + "_MOBILITY"), ros::init_options::NoSigintHandler);
@@ -136,7 +132,7 @@ int main(int argc, char **argv) {
     obstacleSubscriber = mNH.subscribe((publishedName + "/obstacle"), 10, obstacleHandler);
     odometrySubscriber = mNH.subscribe((publishedName + "/odom/ekf"), 10, odometryHandler);
     targetsCollectedSubscriber = mNH.subscribe(("targetsCollected"), 10, targetsCollectedHandler);
-    messageSubscriber = mNH.subscribe(("messages"), 10, messageHandler);
+    messageSubscriber = mNH.subscribe(("messages"), 10, messagePasser);
 
     status_publisher = mNH.advertise<std_msgs::String>((publishedName + "/status"), 1, true);
     velocityPublish = mNH.advertise<geometry_msgs::Twist>((publishedName + "/velocity"), 10);
@@ -152,46 +148,46 @@ int main(int argc, char **argv) {
     
     return EXIT_SUCCESS;
 }
-void mobilityStateMachine(const ros::TimerEvent&)
-{
+
+void mobilityStateMachine(const ros::TimerEvent&) {
+
     std_msgs::String stateMachineMsg;
-    
     if (currentMode == 2 || currentMode == 3) { //Robot is in automode
 
-		switch(stateMachineState) {
-			
-			//Select rotation or translation based on required adjustment
-			//If no adjustment needed, select new goal
-			case STATE_MACHINE_TRANSFORM: {
-				stateMachineMsg.data = "TRANSFORMING";
-				//If angle between current and goal is significant
-				if (fabs(angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta)) > 0.1) {
-					stateMachineState = STATE_MACHINE_ROTATE; //rotate
-				}
-				//If goal has not yet been reached
-				else if (fabs(angles::shortest_angular_distance(currentLocation.theta, atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x))) < M_PI_2) {
-					stateMachineState = STATE_MACHINE_TRANSLATE; //translate
-				}
-				//If returning with a target
+        switch(stateMachineState) {
+
+            //Select rotation or translation based on required adjustment
+            //If no adjustment needed, select new goal
+            case STATE_MACHINE_TRANSFORM: {
+                stateMachineMsg.data = "TRANSFORMING";
+                //If angle between current and goal is significant
+                if (fabs(angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta)) > 0.1) {
+                    stateMachineState = STATE_MACHINE_ROTATE; //rotate
+                }
+                //If goal has not yet been reached
+                else if (fabs(angles::shortest_angular_distance(currentLocation.theta, atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x))) < M_PI_2) {
+                    stateMachineState = STATE_MACHINE_TRANSLATE; //translate
+                }
+                //If returning with a target
                 else if (targetCollected.data != -1) {
-					//If goal has not yet been reached
-					if (hypot(0.0 - currentLocation.x, 0.0 - currentLocation.y) > 0.5) {
-				        //set angle to center as goal heading
-						goalLocation.theta = M_PI + atan2(currentLocation.y, currentLocation.x);
-						
-						//set center as goal position
-						goalLocation.x = 0.0;
-						goalLocation.y = 0.0;
-					}
-					//Otherwise, reset target and select new random uniform heading
-					else {
+                    //If goal has not yet been reached
+                    if (hypot(0.0 - currentLocation.x, 0.0 - currentLocation.y) > 0.5) {
+                        //set angle to center as goal heading
+                        goalLocation.theta = M_PI + atan2(currentLocation.y, currentLocation.x);
+
+                        //set center as goal position
+                        goalLocation.x = 0.0;
+                        goalLocation.y = 0.0;
+                    }
+                    //Otherwise, reset target and select new random uniform heading
+                    else {
                         targetCollectedPublish.publish(targetCollected);
                         targetCollected.data = -1;
                         targetDetected.data = -1;
-					}
-				}
-				//Otherwise, assign a new goal
-				else {
+                    }
+                }
+                //Otherwise, assign a new goal
+                else {
                     if(avoiding_obstacle) {
                         avoiding_obstacle = false;
 
@@ -210,24 +206,32 @@ void mobilityStateMachine(const ros::TimerEvent&)
                         if(swarmSize >= 3 && self_idx >= 0) {
                             if(paths[self_idx].Size() == 0) {
 
+                                for(int i = 0; i < 6; i++) {
+                                    double r = rng->uniformReal(0.5, 10.0);
+                                    double t = rng->uniformReal(0, 2 * M_PI);
+                                    paths[self_idx].Add(currentLocation.x, currentLocation.y, currentLocation.theta, r * cos(t), r * sin(t));
+                                }
+
                             } else {
                                 PathNode* n = paths[self_idx].Get(0);
                                 if(n != NULL) {
-                                    goalLocation = n->Goal();
+                                    goalLocation.x = n->Goal().x;
+                                    goalLocation.y = n->Goal().y;
+                                    goalLocation.theta = n->Goal().theta;
                                 }
                                 paths[self_idx].Remove(0);
                             }
                         }
 
                     }
-				}
-				
-				//Purposefully fall through to next case without breaking
-			}
-			
-			//Calculate angle between currentLocation.theta and goalLocation.theta
-			//Rotate left or right depending on sign of angle
-			//Stay in this state until angle is minimized
+                }
+
+                //Purposefully fall through to next case without breaking
+            }
+
+            //Calculate angle between currentLocation.theta and goalLocation.theta
+            //Rotate left or right depending on sign of angle
+            //Stay in this state until angle is minimized
             case STATE_MACHINE_ROTATE: {
                 stateMachineMsg.data = "ROTATING";
                 if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) > 0.1) {
@@ -274,9 +278,7 @@ void mobilityStateMachine(const ros::TimerEvent&)
         stateMachinePublish.publish(stateMachineMsg);
         sprintf(prev_state_machine, "%s", stateMachineMsg.data.c_str());
     }
-
 }
-
 
 void setVelocity(double linearVel, double angularVel) 
 {
@@ -297,6 +299,10 @@ void setVelocity(double linearVel, double angularVel)
 
 void targetHandler(const std_msgs::Int16::ConstPtr& message) {
 
+    if(message->data == 256) {
+        return;
+    }
+
     //check if target has not yet been detected
     if(!targetsDetected[message->data]) {
 
@@ -311,22 +317,21 @@ void targetHandler(const std_msgs::Int16::ConstPtr& message) {
         messagePublish.publish(msg);
     }
 
-	//if target has not previously been detected 
+    //if target has not previously been detected
     if (targetDetected.data == -1) {
         targetDetected = *message;
 
-        if(!targetsCollected[targetDetected.data] && targetCollected.data == -1) {
 
-            paths[self_idx].Insert(0, 0.0, 0.0, -atan2(currentLocation.y, currentLocation.x), currentLocation.x, currentLocation.y);
+        if(!targetsCollected[targetDetected.data] && targetCollected.data == -1) {
 
             targetCollected = *message;
 
-            goalLocation.theta = atan2(0.0 - currentLocation.y, 0.0 - currentLocation.x);
-            goalLocation.x = 0.0;
-            goalLocation.y = 0.0;
+         //   goalLocation.theta = atan2(0.0 - currentLocation.y, 0.0 - currentLocation.x);
+         //   goalLocation.x = 0.0;
+         //   goalLocation.y = 0.0;
 
             //switch to transform state to trigger return to center
-            stateMachineState = STATE_MACHINE_TRANSFORM;
+       //     stateMachineState = STATE_MACHINE_TRANSFORM;
 
         } else {
 
@@ -335,7 +340,6 @@ void targetHandler(const std_msgs::Int16::ConstPtr& message) {
         }
 
     }
-
 }
 
 void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
@@ -344,36 +348,36 @@ void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
 }
 
 void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
-    if (message->data > 0) {
-        geometry_msgs::Pose2D savedPosition;
+        if (message->data > 0) {
+            geometry_msgs::Pose2D savedPosition;
 
-        savedPosition.x = goalLocation.x;
-        savedPosition.y = goalLocation.y;
-        savedPosition.theta = goalLocation.theta;
+            savedPosition.x = goalLocation.x;
+            savedPosition.y = goalLocation.y;
+            savedPosition.theta = goalLocation.theta;
 
-        savedPositions.push_back(savedPosition);
+            savedPositions.push_back(savedPosition);
 
-		//obstacle on right side
-        if (message->data == 1) {
-			//select new heading 0.2 radians to the left
-			goalLocation.theta = currentLocation.theta + 0.2;
-		}
-		
-		//obstacle in front or on left side
-        else if (message->data == 2) {
-			//select new heading 0.2 radians to the right
-			goalLocation.theta = currentLocation.theta - 0.2;
-		}
-							
-		//select new position 50 cm from current location
-		goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
-		goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
+            //obstacle on right side
+            if (message->data == 1) {
+                //select new heading 0.2 radians to the left
+                goalLocation.theta = currentLocation.theta + 0.2;
+            }
 
-        avoiding_obstacle = true;
-		
-		//switch to transform state to trigger collision avoidance
-		stateMachineState = STATE_MACHINE_TRANSFORM;
-	}
+            //obstacle in front or on left side
+            else if (message->data == 2) {
+                //select new heading 0.2 radians to the right
+                goalLocation.theta = currentLocation.theta - 0.2;
+            }
+
+            //select new position 50 cm from current location
+            goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
+            goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
+
+            avoiding_obstacle = true;
+
+            //switch to transform state to trigger collision avoidance
+            stateMachineState = STATE_MACHINE_TRANSFORM;
+        }
 }
 
 void odometryHandler(const nav_msgs::Odometry::ConstPtr& message) {
@@ -395,6 +399,7 @@ void joyCmdHandler(const geometry_msgs::Twist::ConstPtr& message) {
 	setVelocity(message->linear.x, message->angular.z);
       } 
 }
+
 
 void publishStatusTimerEventHandler(const ros::TimerEvent&)
 {
@@ -431,196 +436,8 @@ void sigintEventHandler(int sig)
      ros::shutdown();
 }
 
-/***************************
- * CUSTOM CALLBACK HANDLERS
- ***************************/
-
-void messageHandler(const std_msgs::String::ConstPtr& message)
+void messagePasser(const std_msgs::String::ConstPtr& message)
 {
-    string msg = message->data;
-
-    size_t type_pos = msg.find_first_of(" ");
-    string type = msg.substr(0, type_pos);
-    msg = msg.substr(type_pos+1);
-
-    vector<string> msg_parts;
-
-    size_t cur_tok = msg.find_first_of(" ");;
-    while(cur_tok != string::npos) {
-        msg_parts.push_back(msg.substr(0, cur_tok));
-        msg = msg.substr(cur_tok + 1);
-        cur_tok = msg.find_first_of(" ");
-    }
-
-    msg_parts.push_back(msg);
-
-    if(type == "I") {
-
-        identityMessage(msg_parts);
-
-    } else if(type == "D") {
-
-        detectedMessage(msg_parts);
-
-    } else if(type == "PA") {
-
-        pointAddedMessage(msg_parts);
-
-    } else if(type == "PR") {
-
-        pointRemovedMessage(msg_parts);
-
-    }
+    messageHandler(message, &self_idx, memberNames, publishedName, swarmSize, targetCollected, targetsDetected, targetPositions, paths, stateMachineState, goalLocation, currentLocation);
 }
 
-void identityMessage(vector<string> msg_parts)
-{
-    if(swarmSize > 6) {
-        return;
-    }
-
-    int insert_idx = swarmSize - 1;
-    string name = msg_parts[0];
-
-    while(insert_idx >= 0 && name < memberNames[insert_idx]) {
-        memberNames[insert_idx + 1] = memberNames[insert_idx];
-        insert_idx--;
-    }
-
-    memberNames[insert_idx + 1] = name;
-    self_idx = insert_idx + 1;
-
-    if(swarmSize < 6) {
-        swarmSize++;
-    }
-}
-
-void detectedMessage(vector<string> msg_parts)
-{
-    stringstream converter;
-
-    std_msgs::Int16 tmp;
-    double x, y;
-    x = y = 0.0;
-
-    tmp.data = -1; //uninitialized data is the worst to debug
-
-    converter << msg_parts[0];
-    converter >> tmp.data;
-    converter.str("");
-    converter.clear();
-
-    converter << msg_parts[1];
-    converter >> x;
-    converter.str("");
-    converter.clear();
-
-    converter << msg_parts[2];
-    converter >> y;
-    converter.str("");
-    converter.clear();
-
-    targetsDetected[tmp.data] = 1;
-    targetPositions[tmp.data].x = x;
-    targetPositions[tmp.data].y = y;
-
-    paths[self_idx].Add(currentLocation.x, currentLocation.y, currentLocation.theta, x, y);
-
-    if(targetCollected.data == -1) {
-        double theta = atan2(currentLocation.y - y, currentLocation.x - x);
-
-        goalLocation.x = x;
-        goalLocation.y = y;
-        goalLocation.theta = theta;
-
-        stateMachineState = STATE_MACHINE_TRANSFORM;
-    }
-
-}
-
-void pointAddedMessage(vector<string> msg_parts)
-{
-    stringstream converter;
-
-    int rover_id = -1;
-    size_t idx = (size_t)(-1);
-    double cx, cy, ct, x, y;
-    cx = cy = ct = x = y = 0.0;
-
-    converter << msg_parts[0];
-    converter >> rover_id;
-    converter.str("");
-    converter.clear();
-
-    if(rover_id == self_idx) {
-        return;
-    }
-
-    converter << msg_parts[1];
-    converter >> idx;
-    converter.str("");
-    converter.clear();
-
-    converter << msg_parts[2];
-    converter >> cx;
-    converter.str("");
-    converter.clear();
-
-    converter << msg_parts[3];
-    converter >> cy;
-    converter.str("");
-    converter.clear();
-
-    converter << msg_parts[4];
-    converter >> ct;
-    converter.str("");
-    converter.clear();
-
-    converter << msg_parts[5];
-    converter >> x;
-    converter.str("");
-    converter.clear();
-
-    converter << msg_parts[6];
-    converter >> y;
-    converter.str("");
-    converter.clear();
-
-    if(rover_id > 0 && rover_id != self_idx) {
-        paths[rover_id].Insert(idx, cx, cy, ct, x, y);
-    }
-}
-
-void pointRemovedMessage(vector<string> msg_parts)
-{
-    stringstream converter;
-
-    int rover_id = -1;
-    size_t idx_start, idx_end;
-    idx_start = idx_end = (size_t)(-1);
-    double cx, cy, ct, x, y;
-    cx = cy = ct = x = y = 0.0;
-
-    converter << msg_parts[0];
-    converter >> rover_id;
-    converter.str("");
-    converter.clear();
-
-    if(rover_id == self_idx) {
-        return;
-    }
-
-    converter << msg_parts[1];
-    converter >> idx_start;
-    converter.str("");
-    converter.clear();
-
-    converter << msg_parts[2];
-    converter >> idx_end;
-    converter.str("");
-    converter.clear();
-
-    if(rover_id > 0 && rover_id != self_idx) {
-        paths[rover_id].RemoveRange(idx_start, idx_end);
-    }
-}

@@ -14,7 +14,7 @@ catkin_package(
 )
 
 add_executable(
-  mobility src/mobility.cpp src/path.cpp
+  mobility src/mobility.cpp src/path.cpp src/messages.cpp
 )
 
 target_link_libraries(
