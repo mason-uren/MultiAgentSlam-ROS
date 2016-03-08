@@ -149,9 +149,10 @@ int main(int argc, char **argv) {
     return EXIT_SUCCESS;
 }
 
-void mobilityStateMachine(const ros::TimerEvent&) {
+void mobilityStateMachine(const ros::TimerEvent&)
+{
+    std_msgs::String stateMachineMsg;    
 
-    std_msgs::String stateMachineMsg;
     if (currentMode == 2 || currentMode == 3) { //Robot is in automode
 
         switch(stateMachineState) {
@@ -348,36 +349,36 @@ void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
 }
 
 void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
-        if (message->data > 0) {
-            geometry_msgs::Pose2D savedPosition;
+    if (message->data > 0) {
+        geometry_msgs::Pose2D savedPosition;
 
-            savedPosition.x = goalLocation.x;
-            savedPosition.y = goalLocation.y;
-            savedPosition.theta = goalLocation.theta;
+        savedPosition.x = goalLocation.x;
+        savedPosition.y = goalLocation.y;
+        savedPosition.theta = goalLocation.theta;
 
-            savedPositions.push_back(savedPosition);
+        savedPositions.push_back(savedPosition);
 
-            //obstacle on right side
-            if (message->data == 1) {
-                //select new heading 0.2 radians to the left
-                goalLocation.theta = currentLocation.theta + 0.2;
-            }
+		//obstacle on right side
+        if (message->data == 1) {
+			//select new heading 0.2 radians to the left
+            goalLocation.theta = currentLocation.theta + 0.2;
+		}
+		
+		//obstacle in front or on left side
+        else if (message->data == 2) {
+			//select new heading 0.2 radians to the right
+            goalLocation.theta = currentLocation.theta - 0.2;
+		}
+							
+		//select new position 50 cm from current location
+        goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
+        goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
 
-            //obstacle in front or on left side
-            else if (message->data == 2) {
-                //select new heading 0.2 radians to the right
-                goalLocation.theta = currentLocation.theta - 0.2;
-            }
-
-            //select new position 50 cm from current location
-            goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
-            goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
-
-            avoiding_obstacle = true;
-
-            //switch to transform state to trigger collision avoidance
-            stateMachineState = STATE_MACHINE_TRANSFORM;
-        }
+        avoiding_obstacle = true;
+		
+		//switch to transform state to trigger collision avoidance
+        stateMachineState = STATE_MACHINE_TRANSFORM;
+	}
 }
 
 void odometryHandler(const nav_msgs::Odometry::ConstPtr& message) {
