@@ -69,12 +69,9 @@ ros::Publisher velocityPublish;
 ros::Publisher stateMachinePublish;
 ros::Publisher status_publisher;
 ros::Publisher targetCollectedPublish;
-<<<<<<< HEAD
 ros::Publisher messagePublish;
-=======
 ros::Publisher targetPickUpPublish;
 ros::Publisher targetDropOffPublish;
->>>>>>> 02f40c26bd3a05f327b7088696f7ebc80f3d8f52
 
 //Subscribers
 ros::Subscriber joySubscriber;
@@ -146,12 +143,9 @@ int main(int argc, char **argv) {
     velocityPublish = mNH.advertise<geometry_msgs::Twist>((publishedName + "/velocity"), 10);
     stateMachinePublish = mNH.advertise<std_msgs::String>((publishedName + "/state_machine"), 1, true);
     targetCollectedPublish = mNH.advertise<std_msgs::Int16>(("targetsCollected"), 1, true);
-<<<<<<< HEAD
     messagePublish = mNH.advertise<std_msgs::String>(("messages"), 10, true);
-=======
     targetPickUpPublish = mNH.advertise<sensor_msgs::Image>((publishedName + "/targetPickUpImage"), 1, true);
     targetDropOffPublish = mNH.advertise<sensor_msgs::Image>((publishedName + "/targetDropOffImage"), 1, true);
->>>>>>> 02f40c26bd3a05f327b7088696f7ebc80f3d8f52
 
     publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
     killSwitchTimer = mNH.createTimer(ros::Duration(killSwitchTimeout), killSwitchTimerEventHandler);
@@ -330,13 +324,13 @@ void targetHandler(const shared_messages::TagsImage::ConstPtr& message) {
         //check if target has not yet been collected
         if (!targetsCollected[targetDetected.data]) { 
 
-            stringstream formatter;
-            double x = currentLocation.x + cos(currentLocation.theta) * 0.3;
-            double y = currentLocation.y + sin(currentLocation.theta) * 0.3;
-            formatter << "D" << " " << message->data << " " << x << " " << y;
-            std_msgs::String msg;
-            msg.data = formatter.str();
-            messagePublish.publish(msg);
+            // stringstream formatter;
+            // double x = currentLocation.x + cos(currentLocation.theta) * 0.3;
+            // double y = currentLocation.y + sin(currentLocation.theta) * 0.3;
+            // formatter << "D" << " " << message->data << " " << x << " " << y;
+            // std_msgs::String msg;
+            // msg.data = formatter.str();
+            // messagePublish.publish(msg);
 
 	        //set angle to center as goal heading
 			goalLocation.theta = M_PI + atan2(currentLocation.y, currentLocation.x);
