@@ -8,6 +8,8 @@ void messageHandler(const std_msgs::String::ConstPtr& message, int* self_idx, st
 {
     string msg = message->data;
 
+    // cout << msg << " " << publishedName << endl;
+
     size_t type_pos = msg.find_first_of(" ");
     string type = msg.substr(0, type_pos);
     msg = msg.substr(type_pos+1);
@@ -15,7 +17,7 @@ void messageHandler(const std_msgs::String::ConstPtr& message, int* self_idx, st
     vector<string> msg_parts;
 
     size_t cur_tok = msg.find_first_of(" ");;
-    while(cur_tok != string::npos) {
+    while(cur_tok != string::npos) { // until end of string
         msg_parts.push_back(msg.substr(0, cur_tok));
         msg = msg.substr(cur_tok + 1);
         cur_tok = msg.find_first_of(" ");
