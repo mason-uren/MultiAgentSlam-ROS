@@ -15,6 +15,9 @@
 #include <geometry_msgs/Twist.h>
 #include <nav_msgs/Odometry.h>
 
+//Custom messages
+#include <shared_messages/TagsImage.h>
+
 // To handle shutdown signals so the node quits properly in response to "rosnode kill"
 #include <ros/ros.h>
 #include <signal.h>
@@ -66,7 +69,12 @@ ros::Publisher velocityPublish;
 ros::Publisher stateMachinePublish;
 ros::Publisher status_publisher;
 ros::Publisher targetCollectedPublish;
+<<<<<<< HEAD
 ros::Publisher messagePublish;
+=======
+ros::Publisher targetPickUpPublish;
+ros::Publisher targetDropOffPublish;
+>>>>>>> 02f40c26bd3a05f327b7088696f7ebc80f3d8f52
 
 //Subscribers
 ros::Subscriber joySubscriber;
@@ -88,7 +96,7 @@ void sigintEventHandler(int signal);
 //Callback handlers
 void joyCmdHandler(const geometry_msgs::Twist::ConstPtr& message);
 void modeHandler(const std_msgs::UInt8::ConstPtr& message);
-void targetHandler(const std_msgs::Int16::ConstPtr& tagInfo);
+void targetHandler(const shared_messages::TagsImage::ConstPtr& tagInfo);
 void obstacleHandler(const std_msgs::UInt8::ConstPtr& message);
 void odometryHandler(const nav_msgs::Odometry::ConstPtr& message);
 void mobilityStateMachine(const ros::TimerEvent&);
@@ -138,7 +146,12 @@ int main(int argc, char **argv) {
     velocityPublish = mNH.advertise<geometry_msgs::Twist>((publishedName + "/velocity"), 10);
     stateMachinePublish = mNH.advertise<std_msgs::String>((publishedName + "/state_machine"), 1, true);
     targetCollectedPublish = mNH.advertise<std_msgs::Int16>(("targetsCollected"), 1, true);
+<<<<<<< HEAD
     messagePublish = mNH.advertise<std_msgs::String>(("messages"), 10, true);
+=======
+    targetPickUpPublish = mNH.advertise<sensor_msgs::Image>((publishedName + "/targetPickUpImage"), 1, true);
+    targetDropOffPublish = mNH.advertise<sensor_msgs::Image>((publishedName + "/targetDropOffImage"), 1, true);
+>>>>>>> 02f40c26bd3a05f327b7088696f7ebc80f3d8f52
 
     publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
     killSwitchTimer = mNH.createTimer(ros::Duration(killSwitchTimeout), killSwitchTimerEventHandler);
@@ -298,48 +311,49 @@ void setVelocity(double linearVel, double angularVel)
  * ROS CALLBACK HANDLERS
  ************************/
 
-void targetHandler(const std_msgs::Int16::ConstPtr& message) {
+void targetHandler(const shared_messages::TagsImage::ConstPtr& message) {
 
-    if(message->data == 256) {
-        return;
-    }
+	//if this is the goal target
+	if (message->tags.data[0] == 256) {
+		//if we were returning with a target
+	    if (targetDetected.data != -1) {
+			//publish to scoring code
+			targetDropOffPublish.publish(message->image);
+			targetDetected.data = -1;
+	    }
+	}
 
-    //check if target has not yet been detected
-    if(!targetsDetected[message->data]) {
+	//if target has not previously been detected 
+	else if (targetDetected.data == -1) {
+        targetDetected.data = message->tags.data[0];
+        
+        //check if target has not yet been collected
+        if (!targetsCollected[targetDetected.data]) { 
 
-        stringstream formatter;
+            stringstream formatter;
+            double x = currentLocation.x + cos(currentLocation.theta) * 0.3;
+            double y = currentLocation.y + sin(currentLocation.theta) * 0.3;
+            formatter << "D" << " " << message->data << " " << x << " " << y;
+            std_msgs::String msg;
+            msg.data = formatter.str();
+            messagePublish.publish(msg);
 
-        double x = currentLocation.x + cos(currentLocation.theta) * 0.3;
-        double y = currentLocation.y + sin(currentLocation.theta) * 0.3;
-        formatter << "D" << " " << message->data << " " << x << " " << y;
-        std_msgs::String msg;
-        msg.data = formatter.str();
+	        //set angle to center as goal heading
+			goalLocation.theta = M_PI + atan2(currentLocation.y, currentLocation.x);
+			
+			//set center as goal position
+			goalLocation.x = 0.0;
+			goalLocation.y = 0.0;
+			
+			//publish detected target
+			targetCollectedPublish.publish(targetDetected);
 
-        messagePublish.publish(msg);
-    }
+			//publish to scoring code
+			targetPickUpPublish.publish(message->image);
 
-    //if target has not previously been detected
-    if (targetDetected.data == -1) {
-        targetDetected = *message;
-
-
-        if(!targetsCollected[targetDetected.data] && targetCollected.data == -1) {
-
-            targetCollected = *message;
-
-         //   goalLocation.theta = atan2(0.0 - currentLocation.y, 0.0 - currentLocation.x);
-         //   goalLocation.x = 0.0;
-         //   goalLocation.y = 0.0;
-
-            //switch to transform state to trigger return to center
-       //     stateMachineState = STATE_MACHINE_TRANSFORM;
-
-        } else {
-
-            targetDetected.data = -1;
-
-        }
-
+			//switch to transform state to trigger return to center
+			stateMachineState = STATE_MACHINE_TRANSFORM;
+		}
     }
 }
 
