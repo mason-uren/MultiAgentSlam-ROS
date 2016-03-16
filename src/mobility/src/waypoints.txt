@@ -1,0 +1,52 @@
+23 points waypoints to perform lawnmower
+
+Assuming 12x12 areana 
+
+Footprint of camera in simulation is unknown; thus, 0.5 is default; ideally, we would want the y distance to be
+large enough so no gaps occur during our sweeps as well as no overlaping
+
+This is for ajax; he is searching quadrants I & II
+
+(x, y, angle)
+
+1. (5.5,	0.0, 0.0) 
+2. (5.5, 	0.5, pi/2)
+3. (-5.5, 	1.0, pi) 
+4. (-5.5, 	1.5, pi/2)
+5. (5.5, 	2.0, 0) 
+6. (5.5, 	2.5, pi/2)
+7. (-5.5, 	3.0, pi)
+8. (-5.5, 	3.5, pi/2)
+9. (5.5, 	4.0, 0)
+10. (5.5, 	4.5, pi/2)
+11. (-5.5, 	5.0, pi)
+12. (-5.5, 	5.5, pi/2)
+
+-- over calculated!
+
+13. (5.5, 	6.0, 0)
+14. (5.5, 	6.5, pi/2)
+15. (-5.5, 	7.0, pi)
+16. (-5.5, 	7.5, pi/2)
+17. (5.5, 	8.0, 0)
+18. (5.5, 	8.5, pi/2) 
+19. (-5.5, 	9.0, pi)
+20. (-5.5, 	9.5, pi/2)
+21. (5.5, 	10.0, 0)
+22. (5.5, 	10.5, pi/2)
+23. (-5.5, 	11.0, pi)
+
+This is for aneaes; he is searching quadrants III & IV
+
+1. (, , )
+2. (, , )
+3. (, , )
+4. (, , )
+5. (, , )
+6. (, , )
+7. (, , )
+8. (, , )
+9. (, , )
+10. (, , )
+11. (, , )
+12. (, , )
