@@ -28,7 +28,7 @@
 using namespace std;
 
 //Random number generator
-random_numbers::RandomNumberGenerator* rng;	
+random_numbers::RandomNumberGenerator* rng; 
 
 //Mobility Logic Functions
 void setVelocity(double linearVel, double angularVel);
@@ -49,9 +49,9 @@ geometry_msgs::Pose2D targetPositions[256];
 Path paths[6];
 
 // state machine states
-#define STATE_MACHINE_TRANSFORM	0
-#define STATE_MACHINE_ROTATE	1
-#define STATE_MACHINE_TRANSLATE	2
+#define STATE_MACHINE_TRANSFORM 0
+#define STATE_MACHINE_ROTATE    1
+#define STATE_MACHINE_TRANSLATE 2
 int stateMachineState = STATE_MACHINE_TRANSFORM;
 
 geometry_msgs::Twist velocity;
@@ -69,12 +69,9 @@ ros::Publisher velocityPublish;
 ros::Publisher stateMachinePublish;
 ros::Publisher status_publisher;
 ros::Publisher targetCollectedPublish;
-<<<<<<< HEAD
 ros::Publisher messagePublish;
-=======
 ros::Publisher targetPickUpPublish;
 ros::Publisher targetDropOffPublish;
->>>>>>> 02f40c26bd3a05f327b7088696f7ebc80f3d8f52
 
 //Subscribers
 ros::Subscriber joySubscriber;
@@ -117,8 +114,8 @@ int main(int argc, char **argv) {
     targetDetected.data = -1; //initialize target detected
     
     //select initial search position 50 cm from center (0,0)
-	goalLocation.x = 0.5 * cos(goalLocation.theta);
-	goalLocation.y = 0.5 * sin(goalLocation.theta);
+    goalLocation.x = 0.5 * cos(goalLocation.theta);
+    goalLocation.y = 0.5 * sin(goalLocation.theta);
 
     if (argc >= 2) {
         publishedName = argv[1];
@@ -146,12 +143,9 @@ int main(int argc, char **argv) {
     velocityPublish = mNH.advertise<geometry_msgs::Twist>((publishedName + "/velocity"), 10);
     stateMachinePublish = mNH.advertise<std_msgs::String>((publishedName + "/state_machine"), 1, true);
     targetCollectedPublish = mNH.advertise<std_msgs::Int16>(("targetsCollected"), 1, true);
-<<<<<<< HEAD
     messagePublish = mNH.advertise<std_msgs::String>(("messages"), 10, true);
-=======
     targetPickUpPublish = mNH.advertise<sensor_msgs::Image>((publishedName + "/targetPickUpImage"), 1, true);
     targetDropOffPublish = mNH.advertise<sensor_msgs::Image>((publishedName + "/targetDropOffImage"), 1, true);
->>>>>>> 02f40c26bd3a05f327b7088696f7ebc80f3d8f52
 
     publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
     killSwitchTimer = mNH.createTimer(ros::Duration(killSwitchTimeout), killSwitchTimerEventHandler);
@@ -313,53 +307,53 @@ void setVelocity(double linearVel, double angularVel)
 
 void targetHandler(const shared_messages::TagsImage::ConstPtr& message) {
 
-	//if this is the goal target
-	if (message->tags.data[0] == 256) {
-		//if we were returning with a target
-	    if (targetDetected.data != -1) {
-			//publish to scoring code
-			targetDropOffPublish.publish(message->image);
-			targetDetected.data = -1;
-	    }
-	}
+    //if this is the goal target
+    if (message->tags.data[0] == 256) {
+        //if we were returning with a target
+        if (targetDetected.data != -1) {
+            //publish to scoring code
+            targetDropOffPublish.publish(message->image);
+            targetDetected.data = -1;
+        }
+    }
 
-	//if target has not previously been detected 
-	else if (targetDetected.data == -1) {
+    //if target has not previously been detected 
+    else if (targetDetected.data == -1) {
         targetDetected.data = message->tags.data[0];
         
         //check if target has not yet been collected
         if (!targetsCollected[targetDetected.data]) { 
 
-            stringstream formatter;
-            double x = currentLocation.x + cos(currentLocation.theta) * 0.3;
-            double y = currentLocation.y + sin(currentLocation.theta) * 0.3;
-            formatter << "D" << " " << message->data << " " << x << " " << y;
-            std_msgs::String msg;
-            msg.data = formatter.str();
-            messagePublish.publish(msg);
+            // stringstream formatter;
+            // double x = currentLocation.x + cos(currentLocation.theta) * 0.3;
+            // double y = currentLocation.y + sin(currentLocation.theta) * 0.3;
+            // formatter << "D" << " " << message->data << " " << x << " " << y;
+            // std_msgs::String msg;
+            // msg.data = formatter.str();
+            // messagePublish.publish(msg);
 
-	        //set angle to center as goal heading
-			goalLocation.theta = M_PI + atan2(currentLocation.y, currentLocation.x);
-			
-			//set center as goal position
-			goalLocation.x = 0.0;
-			goalLocation.y = 0.0;
-			
-			//publish detected target
-			targetCollectedPublish.publish(targetDetected);
+            //set angle to center as goal heading
+            goalLocation.theta = M_PI + atan2(currentLocation.y, currentLocation.x);
+            
+            //set center as goal position
+            goalLocation.x = 0.0;
+            goalLocation.y = 0.0;
+            
+            //publish detected target
+            targetCollectedPublish.publish(targetDetected);
 
-			//publish to scoring code
-			targetPickUpPublish.publish(message->image);
+            //publish to scoring code
+            targetPickUpPublish.publish(message->image);
 
-			//switch to transform state to trigger return to center
-			stateMachineState = STATE_MACHINE_TRANSFORM;
-		}
+            //switch to transform state to trigger return to center
+            stateMachineState = STATE_MACHINE_TRANSFORM;
+        }
     }
 }
 
 void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
-	currentMode = message->data;
-	setVelocity(0.0, 0.0);
+    currentMode = message->data;
+    setVelocity(0.0, 0.0);
 }
 
 void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
@@ -372,46 +366,46 @@ void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
 
         savedPositions.push_back(savedPosition);
 
-		//obstacle on right side
+        //obstacle on right side
         if (message->data == 1) {
-			//select new heading 0.2 radians to the left
+            //select new heading 0.2 radians to the left
             goalLocation.theta = currentLocation.theta + 0.2;
-		}
-		
-		//obstacle in front or on left side
+        }
+        
+        //obstacle in front or on left side
         else if (message->data == 2) {
-			//select new heading 0.2 radians to the right
+            //select new heading 0.2 radians to the right
             goalLocation.theta = currentLocation.theta - 0.2;
-		}
-							
-		//select new position 50 cm from current location
+        }
+                            
+        //select new position 50 cm from current location
         goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
         goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
 
         avoiding_obstacle = true;
-		
-		//switch to transform state to trigger collision avoidance
+        
+        //switch to transform state to trigger collision avoidance
         stateMachineState = STATE_MACHINE_TRANSFORM;
-	}
+    }
 }
 
 void odometryHandler(const nav_msgs::Odometry::ConstPtr& message) {
-	//Get (x,y) location directly from pose
-	currentLocation.x = message->pose.pose.position.x;
-	currentLocation.y = message->pose.pose.position.y;
-	
-	//Get theta rotation by converting quaternion orientation to pitch/roll/yaw
-	tf::Quaternion q(message->pose.pose.orientation.x, message->pose.pose.orientation.y, message->pose.pose.orientation.z, message->pose.pose.orientation.w);
-	tf::Matrix3x3 m(q);
-	double roll, pitch, yaw;
-	m.getRPY(roll, pitch, yaw);
-	currentLocation.theta = yaw;
+    //Get (x,y) location directly from pose
+    currentLocation.x = message->pose.pose.position.x;
+    currentLocation.y = message->pose.pose.position.y;
+    
+    //Get theta rotation by converting quaternion orientation to pitch/roll/yaw
+    tf::Quaternion q(message->pose.pose.orientation.x, message->pose.pose.orientation.y, message->pose.pose.orientation.z, message->pose.pose.orientation.w);
+    tf::Matrix3x3 m(q);
+    double roll, pitch, yaw;
+    m.getRPY(roll, pitch, yaw);
+    currentLocation.theta = yaw;
 }
 
 void joyCmdHandler(const geometry_msgs::Twist::ConstPtr& message) {
     if (currentMode == 0 || currentMode == 1) 
       {
-	setVelocity(message->linear.x, message->angular.z);
+    setVelocity(message->linear.x, message->angular.z);
       } 
 }
 
@@ -442,7 +436,7 @@ void killSwitchTimerEventHandler(const ros::TimerEvent& t)
 }
 
 void targetsCollectedHandler(const std_msgs::Int16::ConstPtr& message) {
-	targetsCollected[message->data] = 1;
+    targetsCollected[message->data] = 1;
 }
 
 void sigintEventHandler(int sig)
