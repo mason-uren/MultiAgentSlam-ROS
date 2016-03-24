@@ -364,65 +364,40 @@ void setVelocity(double linearVel, double angularVel)
 
 void targetHandler(const shared_messages::TagsImage::ConstPtr& message) {
 
-    //if this is the goal target
-    if (message->tags.data[0] == 256) {
-        //if we were returning with a target
-        if (targetDetected.data != -1) {
-            //publish to scoring code
-            targetDropOffPublish.publish(message->image);
-            targetDetected.data = -1;
-        }
-    }
+	//if this is the goal target
+	if (message->tags.data[0] == 256) {
+		//if we were returning with a target
+	    if (targetDetected.data != -1) {
+			//publish to scoring code
+			targetDropOffPublish.publish(message->image);
+			targetDetected.data = -1;
+	    }
+	}
 
-    //if target has not previously been detected 
-    else if (targetDetected.data == -1) {
-        targetDetected.data = message->tags.data[0];
+	//if target has not previously been detected 
+	else if (targetDetected.data == -1) {
         
         //check if target has not yet been collected
-        if (!targetsCollected[targetDetected.data]) { 
+        if (!targetsCollected[message->tags.data[0]]) {
+			//copy target ID to class variable
+			targetDetected.data = message->tags.data[0];
+			
+	        //set angle to center as goal heading
+			goalLocation.theta = M_PI + atan2(currentLocation.y, currentLocation.x);
+			
+			//set center as goal position
+			goalLocation.x = 0.0;
+			goalLocation.y = 0.0;
+			
+			//publish detected target
+			targetCollectedPublish.publish(targetDetected);
 
-            // stringstream formatter;
-            // double x = currentLocation.x + cos(currentLocation.theta) * 0.3;
-            // double y = currentLocation.y + sin(currentLocation.theta) * 0.3;
-            // formatter << "D" << " " << message->tags.data << " " << x << " " << y;
-            // std_msgs::String msg;
-            // msg.data = formatter.str();
-            // messagePublish.publish(msg);
+			//publish to scoring code
+			targetPickUpPublish.publish(message->image);
 
-            // float size = message->tags.size() 
-
-            //set angle to center as goal heading
-            
-            // ************************************************************************************
-            //goalLocation.theta = M_PI + atan2(currentLocation.y, currentLocation.x);
-            
-            //set center as goal position
-
-            // ************************************************************************************
-            //goalLocation.x = 0.0;
-            //goalLocation.y = 0.0;
-            
-            //publish detected target
-            
-            // ************************************************************************************
-            targetCollectedPublish.publish(targetDetected);
-
-
-
-            //publish to scoring code
-            // ************************************************************************************
-            targetPickUpPublish.publish(message->image);
-
-
-            // ************************************************************************************
-            goalLocation.x = currentLocation.x;
-            goalLocation.y = currentLocation.y;
-            goalLocation.theta = currentLocation.theta;
-            // paths[self_idx].Add(currentLocation.x, currentLocation.y, currentLocation.theta, currentLocation.x + cos(currentLocation.theta) * 0.5)
-
-            //switch to transform state to trigger return to center
-            stateMachineState = STATE_MACHINE_TRANSFORM;
-        }
+			//switch to transform state to trigger return to center
+			stateMachineState = STATE_MACHINE_TRANSFORM;
+		}
     }
 }
 
