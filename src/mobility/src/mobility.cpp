@@ -471,7 +471,7 @@ void publishStatusTimerEventHandler(const ros::TimerEvent&)
   }
 
   std_msgs::String msg;
-  msg.data = "online";
+  msg.data = "CSUCI"; // 
   status_publisher.publish(msg);
 }
 
@@ -499,4 +499,3 @@ void messagePasser(const std_msgs::String::ConstPtr& message)
 {
     messageHandler(message, &self_idx, memberNames, publishedName, swarmSize, targetCollected, targetsDetected, targetPositions, paths, stateMachineState, goalLocation, currentLocation);
 }
-
