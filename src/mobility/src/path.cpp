@@ -8,7 +8,9 @@ namespace csuci {
 
         goal_pose.x = x;
         goal_pose.y = y;
-        goal_pose.theta = atan2(y - curr_y, x - curr_x);
+        // goal_pose.theta = atan2(y - curr_y, x - curr_x);
+
+        goal_pose.theta = curr_theta;
 
         turn_time = (goal_pose.theta - curr_theta) / DEFAULT_ANG_VELOCITY;
         move_time = hypot(goal_pose.x - curr_x, goal_pose.y - curr_y) / DEFAULT_VELOCITY;
