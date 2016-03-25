@@ -192,7 +192,7 @@ void mobilityStateMachine(const ros::TimerEvent&)
                 else if (fabs(angles::shortest_angular_distance(currentLocation.theta, atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x))) < M_PI_2) {
                     stateMachineState = STATE_MACHINE_TRANSLATE; //translate
                 }
-                //If returning with a target -- only robot 3 should be returning with target (collecting) 
+                //If returning with a target -- only robot 3 should be returning with target (collecting) -- anything other than -1 means collect
                 else if (targetCollected.data != -1 && self_idx == COLLECTOR) {
                     //If goal has not yet been reached
                     if (hypot(0.0 - currentLocation.x, 0.0 - currentLocation.y) > 0.5) {
@@ -227,7 +227,7 @@ void mobilityStateMachine(const ros::TimerEvent&)
 
                     } else {
 
-                        if(self_idx == SERACH_1) { // robot 1
+                        if(swarmSize >= 3 && self_idx == SERACH_1) { // robot 1
 
                             if(paths[self_idx].Size() == 0) {
 
@@ -247,7 +247,7 @@ void mobilityStateMachine(const ros::TimerEvent&)
 
                         }
 
-                        if(self_idx == SERACH_2) { // robot 2
+                        if(swarmSize >= 3 && self_idx == SERACH_2) { // robot 2
 
                             if(paths[self_idx].Size() == 0) {
 
@@ -267,7 +267,7 @@ void mobilityStateMachine(const ros::TimerEvent&)
                         
                         }
 
-                        if(self_idx == COLLECTOR) { // robot 3 // ajax // white
+                        if(swarmSize >= 3 && self_idx == COLLECTOR) { // robot 3 // ajax // white
 
                             if(paths[self_idx].Size() == 0) {
 
@@ -401,7 +401,11 @@ void targetHandler(const shared_messages::TagsImage::ConstPtr& message) {
 
             targetDetectedPos_01.push_back(targetDetectedPos);
 
-            targetDetected.data = -1; // not sure if I really need this
+            //publish detected target
+            targetCollectedPublish.publish(targetDetected);
+
+            //publish to scoring code
+            targetPickUpPublish.publish(message->image);
 
             // goalLocation.x = currentLocation.x;
             // goalLocation.y = currentLocation.y;
@@ -430,7 +434,11 @@ void targetHandler(const shared_messages::TagsImage::ConstPtr& message) {
 
             targetDetectedPos_01.push_back(targetDetectedPos);
 
-            targetDetected.data = -1; // not sure if I really need this
+            //publish detected target
+            targetCollectedPublish.publish(targetDetected);
+
+            //publish to scoring code
+            targetPickUpPublish.publish(message->image);
 
             // goalLocation.x = currentLocation.x;
             // goalLocation.y = currentLocation.y;
