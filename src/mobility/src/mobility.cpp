@@ -40,7 +40,7 @@ const int ROBOT03 = 2;
 const int ROBOT04 = 3;
 const int ROBOT05 = 4;
 const int ROBOT06 = 5;
-vector<geometry_msgs::Pose2D> detectedTargets;
+vector<geometry_msgs::Pose2D> pickup;
 
 // preliminary, final
 const int PRELIMINARY_ROUND = 3;
@@ -193,7 +193,7 @@ void mobilityStateMachine(const ros::TimerEvent&)
                 else if (fabs(angles::shortest_angular_distance(currentLocation.theta, atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x))) < M_PI_2) {
                     stateMachineState = STATE_MACHINE_TRANSLATE; //translate
                 }
-                //If returning with a target -- only robot 3 should be returning with target (collecting) -- anything other than -1 means collect
+                //If returning with a target 
                 else if (targetCollected.data != -1) {
                     //If goal has not yet been reached
                     if (hypot(0.0 - currentLocation.x, 0.0 - currentLocation.y) > 0.5) {
@@ -265,7 +265,7 @@ void mobilityStateMachine(const ros::TimerEvent&)
                             if(paths[ROBOT03].Size() == 0) {
 
                                 // add some waypoints
-                                paths[ROBOT03].Add(currentLocation.x, currentLocation.y, currentLocation.theta, waypoints_x_02[i], waypoints_y_02[i]);
+                                // paths[ROBOT03].Add(currentLocation.x, currentLocation.y, currentLocation.theta, , );
 
                             } else {
                                 PathNode* n = paths[ROBOT03].Get(0);
@@ -367,52 +367,24 @@ void setVelocity(double linearVel, double angularVel)
      }
  }
 
-	//if target has not previously been detected 
-	else if (targetDetected.data == -1 && self_idx == SERACH_1) { // robot 1  
-
-        //check if target has not yet been collected
-        if (!targetsCollected[message->tags.data[0]]) {
-			//copy target ID to class variable
-         targetDetected.data = message->tags.data[0];
-
-         geometry_msgs::Pose2D targetDetectedPos;
-
-         float x = currentLocation.x;
-         float y = currentLocation.y;
-
-         targetDetectedPos.x = x;
-         targetDetectedPos.y = y;
-         targetDetectedPos.theta = currentLocation.theta;
-
-         targetDetectedPos_01.push_back(targetDetectedPos);
-
-            //publish detected target
-         targetCollectedPublish.publish(targetDetected);
-
-            //publish to scoring code
-         targetPickUpPublish.publish(message->image);
-     }
-
- }
-
     //if target has not previously been detected 
-    else if (targetDetected.data == -1) { // robot 2
+    else if (targetDetected.data == -1) { 
 
         //check if target has not yet been collected
         if (!targetsCollected[message->tags.data[0]]) {
             //copy target ID to class variable
             targetDetected.data = message->tags.data[0];
 
-            geometry_msgs::Pose2D targetDetectedPos;
+            geometry_msgs::Pose2D pos;
 
             float x = currentLocation.x;
             float y = currentLocation.y;
 
-            targetDetectedPos.x = x;
-            targetDetectedPos.y = y;
-            targetDetectedPos.theta = currentLocation.theta;
+            pos.x = x;
+            pos.y = y;
+            pos.theta = currentLocation.theta;
 
-            targetDetectedPos_01.push_back(targetDetectedPos);
+            pickup.push_back(pos);
 
             //publish detected target
             targetCollectedPublish.publish(targetDetected);
