@@ -408,6 +408,8 @@ void targetHandler(const shared_messages::TagsImage::ConstPtr& message) {
             targetPickUpPublish.publish(message->image);
     }
 
+    }
+
     //if target has not previously been detected 
     else if (targetDetected.data == -1 && self_idx == SERACH_2) { // robot 2
         
