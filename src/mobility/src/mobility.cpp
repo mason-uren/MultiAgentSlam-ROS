@@ -25,9 +25,6 @@
 //Custom message passing
 #include "messages.hpp"
 
-//debugging
-
-
 using namespace std;
 
 //Random number generator
@@ -36,9 +33,16 @@ random_numbers::RandomNumberGenerator* rng;
 //Mobility Logic Functions
 void setVelocity(double linearVel, double angularVel);
 
-// webinar
-int TARGETS = 1024;
-int SWARM_SIZE = 6;
+// robot 1
+int SERACH_1 = 0;
+vector<geometry_msgs::Pose2D> targetDetectedPos_01;
+
+// robot 2
+int SERACH_2 = 1;
+vector<geometry_msgs::Pose2D> targetDetectedPos_02;
+
+// robot 3 is collecting
+int COLLECTOR = 2;
 
 //Numeric Variables
 geometry_msgs::Pose2D currentLocation;
@@ -59,10 +63,11 @@ int next = 0;
 int ARENA_SIZE = 12;
 float waypoints_theta_01 [] = {0.0, 0.0, M_PI_2, M_PI, M_PI_2, 0.0, M_PI_2, M_PI, M_PI_2, 0.0, M_PI_2, M_PI, M_PI_2};
 float waypoints_theta_02 [] = {0.0, M_PI, 3.0*M_PI_2, 0.0, 3.0*M_PI_2, M_PI, 3.0*M_PI_2, 0.0, 3.0*M_PI_2, M_PI, 3.0*M_PI_2, 0.0, 3.0*M_PI_2};
-
-
 float waypoints_x [] = {0.0, 5.5, 5.5, -5.5, -5.5, 5.5, 5.5, -5.5, -5.5, 5.5, 5.5, -5.5, -5.5};
-float waypoints_y [] = {0.0, 0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5, 2.75};
+float waypoints_y [] = {0.0, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5};
+
+float waypoints_x_02 [] = {0.0, -5.5, -5.5, 5.5, 5.5, -5.5, -5.5, 5.5, 5.5, -5.5, -5.5, 5.5, 5.5};
+float waypoints_y_02 [] = {0.0, 0.0, -0.5, -1.0, -1.5, -2.0, -2.5, -3.0, -3.5, -4.0, -4.5, -5.0, -5.5};
 
 // state machine states
 #define STATE_MACHINE_TRANSFORM 0
@@ -125,13 +130,8 @@ int main(int argc, char **argv) {
     string hostname(host);
 
     rng = new random_numbers::RandomNumberGenerator(); //instantiate random number generator
-    goalLocation.theta = 0; //set initial random heading
     
-    targetDetected.data = -1; //initialize target detected
-    
-    //select initial search position 50 cm from center (0,0)
-    goalLocation.x = 0.0;
-    goalLocation.y = 0.0;
+    targetDetected.data = -1; //initialize target detected 
 
     if (argc >= 2) {
         publishedName = argv[1];
@@ -192,8 +192,8 @@ void mobilityStateMachine(const ros::TimerEvent&)
                 else if (fabs(angles::shortest_angular_distance(currentLocation.theta, atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x))) < M_PI_2) {
                     stateMachineState = STATE_MACHINE_TRANSLATE; //translate
                 }
-                //If returning with a target
-                else if (targetCollected.data != -1) {
+                //If returning with a target -- only robot 3 should be returning with target (collecting) 
+                else if (targetCollected.data != -1 && self_idx == COLLECTOR) {
                     //If goal has not yet been reached
                     if (hypot(0.0 - currentLocation.x, 0.0 - currentLocation.y) > 0.5) {
                         //set angle to center as goal heading
@@ -203,16 +203,16 @@ void mobilityStateMachine(const ros::TimerEvent&)
                         goalLocation.x = 0.0;
                         goalLocation.y = 0.0;
                     }
-                    //Otherwise, reset target and select new random uniform heading
-                    else {
+                    //Otherwise, reset target and select new target to collect 
+                    else if (self_idx == COLLECTOR){
                         targetCollectedPublish.publish(targetCollected);
-                        targetCollected.data = -1;
-                        targetDetected.data = -1;
+                        targetCollected.data = -1; // signal target has been collected
+                        targetDetected.data = -1; // signal target has been detected
                     }
                 }
                 //Otherwise, assign a new goal
                 else {
-                    if(avoiding_obstacle) {
+                    if(avoiding_obstacle) { // this is part of assigning new goal, but it is taking into consideration, obstacles
                         avoiding_obstacle = false;
 
                         while(savedPositions.size() > 1) {
@@ -227,12 +227,12 @@ void mobilityStateMachine(const ros::TimerEvent&)
 
                     } else {
 
-                        if(swarmSize >= 3 && self_idx == 0) { // robot 1
+                        if(self_idx == SERACH_1) { // robot 1
 
                             if(paths[self_idx].Size() == 0) {
 
                                 for(int i = 0; i < ARENA_SIZE; i++) {
-                                    paths[self_idx].Add(currentLocation.x, currentLocation.y, waypoints_theta_01[i], waypoints_x[i], waypoints_y[i]);
+                                    paths[self_idx].Add(currentLocation.x, currentLocation.y, currentLocation.theta, waypoints_x[i], waypoints_y[i]);
                                 }
 
                             } else {
@@ -247,12 +247,12 @@ void mobilityStateMachine(const ros::TimerEvent&)
 
                         }
 
-                        if(swarmSize >= 3 && self_idx == 1) { // robot 2
+                        if(self_idx == SERACH_2) { // robot 2
 
                             if(paths[self_idx].Size() == 0) {
 
                                 for(int i = 0; i < ARENA_SIZE; i++) {
-                                    paths[self_idx].Add(currentLocation.x, currentLocation.y, waypoints_theta_02[i], (-1.0)*(waypoints_x[i]), (-1.0)*(waypoints_y[i]));
+                                    paths[self_idx].Add(currentLocation.x, currentLocation.y, currentLocation.theta, waypoints_x_02[i], waypoints_y_02[i]);
                                 }
 
                             } else {
@@ -267,11 +267,19 @@ void mobilityStateMachine(const ros::TimerEvent&)
                         
                         }
 
-                        if(swarmSize >= 3 && self_idx == 2) { // robot 3
+                        if(self_idx == COLLECTOR) { // robot 3 // ajax // white
 
                             if(paths[self_idx].Size() == 0) {
 
-                                    paths[self_idx].Add(currentLocation.x, currentLocation.y, 0.0, 0.0, 0.0);
+                                if(targetDetectedPos_01.size() > 0){
+
+                                    for(int i = 0; i < targetDetectedPos_01.size(); i++){
+
+                                        paths[self_idx].Add(currentLocation.x, currentLocation.y, targetDetectedPos_01.back().theta, targetDetectedPos_01.back().x, targetDetectedPos_01.back().y);
+                                        targetDetectedPos_01.pop_back();
+                                    }
+
+                                }
 
                             } else {
                                 PathNode* n = paths[self_idx].Get(0);
@@ -366,39 +374,100 @@ void targetHandler(const shared_messages::TagsImage::ConstPtr& message) {
 
 	//if this is the goal target
 	if (message->tags.data[0] == 256) {
-		//if we were returning with a target
+        //if we were returning with a target
 	    if (targetDetected.data != -1) {
-			//publish to scoring code
+			//publish to scoring code // only robot 3 should be collecting
 			targetDropOffPublish.publish(message->image);
 			targetDetected.data = -1;
 	    }
 	}
 
 	//if target has not previously been detected 
-	else if (targetDetected.data == -1) {
+	else if (targetDetected.data == -1 && self_idx == SERACH_1) { // robot 1 // detect target, but do not publish, just save position and add to vector 
         
         //check if target has not yet been collected
         if (!targetsCollected[message->tags.data[0]]) {
 			//copy target ID to class variable
 			targetDetected.data = message->tags.data[0];
-			
-	        //set angle to center as goal heading
-			goalLocation.theta = M_PI + atan2(currentLocation.y, currentLocation.x);
-			
-			//set center as goal position
-			goalLocation.x = 0.0;
-			goalLocation.y = 0.0;
-			
-			//publish detected target
-			targetCollectedPublish.publish(targetDetected);
 
-			//publish to scoring code
-			targetPickUpPublish.publish(message->image);
+            geometry_msgs::Pose2D targetDetectedPos;
 
-			//switch to transform state to trigger return to center
-			stateMachineState = STATE_MACHINE_TRANSFORM;
+            float x = currentLocation.x;
+            float y = currentLocation.y;
+
+            targetDetectedPos.x = x;
+            targetDetectedPos.y = y;
+            targetDetectedPos.theta = currentLocation.theta;
+
+            targetDetectedPos_01.push_back(targetDetectedPos);
+
+            targetDetected.data = -1; // not sure if I really need this
+
+            // goalLocation.x = currentLocation.x;
+            // goalLocation.y = currentLocation.y;
+            // goalLocation.theta = currentLocation.theta;
+
+            // stateMachineState = STATE_MACHINE_TRANSFORM;
 		}
     }
+
+    //if target has not previously been detected 
+    else if (targetDetected.data == -1 && self_idx == SERACH_2) { // robot 2
+        
+        //check if target has not yet been collected
+        if (!targetsCollected[message->tags.data[0]]) {
+            //copy target ID to class variable
+            targetDetected.data = message->tags.data[0];
+
+            geometry_msgs::Pose2D targetDetectedPos;
+
+            float x = currentLocation.x;
+            float y = currentLocation.y;
+
+            targetDetectedPos.x = x;
+            targetDetectedPos.y = y;
+            targetDetectedPos.theta = currentLocation.theta;
+
+            targetDetectedPos_01.push_back(targetDetectedPos);
+
+            targetDetected.data = -1; // not sure if I really need this
+
+            // goalLocation.x = currentLocation.x;
+            // goalLocation.y = currentLocation.y;
+            // goalLocation.theta = currentLocation.theta;
+
+            // stateMachineState = STATE_MACHINE_TRANSFORM;
+        }
+    }
+
+    //if target has not previously been detected 
+    else if (targetDetected.data == -1 && self_idx == COLLECTOR) { // robot 3
+        
+        //check if target has not yet been collected
+        if (!targetsCollected[message->tags.data[0]]) {
+            //copy target ID to class variable
+            targetDetected.data = message->tags.data[0];
+            
+            //set angle to center as goal heading
+            goalLocation.theta = M_PI + atan2(currentLocation.y, currentLocation.x);
+            
+            //set center as goal position
+            goalLocation.x = 0.0;
+            goalLocation.y = 0.0;
+            
+            //publish detected target
+            targetCollectedPublish.publish(targetDetected);
+
+            //publish to scoring code
+            targetPickUpPublish.publish(message->image);
+
+            //switch to transform state to trigger return to center
+            stateMachineState = STATE_MACHINE_TRANSFORM;
+        }
+    }
+
+
+
 }
 
 void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
