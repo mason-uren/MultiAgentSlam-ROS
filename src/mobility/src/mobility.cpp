@@ -74,6 +74,8 @@ float waypoints_y_02 [] = {0.0, 0.0, -0.5, -1.0, -1.5, -2.0, -2.5, -3.0, -3.5, -
 #define STATE_MACHINE_TRANSFORM 0
 #define STATE_MACHINE_ROTATE    1
 #define STATE_MACHINE_TRANSLATE 2
+#define STATE_MACHINE_SEARCH 3
+#define STATE_MACHINE_COLLECT 4
 int stateMachineState = STATE_MACHINE_TRANSFORM;
 
 geometry_msgs::Twist velocity;
@@ -207,8 +209,8 @@ void mobilityStateMachine(const ros::TimerEvent&)
                     //Otherwise, reset target and select new target to collect 
                     else {
                         targetCollectedPublish.publish(targetCollected);
-                        targetCollected.data = -1; // signal target has been collected
-                        targetDetected.data = -1; // signal target has been detected
+                        targetCollected.data = -1;
+                        targetDetected.data = -1;
                     }
                 }
                 //Otherwise, assign a new goal
@@ -262,20 +264,22 @@ void mobilityStateMachine(const ros::TimerEvent&)
                                 paths[ROBOT02].Remove(0);
                             }
 
-                            if(paths[ROBOT03].Size() == 0) {
+                            // if(paths[ROBOT03].Size() == 0) {
 
-                                // add some waypoints
-                                // paths[ROBOT03].Add(currentLocation.x, currentLocation.y, currentLocation.theta, , );
+                            //     if(pickup.size() > 0){
+                            //         paths[ROBOT03].Add(currentLocation.x, currentLocation.y, currentLocation.theta, pickup.back().x, pickup.back().y);
+                            //         pickup.pop_back();
+                            //     }
 
-                            } else {
-                                PathNode* n = paths[ROBOT03].Get(0);
-                                if(n != NULL) {
-                                    goalLocation.x = n->Goal().x;
-                                    goalLocation.y = n->Goal().y;
-                                    goalLocation.theta = n->Goal().theta;
-                                }
-                                paths[ROBOT03].Remove(0);
-                            }
+                            // } else {
+                            //     PathNode* n = paths[ROBOT03].Get(0);
+                            //     if(n != NULL) {
+                            //         goalLocation.x = n->Goal().x;
+                            //         goalLocation.y = n->Goal().y;
+                            //         goalLocation.theta = n->Goal().theta;
+                            //     }
+                            //     paths[ROBOT03].Remove(0);
+                            // }
 
                         }
 
@@ -317,6 +321,23 @@ void mobilityStateMachine(const ros::TimerEvent&)
                 }
                 break;
             }
+
+            case STATE_MACHINE_SEARCH: {
+                stateMachineMsg.data = "SEARCHING";
+
+
+                stateMachineState = STATE_MACHINE_TRANSLATE; //move to translate step
+                break;
+            }
+
+            case STATE_MACHINE_COLLECT: {
+                stateMachineMsg.data = "COLLECTING";
+
+
+                stateMachineState = STATE_MACHINE_TRANSLATE; //move to translate step
+                break;
+            }
+
 
             default: {
                 break;
@@ -368,22 +389,23 @@ void setVelocity(double linearVel, double angularVel)
  }
 
     //if target has not previously been detected 
-    else if (targetDetected.data == -1) { 
+if (targetDetected.data == -1) { 
 
-        //check if target has not yet been collected
-        if (!targetsCollected[message->tags.data[0]]) {
+
+    if(swarmSize >= PRELIMINARY_ROUND){
+
+        if (self_idx == ROBOT01 || self_idx == ROBOT02){
+
+            //check if target has not yet been collected
+            // if (!targetsCollected[message->tags.data[0]]) {
+
             //copy target ID to class variable
-            targetDetected.data = message->tags.data[0];
+            // targetDetected.data = message->tags.data[0]; // don't signal
 
             geometry_msgs::Pose2D pos;
-
-            float x = currentLocation.x;
-            float y = currentLocation.y;
-
-            pos.x = x;
-            pos.y = y;
+            pos.x = currentLocation.x;
+            pos.y = currentLocation.y;
             pos.theta = currentLocation.theta;
-
             pickup.push_back(pos);
 
             //publish detected target
@@ -397,8 +419,42 @@ void setVelocity(double linearVel, double angularVel)
             // goalLocation.theta = currentLocation.theta;
 
             // stateMachineState = STATE_MACHINE_TRANSFORM;
+
+            // }
+
+        } else{ // ROBOT03 - the collector
+
+            //check if target has not yet been collected
+            if (!targetsCollected[message->tags.data[0]]) {
+                //copy target ID to class variable
+                targetDetected.data = message->tags.data[0];
+
+                //set angle to center as goal heading
+                goalLocation.theta = M_PI + atan2(currentLocation.y, currentLocation.x);
+
+                //set center as goal position
+                goalLocation.x = 0.0;
+                goalLocation.y = 0.0;
+
+                //publish detected target
+                targetCollectedPublish.publish(targetDetected);
+
+                //publish to scoring code
+                targetPickUpPublish.publish(message->image);
+
+                //switch to transform state to trigger return to center
+                stateMachineState = STATE_MACHINE_TRANSFORM;
+
+            }
         }
+
     }
+}
+else{
+
+
+
+}
 
 }
 
