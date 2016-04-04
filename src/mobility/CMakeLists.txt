@@ -20,7 +20,7 @@ include_directories(
 )
 
 add_executable(
-  mobility src/mobility.cpp src/path.cpp src/messages.cpp
+  mobility src/mobility.cpp src/path.cpp
 )
 
 add_dependencies(mobility ${catkin_EXPORTED_TARGETS})
