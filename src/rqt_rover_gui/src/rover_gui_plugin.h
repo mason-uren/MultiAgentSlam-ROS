@@ -138,13 +138,15 @@ namespace rqt_rover_gui {
     void GPSCheckboxToggledEventHandler(bool checked);
     void EKFCheckboxToggledEventHandler(bool checked);
     void encoderCheckboxToggledEventHandler(bool checked);
-    void autonomousRadioButtonEventHandler(bool marked);
-    void allAutonomousRadioButtonEventHandler(bool marked);
+
     void joystickRadioButtonEventHandler(bool marked);
+    void autonomousRadioButtonEventHandler(bool marked);
+    void allAutonomousButtonEventHandler();
+    void allStopButtonEventHandler();
+
     void buildSimulationButtonEventHandler();
     void clearSimulationButtonEventHandler();
     void visualizeSimulationButtonEventHandler();
-    void gazeboClientFinishedEventHandler();
     void gazeboServerFinishedEventHandler();  
     void displayLogMessage(QString msg);
 
@@ -183,13 +185,12 @@ namespace rqt_rover_gui {
     Ui::RoverGUI ui;
 
     QProcess* joy_process;
-    QTimer* timer; // for rover polling
+    QTimer* rover_poll_timer; // for rover polling
 
     QString log_messages;
     GazeboSimManager sim_mgr;
 
     map<string,int> rover_control_state;
-    bool all_autonomous;
 
     float arena_dim; // in meters
 
@@ -198,7 +199,7 @@ namespace rqt_rover_gui {
 
     bool display_sim_visualization;
 
-    // Object clearance. These values are used to quickly determine where objects can be placed int time simulatio
+    // Object clearance. These values are used to quickly determine where objects can be placed int time simulation
     float target_cluster_size_64_clearance;
     float target_cluster_size_16_clearance;
     float target_cluster_size_4_clearance;

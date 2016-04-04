@@ -33,19 +33,6 @@ random_numbers::RandomNumberGenerator* rng;
 //Mobility Logic Functions
 void setVelocity(double linearVel, double angularVel);
 
-// swarms
-const int ROBOT01 = 0;
-const int ROBOT02 = 1;
-const int ROBOT03 = 2;
-const int ROBOT04 = 3;
-const int ROBOT05 = 4;
-const int ROBOT06 = 5;
-vector<geometry_msgs::Pose2D> pickup;
-
-// preliminary, final
-const int PRELIMINARY_ROUND = 3;
-const int FINAL_ROUND = 6;
-
 //Numeric Variables
 geometry_msgs::Pose2D currentLocation;
 geometry_msgs::Pose2D goalLocation;
@@ -61,21 +48,32 @@ bool targetsDetected [256] = {0};
 geometry_msgs::Pose2D targetPositions[256];
 Path paths[6];
 
-int next = 0;
-int ARENA_SIZE = 12;
-float waypoints_theta_01 [] = {0.0, 0.0, M_PI_2, M_PI, M_PI_2, 0.0, M_PI_2, M_PI, M_PI_2, 0.0, M_PI_2, M_PI, M_PI_2};
-float waypoints_theta_02 [] = {0.0, M_PI, 3.0*M_PI_2, 0.0, 3.0*M_PI_2, M_PI, 3.0*M_PI_2, 0.0, 3.0*M_PI_2, M_PI, 3.0*M_PI_2, 0.0, 3.0*M_PI_2};
-float waypoints_x [] = {0.0, 5.5, 5.5, -5.5, -5.5, 5.5, 5.5, -5.5, -5.5, 5.5, 5.5, -5.5, -5.5};
-float waypoints_y [] = {0.0, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5};
-float waypoints_x_02 [] = {0.0, -5.5, -5.5, 5.5, 5.5, -5.5, -5.5, 5.5, 5.5, -5.5, -5.5, 5.5, 5.5};
-float waypoints_y_02 [] = {0.0, 0.0, -0.5, -1.0, -1.5, -2.0, -2.5, -3.0, -3.5, -4.0, -4.5, -5.0, -5.5};
+const int ROBOT01 = 0;
+const int ROBOT02 = 1;
+const int ROBOT03 = 2;
+const int ROBOT04 = 3;
+const int ROBOT05 = 4;
+const int ROBOT06 = 5;
+
+const int PRELIMINARY_ROUND = 3;
+const int FINAL_ROUND = 6;
+const int ARENA_SIZE = 12;
+
+vector <geometry_msgs::Pose2D> pickup;
+
+float waypoints_x[] = {0.0, 5.5, 5.5, -5.5, -5.5, 5.5, 5.5, -5.5, -5.5, 5.5, 5.5, -5.5, -5.5};
+float waypoints_y[] = {0.0, 0.0, 0.5, 1.0, 1.5, 2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0, 5.5};
+
+#define LOGIC_INIT          0
+#define LOGIC_FIND_HOME     1
+#define LOGIC_SEARCH        2
+#define LOGIC_COLLECT_RWALK 3
+int logicState = LOGIC_INIT;
 
 // state machine states
 #define STATE_MACHINE_TRANSFORM 0
 #define STATE_MACHINE_ROTATE    1
 #define STATE_MACHINE_TRANSLATE 2
-#define STATE_MACHINE_SEARCH 3
-#define STATE_MACHINE_COLLECT 4
 int stateMachineState = STATE_MACHINE_TRANSFORM;
 
 geometry_msgs::Twist velocity;
@@ -167,7 +165,7 @@ int main(int argc, char **argv) {
     targetDropOffPublish = mNH.advertise<sensor_msgs::Image>((publishedName + "/targetDropOffImage"), 1, true);
 
     publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
-    killSwitchTimer = mNH.createTimer(ros::Duration(killSwitchTimeout), killSwitchTimerEventHandler);
+    //killSwitchTimer = mNH.createTimer(ros::Duration(killSwitchTimeout), killSwitchTimerEventHandler);
     stateMachineTimer = mNH.createTimer(ros::Duration(mobilityLoopTimeStep), mobilityStateMachine);
     
     ros::spin();
@@ -180,6 +178,38 @@ void mobilityStateMachine(const ros::TimerEvent&)
     std_msgs::String stateMachineMsg;    
 
     if ((currentMode == 2 || currentMode == 3)) { //Robot is in automode
+
+
+
+      float ticks = 0.0f;
+        if (logicState == LOGIC_INIT && ticks <= 0.6f)
+        {
+            if(ticks == 0.0f) {
+                std_msgs::String name_msg;
+                name_msg.data = "I ";
+                name_msg.data = name_msg.data + publishedName;
+                messagePublish.publish(name_msg);
+            }
+
+            if(swarmSize >= PRELIMINARY_ROUND) {
+                logicState = LOGIC_FIND_HOME;
+            }
+
+        } else if (logicState == LOGIC_FIND_HOME)
+        {
+
+            if (self_idx == ROBOT01 || self_idx == ROBOT02)
+            {
+                    logicState = LOGIC_SEARCH;
+            }
+            else
+            {
+                    logicState = LOGIC_COLLECT_RWALK;
+            }
+
+        }
+
+
 
         switch(stateMachineState) {
 
@@ -230,71 +260,38 @@ void mobilityStateMachine(const ros::TimerEvent&)
 
                     } else {
 
-                        if(swarmSize >= PRELIMINARY_ROUND) {
+                     if(swarmSize >= 3 && self_idx >= 0) {
+                        if(paths[self_idx].Size() == 0) {
 
-                            if(paths[ROBOT01].Size() == 0) {
-
-                                for(int i = 0; i < ARENA_SIZE; i++) {
-                                    paths[ROBOT01].Add(currentLocation.x, currentLocation.y, currentLocation.theta, waypoints_x[i], waypoints_y[i]);
-                                }
-
-                            } else {
-                                PathNode* n = paths[ROBOT01].Get(0);
-                                if(n != NULL) {
-                                    goalLocation.x = n->Goal().x;
-                                    goalLocation.y = n->Goal().y;
-                                    goalLocation.theta = n->Goal().theta;
-                                }
-                                paths[ROBOT01].Remove(0);
+                            for(int i = 0; i < 6; i++) {
+                                double r = rng->uniformReal(0.5, 10.0);
+                                double t = rng->uniformReal(0, 2 * M_PI);
+                                paths[self_idx].Add(currentLocation.x, currentLocation.y, currentLocation.theta, r * cos(t), r * sin(t));
                             }
 
-                            if(paths[ROBOT02].Size() == 0) {
-
-                                for(int i = 0; i < ARENA_SIZE; i++) {
-                                    paths[ROBOT02].Add(currentLocation.x, currentLocation.y, currentLocation.theta, waypoints_x_02[i], waypoints_y_02[i]);
-                                }
-
-                            } else {
-                                PathNode* n = paths[ROBOT02].Get(0);
-                                if(n != NULL) {
-                                    goalLocation.x = n->Goal().x;
-                                    goalLocation.y = n->Goal().y;
-                                    goalLocation.theta = n->Goal().theta;
-                                }
-                                paths[ROBOT02].Remove(0);
+                        } else {
+                            PathNode* n = paths[self_idx].Get(0);
+                            if(n != NULL) {
+                                goalLocation.x = n->Goal().x;
+                                goalLocation.y = n->Goal().y;
+                                goalLocation.theta = n->Goal().theta;
                             }
-
-                            // if(paths[ROBOT03].Size() == 0) {
-
-                            //     if(pickup.size() > 0){
-                            //         paths[ROBOT03].Add(currentLocation.x, currentLocation.y, currentLocation.theta, pickup.back().x, pickup.back().y);
-                            //         pickup.pop_back();
-                            //     }
-
-                            // } else {
-                            //     PathNode* n = paths[ROBOT03].Get(0);
-                            //     if(n != NULL) {
-                            //         goalLocation.x = n->Goal().x;
-                            //         goalLocation.y = n->Goal().y;
-                            //         goalLocation.theta = n->Goal().theta;
-                            //     }
-                            //     paths[ROBOT03].Remove(0);
-                            // }
-
+                            paths[self_idx].Remove(0);
                         }
-
                     }
 
                 }
 
             }
 
+        }
+
             //Calculate angle between currentLocation.theta and goalLocation.theta
             //Rotate left or right depending on sign of angle
             //Stay in this state until angle is minimized
-            case STATE_MACHINE_ROTATE: {
-                stateMachineMsg.data = "ROTATING";
-                if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) > 0.1) {
+        case STATE_MACHINE_ROTATE: {
+            stateMachineMsg.data = "ROTATING";
+            if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) > 0.1) {
                     setVelocity(0.0, 0.2); //rotate left
                 }
                 else if (angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta) < -0.1) {
@@ -322,23 +319,6 @@ void mobilityStateMachine(const ros::TimerEvent&)
                 break;
             }
 
-            case STATE_MACHINE_SEARCH: {
-                stateMachineMsg.data = "SEARCHING";
-
-
-                stateMachineState = STATE_MACHINE_TRANSLATE; //move to translate step
-                break;
-            }
-
-            case STATE_MACHINE_COLLECT: {
-                stateMachineMsg.data = "COLLECTING";
-
-
-                stateMachineState = STATE_MACHINE_TRANSLATE; //move to translate step
-                break;
-            }
-
-
             default: {
                 break;
             }
@@ -356,7 +336,6 @@ void mobilityStateMachine(const ros::TimerEvent&)
         sprintf(prev_state_machine, "%s", stateMachineMsg.data.c_str());
     }
 
-    next++;
 }
 
 void setVelocity(double linearVel, double angularVel) 
@@ -364,9 +343,9 @@ void setVelocity(double linearVel, double angularVel)
   // Stopping and starting the timer causes it to start counting from 0 again.
   // As long as this is called before the kill swith timer reaches killSwitchTimeout seconds
   // the rover's kill switch wont be called.
-  //killSwitchTimer.stop();
-  //killSwitchTimer.start();
-
+  killSwitchTimer.stop();
+  killSwitchTimer.start();
+  
   velocity.linear.x = linearVel * 1.5;
   velocity.angular.z = angularVel * 8; //scaling factor for sim; removed by aBridge node
   velocityPublish.publish(velocity);
@@ -379,83 +358,42 @@ void setVelocity(double linearVel, double angularVel)
  void targetHandler(const shared_messages::TagsImage::ConstPtr& message) {
 
 	//if this is the goal target
-   if (message->tags.data[0] == 256) {
+     if (message->tags.data[0] == 256) {
         //if we were returning with a target
-       if (targetDetected.data != -1) {
+         if (targetDetected.data != -1) {
 		 //publish to scoring code 
-         targetDropOffPublish.publish(message->image);
-         targetDetected.data = -1;
-     }
- }
+           targetDropOffPublish.publish(message->image);
+           targetDetected.data = -1;
+       }
+   }
 
     //if target has not previously been detected 
-if (targetDetected.data == -1) { 
+   if (targetDetected.data == -1) { 
 
-
-    if(swarmSize >= PRELIMINARY_ROUND){
-
-        if (self_idx == ROBOT01 || self_idx == ROBOT02){
 
             //check if target has not yet been collected
-            // if (!targetsCollected[message->tags.data[0]]) {
-
-            //copy target ID to class variable
-            // targetDetected.data = message->tags.data[0]; // don't signal
-
-            geometry_msgs::Pose2D pos;
-            pos.x = currentLocation.x;
-            pos.y = currentLocation.y;
-            pos.theta = currentLocation.theta;
-            pickup.push_back(pos);
-
-            //publish detected target
-            targetCollectedPublish.publish(targetDetected);
-
-            //publish to scoring code
-            targetPickUpPublish.publish(message->image);
-
-            // goalLocation.x = currentLocation.x;
-            // goalLocation.y = currentLocation.y;
-            // goalLocation.theta = currentLocation.theta;
-
-            // stateMachineState = STATE_MACHINE_TRANSFORM;
-
-            // }
-
-        } else{ // ROBOT03 - the collector
-
-            //check if target has not yet been collected
-            if (!targetsCollected[message->tags.data[0]]) {
+    if (!targetsCollected[message->tags.data[0]]) {
                 //copy target ID to class variable
-                targetDetected.data = message->tags.data[0];
+        targetDetected.data = message->tags.data[0];
 
                 //set angle to center as goal heading
-                goalLocation.theta = M_PI + atan2(currentLocation.y, currentLocation.x);
+        goalLocation.theta = M_PI + atan2(currentLocation.y, currentLocation.x);
 
                 //set center as goal position
-                goalLocation.x = 0.0;
-                goalLocation.y = 0.0;
+        goalLocation.x = 0.0;
+        goalLocation.y = 0.0;
 
                 //publish detected target
-                targetCollectedPublish.publish(targetDetected);
+        targetCollectedPublish.publish(targetDetected);
 
                 //publish to scoring code
-                targetPickUpPublish.publish(message->image);
+        targetPickUpPublish.publish(message->image);
 
                 //switch to transform state to trigger return to center
-                stateMachineState = STATE_MACHINE_TRANSFORM;
-
-            }
-        }
+        stateMachineState = STATE_MACHINE_TRANSFORM;
 
     }
 }
-else{
-
-
-
-}
-
 }
 
 void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
@@ -549,7 +487,7 @@ void targetsCollectedHandler(const std_msgs::Int16::ConstPtr& message) {
 void sigintEventHandler(int sig)
 {
      // All the default sigint handler does is call shutdown()
-   ros::shutdown();
+ ros::shutdown();
 }
 
 void messagePasser(const std_msgs::String::ConstPtr& message)
