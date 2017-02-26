@@ -22,13 +22,13 @@
 #include "PickUpController.h"
 #include "DropOffController.h"
 #include "SearchController.h"
+#include "PIDController.h"
 
 // To handle shutdown signals so the node quits
 // properly in response to "rosnode kill"
 #include <ros/ros.h>
 #include <signal.h>
 
-// Added this comment to test commit.
 
 using namespace std;
 
@@ -39,6 +39,7 @@ random_numbers::RandomNumberGenerator* rng;
 PickUpController pickUpController;
 DropOffController dropOffController;
 SearchController searchController;
+PIDController pidController;
 
 // Mobility Logic Functions
 void sendDriveCommand(double linearVel, double angularVel);
@@ -98,8 +99,6 @@ geometry_msgs::Pose2D mapLocation[mapHistorySize];
 
 bool avoidingObstacle = false;
 
-float searchVelocity = 0.2; // meters/second
-
 std_msgs::String msg;
 
 // state machine states
@@ -123,6 +122,8 @@ ros::Publisher fingerAnglePublish;
 ros::Publisher wristAnglePublish;
 ros::Publisher infoLogPublisher;
 ros::Publisher driveControlPublish;
+ros::Publisher goalLocationPublish;
+ros::Publisher currentLocationPublish;
 
 // Subscribers
 ros::Subscriber joySubscriber;
@@ -141,7 +142,7 @@ ros::Timer targetDetectedTimer;
 // records time for delays in sequanced actions, 1 second resolution.
 time_t timerStartTime;
 
-// An initial delay to allow the rover to gather enough position data to 
+// An initial delay to allow the rover to gather enough position data to
 // average its location.
 unsigned int startDelayInSeconds = 1;
 float timerTimeElapsed = 0;
@@ -163,6 +164,10 @@ void mobilityStateMachine(const ros::TimerEvent&);
 void publishStatusTimerEventHandler(const ros::TimerEvent& event);
 void targetDetectedReset(const ros::TimerEvent& event);
 
+double getRotationalError();
+//double getTranslationalVelocity();
+double getTranslationalError();
+
 int main(int argc, char **argv) {
 
     gethostname(host, sizeof (host));
@@ -171,12 +176,17 @@ int main(int argc, char **argv) {
     // instantiate random number generator
     rng = new random_numbers::RandomNumberGenerator();
 
-    //set initial random heading
-    goalLocation.theta = rng->uniformReal(0, 2 * M_PI);
+//    //set initial random heading
+//    goalLocation.theta = rng->uniformReal(0, 2 * M_PI);
 
-    //select initial search position 50 cm from center (0,0)
-    goalLocation.x = 0.5 * cos(goalLocation.theta+M_PI);
-    goalLocation.y = 0.5 * sin(goalLocation.theta+M_PI);
+//    //select initial search position 50 cm from center (0,0)
+//    goalLocation.x = 0.5 * cos(goalLocation.theta+M_PI);
+//    goalLocation.y = 0.5 * sin(goalLocation.theta+M_PI);
+
+    goalLocation.x = 5.0;
+    goalLocation.y = -5.0;
+    goalLocation.theta = atan2(goalLocation.y,goalLocation.x);
+
 
     centerLocation.x = 0;
     centerLocation.y = 0;
@@ -218,6 +228,8 @@ int main(int argc, char **argv) {
     wristAnglePublish = mNH.advertise<std_msgs::Float32>((publishedName + "/wristAngle/cmd"), 1, true);
     infoLogPublisher = mNH.advertise<std_msgs::String>("/infoLog", 1, true);
     driveControlPublish = mNH.advertise<geometry_msgs::Twist>((publishedName + "/driveControl"), 10);
+    goalLocationPublish = mNH.advertise<std_msgs::String>((publishedName + "/goalLocation"),1,true);
+    currentLocationPublish = mNH.advertise<std_msgs::String>((publishedName + "/currentLocation"),1,true);
 
     publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
     stateMachineTimer = mNH.createTimer(ros::Duration(mobilityLoopTimeStep), mobilityStateMachine);
@@ -246,6 +258,12 @@ int main(int argc, char **argv) {
 // This block passes the goal location to the proportional-integral-derivative
 // controllers in the abridge package.
 void mobilityStateMachine(const ros::TimerEvent&) {
+
+    std_msgs::String goalLocationMsg;
+    std::ostringstream ss;
+    ss<< "goalLocation: "<<goalLocation.x<<", "<<goalLocation.y<<", "<<goalLocation.theta;
+    goalLocationMsg.data = ss.str();
+    goalLocationPublish.publish(goalLocationMsg);
 
     std_msgs::String stateMachineMsg;
     float rotateOnlyAngleTolerance = 0.4;
@@ -303,6 +321,11 @@ void mobilityStateMachine(const ros::TimerEvent&) {
         case STATE_MACHINE_TRANSFORM: {
             stateMachineMsg.data = "TRANSFORMING";
 
+            double rotationalError = getRotationalError();
+            bool notPastGoal = rotationalError < M_PI_2;
+            double translationalError = getTranslationalError();
+            bool notNearGoal = translationalError > 0.25;
+
             // If returning with a target
             if (targetCollected && !avoidingObstacle) {
                 // calculate the euclidean distance between
@@ -358,11 +381,12 @@ void mobilityStateMachine(const ros::TimerEvent&) {
             }
             //If angle between current and goal is significant
             //if error in heading is greater than 0.4 radians
-            else if (fabs(angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta)) > rotateOnlyAngleTolerance) {
+
+            else if (getRotationalError() > rotateOnlyAngleTolerance) {
                 stateMachineState = STATE_MACHINE_ROTATE;
             }
             //If goal has not yet been reached drive and maintane heading
-            else if (fabs(angles::shortest_angular_distance(currentLocation.theta, atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x))) < M_PI_2) {
+            else if (notPastGoal || notNearGoal) {
                 stateMachineState = STATE_MACHINE_SKID_STEER;
             }
             //Otherwise, drop off target and select new random uniform heading
@@ -401,25 +425,35 @@ void mobilityStateMachine(const ros::TimerEvent&) {
         case STATE_MACHINE_SKID_STEER: {
             stateMachineMsg.data = "SKID_STEER";
 
+
+
             // calculate the distance between current and desired heading in radians
-            float errorYaw = angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta);
+//            float errorYaw = angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta);
+            float errorYaw = getRotationalError();
+            float searchVelocity = pidController.calculateTranslationalVelocity(currentLocation, goalLocation);
+
+            double rotationalError = fabs(errorYaw);
+            bool notPastGoal = rotationalError < M_PI_2;
+            double translationalError = getTranslationalError();
+            bool notNearGoal = translationalError > 0.25;
 
             // goal not yet reached drive while maintaining proper heading.
-            if (fabs(angles::shortest_angular_distance(currentLocation.theta, atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x))) < M_PI_2) {
+            if (notPastGoal || notNearGoal) {
                 // drive and turn simultaniously
                 sendDriveCommand(searchVelocity, errorYaw/2);
             }
-            // goal is reached but desired heading is still wrong turn only
-            else if (fabs(angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta)) > 0.1) {
-                 // rotate but dont drive
-                sendDriveCommand(0.0, errorYaw);
-            }
+//            // goal is reached but desired heading is still wrong turn only
+//            else if (fabs(angles::shortest_angular_distance(currentLocation.theta, goalLocation.theta)) > 0.1) {
+//                 // rotate but dont drive
+//                sendDriveCommand(0.0, errorYaw);
+//            }
             else {
                 // stop
                 sendDriveCommand(0.0, 0.0);
                 avoidingObstacle = false;
 
                 // move back to transform step
+                goalLocation = searchController.search(currentLocation);
                 stateMachineState = STATE_MACHINE_TRANSFORM;
             }
 
@@ -518,6 +552,24 @@ void sendDriveCommand(double linearVel, double angularError)
     driveControlPublish.publish(velocity);
 }
 
+double getRotationalError()
+{
+    double rotationalError = angles::shortest_angular_distance(currentLocation.theta, atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x));
+//    std_msgs::Float32 rErrorMsg;
+//    rErrorMsg.data = rotationalError;
+//    rotationalErrorPublish.publish(rErrorMsg);
+    return rotationalError;
+}
+
+double getTranslationalError()
+{
+    double translationalError = hypot(goalLocation.x - currentLocation.x, goalLocation.y - currentLocation.y);
+//    std_msgs::Float32 tErrorMsg;
+//    tErrorMsg.data = translationalError;
+//    translationalErrorPublish.publish(tErrorMsg);
+    return translationalError;
+}
+
 /*************************
  * ROS CALLBACK HANDLERS *
  *************************/
@@ -567,20 +619,20 @@ void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& messag
             float centeringTurn = 0.15; //radians
             stateMachineState = STATE_MACHINE_TRANSFORM;
 
-            // this code keeps the robot from driving over
-            // the center when searching for blocks
-            if (right) {
-                // turn away from the center to the left if just driving
-                // around/searching.
-                goalLocation.theta += centeringTurn;
-            } else {
-                // turn away from the center to the right if just driving
-                // around/searching.
-                goalLocation.theta -= centeringTurn;
-            }
+//            // this code keeps the robot from driving over
+//            // the center when searching for blocks
+//            if (right) {
+//                // turn away from the center to the left if just driving
+//                // around/searching.
+//                goalLocation.theta += centeringTurn;
+//            } else {
+//                // turn away from the center to the right if just driving
+//                // around/searching.
+//                goalLocation.theta -= centeringTurn;
+//            }
 
-            // continues an interrupted search
-            goalLocation = searchController.continueInterruptedSearch(currentLocation, goalLocation);
+//            // continues an interrupted search
+//            goalLocation = searchController.continueInterruptedSearch(currentLocation, goalLocation);
 
             targetDetected = false;
             pickUpController.reset();
@@ -662,6 +714,12 @@ void odometryHandler(const nav_msgs::Odometry::ConstPtr& message) {
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
     currentLocation.theta = yaw;
+
+    std_msgs::String currentLocationMsg;
+    std::ostringstream ssCL;
+    ssCL<< "currentLocation: "<<currentLocation.x<<", "<<currentLocation.y<<", "<<currentLocation.theta;
+    currentLocationMsg.data = ssCL.str();
+    currentLocationPublish.publish(currentLocationMsg);
 }
 
 void mapHandler(const nav_msgs::Odometry::ConstPtr& message) {
@@ -732,7 +790,7 @@ void mapAverage() {
     // find the average
     x = x/mapHistorySize;
     y = y/mapHistorySize;
-    
+
     // Get theta rotation by converting quaternion orientation to pitch/roll/yaw
     theta = theta/100;
     currentLocationAverage.x = x;
@@ -777,4 +835,3 @@ void mapAverage() {
 
     }
 }
-

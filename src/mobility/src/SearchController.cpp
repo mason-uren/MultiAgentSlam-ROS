@@ -10,13 +10,16 @@ SearchController::SearchController() {
 geometry_msgs::Pose2D SearchController::search(geometry_msgs::Pose2D currentLocation) {
   geometry_msgs::Pose2D goalLocation;
 
-  //select new heading from Gaussian distribution around current heading
-  goalLocation.theta = rng->gaussian(currentLocation.theta, 0.25);
+//  //select new heading from Gaussian distribution around current heading
+//  goalLocation.theta = rng->gaussian(currentLocation.theta, 0.25);
 
-  //select new position 50 cm from current location
-  goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
-  goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
+//  //select new position 50 cm from current location
+//  goalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
+//  goalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
 
+  goalLocation.x = 5.0;
+  goalLocation.y = 5.0;
+  goalLocation.theta = 1.0;
   return goalLocation;
 }
 
