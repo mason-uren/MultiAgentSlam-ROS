@@ -28,6 +28,7 @@ public:
     float getSpinner() {return spinner;}
     float getCentX() { return centerLocation.x;}
     float getCount() { return count;}
+    bool getReachedCollectionPoint() {return reachedCollectionPoint;}
 
     void setDataTargets(int ccount, double lleft, double rright);
     void setCenterDist(float dist) {distanceToCenter = dist;}

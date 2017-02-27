@@ -79,7 +79,7 @@ PickUpResult PickUpController::pickUpSelectedTarget(bool blockBlock) {
         result.angleError = 0.0;
         result.wristAngle = 0;
     }
-    else if (Td > 1.7) //close the fingers and stop driving
+    else if (Td > 1.9) //close the fingers and stop driving
     {
         result.cmdVel = -0.1;
         result.angleError = 0.0;

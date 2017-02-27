@@ -20,8 +20,8 @@ private:
     float translational_integrator;
     float translational_error_prior;
 
-    static const float Kp_T = 1.0;
-    static const float Ki_T = 0.0;
+    static const float Kp_T = 1.5;
+    static const float Ki_T = 0.001;
     static const float Kd_T = 0.0;
 
     static const float MAX_LINEAR_VELOCITY = 0.3;
