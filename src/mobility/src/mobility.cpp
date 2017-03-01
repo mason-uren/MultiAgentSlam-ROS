@@ -119,7 +119,7 @@ float searchVelocity = 0.2; // meters/second
 bool obstacleEncountered = false;
 bool targetEncountered = false;
 enum last_encountered_enum { OBSTACLE, TARGET, WAYPOINT };
-last_encountered_enum lastEncountered;
+last_encountered_enum lastEncountered = WAYPOINT;
 geometry_msgs::Pose2D divergentLocation; // I forgot what D means in the diagram!!!
 
 std_msgs::String msg;
@@ -582,6 +582,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
 
                 //goalLocation = searchController.waypointNextLocation(currentLocation, publishedName); //goalLocation = searchController.search(currentLocation);
                 goalLocation = searchController.peekWaypoint();
+
                 pidController.resetTranslationalIntegrator();
 
 
@@ -633,13 +634,17 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     // assume target has been picked up by gripper
                     targetCollected = true;
                     result.pickedUp = false;
-                    stateMachineState = STATE_MACHINE_ROTATE;
-                    // TODO Pickup stack code goes here.
-
+                    stateMachineState = STATE_MACHINE_TRANSFORM;
                     // set center as goal position
                     goalLocation.x = centerLocationOdom.x;// = 0;
                     goalLocation.y = centerLocationOdom.y;
                     goalLocation.theta = atan2(centerLocationOdom.y - currentLocation.y, centerLocationOdom.x - currentLocation.x);
+                    // TODO Pickup stack code goes here.
+                    if(!obstacleEncountered & !targetDetected)
+                    {
+                        searchController.pushWaypoint(currentLocation);
+                        searchController.pushWaypoint(goalLocation);
+                    }
 
                     // lower wrist to avoid ultrasound sensors
                     std_msgs::Float32 angle;

@@ -202,7 +202,7 @@ void SearchController::waypointSearchFound(geometry_msgs::Pose2D currentLocation
     stack_waypoints.push(currentLocation);
 }
 
-void SearchController::pushOneWaypoint(geometry_msgs::Pose2D newLocation)
+void SearchController::pushWaypoint(geometry_msgs::Pose2D newLocation)
 {
     stack_waypoints.push(newLocation);
 }
