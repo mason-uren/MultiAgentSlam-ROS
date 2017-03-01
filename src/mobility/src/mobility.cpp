@@ -567,8 +567,24 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                 // move back to transform step
                 stateMachineState = STATE_MACHINE_TRANSFORM;
                 // TODO Goal Reached stack code goes here.
-                goalLocation = searchController.waypointNextLocation(currentLocation, publishedName); //goalLocation = searchController.search(currentLocation);
+                if(!obstacleEncountered && !goalLocation) {
+                    if(goalLocation ) // == peek()
+                    {
+                        lastEncountered = WAYPOINT;
+                        //pop()
+                    }
+                }
+
+                if(divergentLocation == goalLocation) {
+                    obstacleEncountered = false;
+                    targetEncountered = false;
+                }
+
+                //goalLocation = searchController.waypointNextLocation(currentLocation, publishedName); //goalLocation = searchController.search(currentLocation);
+                // goalLocation = peek()
                 pidController.resetTranslationalIntegrator();
+
+
             }
 
             break;
