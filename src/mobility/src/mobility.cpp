@@ -31,7 +31,6 @@
 //#include <string>
 #include <vector>
 
-
 using namespace std;
 
 // Random number generator
@@ -115,6 +114,13 @@ geometry_msgs::Pose2D mapLocation[mapHistorySize];
 bool avoidingObstacle = false;
 
 float searchVelocity = 0.2; // meters/second
+
+// New variables for improved obstacle avoidance and pickup of targets while keeping with waypoint based search
+bool obstacleEncountered = false;
+bool targetEncountered = false;
+enum last_encountered_enum { OBSTACLE, TARGET, WAYPOINT };
+last_encountered_enum lastEncountered;
+geometry_msgs::Pose2D divergentLocation; // I forgot what D means in the diagram!!!
 
 std_msgs::String msg;
 
@@ -200,19 +206,6 @@ int main(int argc, char **argv) {
     // instantiate random number generator
     rng = new random_numbers::RandomNumberGenerator();
 
-//    //set initial random heading
-//    goalLocation.theta = rng->uniformReal(0, 2 * M_PI); //goalLocation.theta = atan2(goalLocation.y,goalLocation.x);
-
-//    //select initial search position 50 cm from center (0,0)
-//    goalLocation.x = 0.5 * cos(goalLocation.theta+M_PI); //goalLocation.x = 5.0;
-//    goalLocation.y = 0.5 * sin(goalLocation.theta+M_PI); //goalLocation.y = -5.0;
-    goalLocation = searchController.waypointNextLocation(currentLocation, publishedName);
-
-    //set goal locations based on waypoints for bots
-    //goalLocation.x = SearchController::waypoints_x2_final[0];
-    //goalLocation.y = SearchController::waypoints_y2_final[0];
-    //goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
-
     centerLocation.x = 0;
     centerLocation.y = 0;
     centerLocationOdom.x = 0;
@@ -233,6 +226,20 @@ int main(int argc, char **argv) {
         cout << "No Name Selected. Default is: " << publishedName << endl;
     }
 
+    searchController.setStack(publishedName);
+    //    //set initial random heading
+    //    goalLocation.theta = rng->uniformReal(0, 2 * M_PI); //goalLocation.theta = atan2(goalLocation.y,goalLocation.x);
+
+    //    //select initial search position 50 cm from center (0,0)
+    //    goalLocation.x = 0.5 * cos(goalLocation.theta+M_PI); //goalLocation.x = 5.0;
+    //    goalLocation.y = 0.5 * sin(goalLocation.theta+M_PI); //goalLocation.y = -5.0;
+
+
+    //set goal locations based on waypoints for bots
+    //goalLocation.x = SearchController::waypoints_x2_final[0];
+    //goalLocation.y = SearchController::waypoints_y2_final[0];
+    //goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
+    goalLocation = searchController.waypointNextLocation(currentLocation, publishedName);
     // NoSignalHandler so we can catch SIGINT ourselves and shutdown the node
     ros::init(argc, argv, (publishedName + "_MOBILITY"), ros::init_options::NoSigintHandler);
     ros::NodeHandle mNH;
@@ -559,7 +566,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
 
                 // move back to transform step
                 stateMachineState = STATE_MACHINE_TRANSFORM;
-//                goalLocation = searchController.search(currentLocation);
+                // TODO Goal Reached stack code goes here.
                 goalLocation = searchController.waypointNextLocation(currentLocation, publishedName); //goalLocation = searchController.search(currentLocation);
                 pidController.resetTranslationalIntegrator();
             }
@@ -611,12 +618,12 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     targetCollected = true;
                     result.pickedUp = false;
                     stateMachineState = STATE_MACHINE_ROTATE;
-
-                    goalLocation.theta = atan2(centerLocationOdom.y - currentLocation.y, centerLocationOdom.x - currentLocation.x);
+                    // TODO Pickup stack code goes here.
 
                     // set center as goal position
                     goalLocation.x = centerLocationOdom.x;// = 0;
                     goalLocation.y = centerLocationOdom.y;
+                    goalLocation.theta = atan2(centerLocationOdom.y - currentLocation.y, centerLocationOdom.x - currentLocation.x);
 
                     // lower wrist to avoid ultrasound sensors
                     std_msgs::Float32 angle;
@@ -813,7 +820,7 @@ void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& messag
     if (message->detections.size() > 0 && !targetCollected && timerTimeElapsed > 5) {
         targetDetected = true;
         //add position to stack
-        searchController.waypointSearchFound(currentLocation, goalLocation, publishedName);
+        //searchController.waypointSearchFound(currentLocation, goalLocation, publishedName);
 
         // pickup state so target handler can take over driving.
         stateMachineState = STATE_MACHINE_PICKUP;
@@ -841,35 +848,33 @@ void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
 void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
     geometry_msgs::Pose2D alternativeLocation;
     const double PI_OVER_4 = 0.78539816339;
-//    if ((!targetDetected || targetCollected) && (message->data > 0)) {
-//        // obstacle on right side
-//        if (message->data == 1) {
-//            // select new heading 0.2 radians to the left
-//            //goalLocation.theta = currentLocation.theta + 0.6;
-//            alternativeLocation.x = currentLocation.x + 2*cos(currentLocation.theta + PI_OVER_4);//hardcoded angle of pi/2 & length of 2, tunable
-//            alternativeLocation.y = currentLocation.y + 2*sin(currentLocation.theta + PI_OVER_4);//hardcoded angle of pi/2 & length of 2, tunable
-//            alternativeLocation.theta = currentLocation.theta + PI_OVER_4;
-//            searchController.waypointObstacleAvoidance(currentLocation, goalLocation, alternativeLocation, publishedName);
-//        }
+    if ((!targetDetected || targetCollected) && (message->data > 0)) {
+        // obstacle on right side
+        if (message->data == 1) {
+            // select new heading 0.2 radians to the left
+            //goalLocation.theta = currentLocation.theta + 0.6;
+            alternativeLocation.x = currentLocation.x + 0.5*cos(currentLocation.theta + PI_OVER_4);//hardcoded angle of pi/2 & length of 2, tunable
+            alternativeLocation.y = currentLocation.y + 0.5*sin(currentLocation.theta + PI_OVER_4);//hardcoded angle of pi/2 & length of 2, tunable
+            alternativeLocation.theta = currentLocation.theta + PI_OVER_4;
+        }
+        // obstacle in front or on left side
+        else if (message->data == 2) {
+            // select new heading 0.2 radians to the right
+            //goalLocation.theta = currentLocation.theta + 0.6;
+            alternativeLocation.x = currentLocation.x + 0.5*cos(currentLocation.theta - PI_OVER_4);
+            alternativeLocation.y = currentLocation.y + 0.5*sin(currentLocation.theta - PI_OVER_4);
+            alternativeLocation.theta = currentLocation.theta - PI_OVER_4;
+        }
+        // TODO Obstacle Stack code goes here.
 
-//        // obstacle in front or on left side
-//        else if (message->data == 2) {
-//            // select new heading 0.2 radians to the right
-//            //goalLocation.theta = currentLocation.theta + 0.6;
-//            alternativeLocation.x = currentLocation.x + 2*cos(currentLocation.theta - PI_OVER_4);
-//            alternativeLocation.y = currentLocation.y + 2*sin(currentLocation.theta - PI_OVER_4);
-//            alternativeLocation.theta = currentLocation.theta - PI_OVER_4;
-//            searchController.waypointObstacleAvoidance(currentLocation, goalLocation, alternativeLocation, publishedName);
-//        }
+        // continues an interrupted search
+        goalLocation = searchController.waypointNextLocation(currentLocation, publishedName); //goalLocation = searchController.continueInterruptedSearch(currentLocation, goalLocation);
 
-//        // continues an interrupted search
-//        goalLocation = searchController.waypointNextLocation(currentLocation, publishedName); //goalLocation = searchController.continueInterruptedSearch(currentLocation, goalLocation);
+        // switch to transform state to trigger collision avoidance
+        stateMachineState = STATE_MACHINE_ROTATE;
 
-//        // switch to transform state to trigger collision avoidance
-//        stateMachineState = STATE_MACHINE_ROTATE;
-
-//        avoidingObstacle = true;
-//    }
+        avoidingObstacle = true;
+    }
 
     // the front ultrasond is blocked very closely. 0.14m currently
     if (message->data == 4) {

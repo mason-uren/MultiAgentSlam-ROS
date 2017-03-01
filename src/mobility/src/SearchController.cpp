@@ -2,7 +2,9 @@
 
 SearchController::SearchController() {
   rng = new random_numbers::RandomNumberGenerator();
+}
 
+void SearchController::setStack(std::string botName) {
   // Start: From old code:
   const float d = 0.5;
   const double final_boundary = 11.0;
@@ -43,53 +45,65 @@ SearchController::SearchController() {
   //push waypoints onto stack
   if (finalRound)
   {
-      for (int i = sizeof(waypoints_x_final)/sizeof(waypoints_x_final[0]); i > 0; i--)
+      if(botName == "ajax")
       {
-          nextPosition.x = waypoints_x_final[i];
-          nextPosition.y = waypoints_y_final[i];
-          stack1_final.push(nextPosition);
+          for (int i = sizeof(waypoints_x_final)/sizeof(waypoints_x_final[0]); i > 0; i--)
+          {
+              nextPosition.x = waypoints_x_final[i];
+              nextPosition.y = waypoints_y_final[i];
+              stack_waypoints.push(nextPosition);
+          }
       }
-
-      for (int i = sizeof(waypoints_x2_final)/sizeof(waypoints_x2_final[0]); i > 0; i--)
+      else if(botName == "achilles")
       {
-          nextPosition.x = waypoints_x2_final[i];
-          nextPosition.y = waypoints_y2_final[i];
-          stack2_final.push(nextPosition);
+          for (int i = sizeof(waypoints_x2_final)/sizeof(waypoints_x2_final[0]); i > 0; i--)
+          {
+              nextPosition.x = waypoints_x2_final[i];
+              nextPosition.y = waypoints_y2_final[i];
+              stack_waypoints.push(nextPosition);
+          }
       }
-
-      for (int i = sizeof(waypoints_x3_final)/sizeof(waypoints_x3_final[0]); i > 0; i--)
+      else if(botName == "aeneas")
       {
-          nextPosition.x = waypoints_x3_final[i];
-          nextPosition.y = waypoints_y3_final[i];
-          stack3_final.push(nextPosition);
+          for (int i = sizeof(waypoints_x3_final)/sizeof(waypoints_x3_final[0]); i > 0; i--)
+          {
+              nextPosition.x = waypoints_x3_final[i];
+              nextPosition.y = waypoints_y3_final[i];
+              stack_waypoints.push(nextPosition);
+          }
       }
   }
   else
   {
-      for (int i = sizeof(waypoints_x_preliminary)/sizeof(waypoints_x_preliminary[0]); i > 0; i--)
+      if(botName == "ajax")
       {
-          nextPosition.x = waypoints_x_preliminary[i];
-          nextPosition.y = waypoints_y_preliminary[i];
-          stack1_prelim.push(nextPosition);
+          for (int i = sizeof(waypoints_x_preliminary)/sizeof(waypoints_x_preliminary[0]); i > 0; i--)
+          {
+              nextPosition.x = waypoints_x_preliminary[i];
+              nextPosition.y = waypoints_y_preliminary[i];
+              stack_waypoints.push(nextPosition);
+          }
       }
-
-      for (int i = sizeof(waypoints_x2_preliminary)/sizeof(waypoints_x2_preliminary[0]); i > 0; i--)
+      else if(botName == "achilles")
       {
-          nextPosition.x = waypoints_x2_preliminary[i];
-          nextPosition.y = waypoints_y2_preliminary[i];
-          stack2_prelim.push(nextPosition);
+          for (int i = sizeof(waypoints_x2_preliminary)/sizeof(waypoints_x2_preliminary[0]); i > 0; i--)
+          {
+              nextPosition.x = waypoints_x2_preliminary[i];
+              nextPosition.y = waypoints_y2_preliminary[i];
+              stack_waypoints.push(nextPosition);
+          }
       }
-
-      for (int i = sizeof(waypoints_x3_preliminary)/sizeof(waypoints_x3_preliminary[0]); i > 0; i--)
+      else if(botName == "aeneas")
       {
-          nextPosition.x = waypoints_x3_preliminary[i];
-          nextPosition.y = waypoints_y3_preliminary[i];
-          stack3_prelim.push(nextPosition);
+          for (int i = sizeof(waypoints_x3_preliminary)/sizeof(waypoints_x3_preliminary[0]); i > 0; i--)
+          {
+              nextPosition.x = waypoints_x3_preliminary[i];
+              nextPosition.y = waypoints_y3_preliminary[i];
+              stack_waypoints.push(nextPosition);
+          }
       }
-
   }
 }
-
 ///**
 // * This code implements a basic random walk search.
 // */
@@ -184,82 +198,44 @@ geometry_msgs::Pose2D SearchController::continueInterruptedSearch(geometry_msgs:
 
 void SearchController::waypointSearchFound(geometry_msgs::Pose2D currentLocation, geometry_msgs::Pose2D oldGoalLocation, std::string botName)
 {
-  //hardcoded for now
-  if(botName == "ajax")
-  {
-    stack1_prelim.push(oldGoalLocation);
-    stack1_prelim.push(currentLocation);
-  }
-  else if(botName == "achilles")
-  {
-    stack2_prelim.push(oldGoalLocation);
-//    stack2_prelim.push(currentLocation);
-  }
-  else if(botName == "aeneas")
-  {
-    stack3_prelim.push(oldGoalLocation);
-//    stack3_prelim.push(currentLocation);
-  }
+    stack_waypoints.push(oldGoalLocation);
+    stack_waypoints.push(currentLocation);
+}
+
+void SearchController::waypointTempWaypoint(geometry_msgs::Pose2D currentLocation, std::string botName)
+{
+    stack_waypoints.push(currentLocation);
 }
 
 void SearchController::waypointObstacleAvoidance(geometry_msgs::Pose2D currentLocation, geometry_msgs::Pose2D oldGoalLocation, geometry_msgs::Pose2D alternativeLocation, std::string botName)
 {
-  //hardcoded for now
-  if(botName == "ajax")
-  {
-    stack1_prelim.push(oldGoalLocation);
-    //stack1_prelim.push(currentLocation);
-    stack1_prelim.push(alternativeLocation);
-  }
-  else if(botName == "achilles")
-  {
-    stack2_prelim.push(oldGoalLocation);
-    //stack2_prelim.push(currentLocation);
-    stack2_prelim.push(alternativeLocation);
-  }
-  else if(botName == "aeneas")
-  {
-    stack3_prelim.push(oldGoalLocation);
-    //stack3_prelim.push(currentLocation);
-    stack3_prelim.push(alternativeLocation);
-  }
+    stack_waypoints.push(oldGoalLocation);
+    stack_waypoints.push(currentLocation);
+    stack_waypoints.push(alternativeLocation);
 }
 
 geometry_msgs::Pose2D SearchController::waypointNextLocation(geometry_msgs::Pose2D currentLocation, std::string botName)
 {
-  geometry_msgs::Pose2D newGoalLocation;
-  //hardcoded for now
-  if(botName == "ajax")
-  {
-      newGoalLocation = GetNewGoalLocation(stack1_prelim, currentLocation);
-  }
-  else if(botName == "achilles")
-  {
-      newGoalLocation = GetNewGoalLocation(stack2_prelim, currentLocation);
-  }
-  else if(botName == "aeneas")
-  {
-      newGoalLocation = GetNewGoalLocation(stack3_prelim, currentLocation);
-  }
-
-  return newGoalLocation;
-}
-
-geometry_msgs::Pose2D SearchController::GetNewGoalLocation(std::stack<geometry_msgs::Pose2D> &wp_stack, geometry_msgs::Pose2D currentLocation)
-{
     geometry_msgs::Pose2D newGoalLocation;
-    if(wp_stack.empty())
+    if(stack_waypoints.empty())
     {
+        double newTheta = rng->uniformReal(0, 2 * M_PI); // theta between 0 and 2pi
+        double newRadius = rng->uniformReal(0,1); // radius between 0 and 1
         //random new waypoint
-        newGoalLocation.x = currentLocation.x + (0.50 * cos(currentLocation.theta)); //(remainingGoalDist * cos(oldGoalLocation.theta));
-        newGoalLocation.y = currentLocation.y + (0.50 * sin(currentLocation.theta)); //(remainingGoalDist * sin(oldGoalLocation.theta));
+        newGoalLocation.x = currentLocation.x + (newRadius * cos(newTheta)); //(remainingGoalDist * cos(oldGoalLocation.theta));
+        newGoalLocation.y = currentLocation.y + (newRadius * sin(newTheta)); //(remainingGoalDist * sin(oldGoalLocation.theta));
     }
     else
     {
         //push new waypoint from stack
-        newGoalLocation = wp_stack.top();
-        wp_stack.pop();
+        newGoalLocation = stack_waypoints.top();
+        stack_waypoints.pop();
     }
     newGoalLocation.theta = atan2(newGoalLocation.y - currentLocation.y, newGoalLocation.x - currentLocation.x);
     return newGoalLocation;
+}
+
+int SearchController::getStackSize()
+{
+    return stack_waypoints.size();
 }

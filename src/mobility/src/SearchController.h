@@ -16,6 +16,8 @@ class SearchController {
 
     SearchController();
 
+    void setStack(std::string botName);
+
     // performs search pattern
     geometry_msgs::Pose2D search(geometry_msgs::Pose2D currentLocation);
 
@@ -29,6 +31,10 @@ class SearchController {
     geometry_msgs::Pose2D waypointNextLocation(geometry_msgs::Pose2D currentLocation ,std::string botName);
 
     void waypointObstacleAvoidance(geometry_msgs::Pose2D currentLocation, geometry_msgs::Pose2D oldGoalLocation, geometry_msgs::Pose2D alternativeLocation, std::string botName);
+
+    int getStackSize();
+
+    void waypointTempWaypoint(geometry_msgs::Pose2D currentLocation, std::string botName);
 
   private:
 
@@ -48,8 +54,9 @@ class SearchController {
     //    float waypoints_x3_final [] { final_boundary-9*d,  -(final_boundary-10*d), -(final_boundary-10*d),   final_boundary-10*d,  final_boundary-10*d, -(final_boundary-11*d), -(final_boundary-11*d),    final_boundary-11*d, final_boundary-11*d, -(final_boundary-12*d), -(final_boundary-12*d),    final_boundary-12*d, final_boundary-12*d, -(final_boundary-13*d), -(final_boundary-13*d),    final_boundary-13*d, final_boundary-13*d, -(final_boundary-14*d), -(final_boundary-14*d),    final_boundary-14*d, final_boundary-14*d, -(final_boundary-15*d), -(final_boundary-15*d),    final_boundary-15*d, final_boundary-15*d, -(final_boundary-16*d), -(final_boundary-16*d),    final_boundary-16*d, final_boundary-16*d,  -(final_boundary-17*d), -(final_boundary-17*d),    final_boundary-17*d, final_boundary-17*d, -(final_boundary-18*d), -(final_boundary-18*d),    final_boundary-18*d, final_boundary-18*d,  -(final_boundary-19*d), -(final_boundary-19*d),    final_boundary-19*d, final_boundary-19*d};
     //    float waypoints_y3_final [] {final_boundary-10*d,     final_boundary-10*d, -(final_boundary-10*d), -(final_boundary-10*d), final_boundary-11*d,    final_boundary-11*d, -(final_boundary-11*d), -(final_boundary-11*d), final_boundary-12*d,    final_boundary-12*d, -(final_boundary-12*d), -(final_boundary-12*d), final_boundary-13*d,    final_boundary-13*d, -(final_boundary-13*d), -(final_boundary-13*d), final_boundary-14*d,    final_boundary-14*d, -(final_boundary-14*d), -(final_boundary-14*d), final_boundary-15*d,    final_boundary-15*d, -(final_boundary-15*d), -(final_boundary-15*d), final_boundary-16*d,    final_boundary-16*d, -(final_boundary-16*d), -(final_boundary-16*d), final_boundary-17*d,     final_boundary-17*d, -(final_boundary-17*d), -(final_boundary-17*d), final_boundary-18*d,    final_boundary-18*d, -(final_boundary-18*d), -(final_boundary-18*d), final_boundary-19*d,     final_boundary-19*d, -(final_boundary-19*d), -(final_boundary-19*d), final_boundary-20*d};
 
-    std::stack<geometry_msgs::Pose2D> stack1_prelim, stack2_prelim, stack3_prelim;
-    std::stack<geometry_msgs::Pose2D> stack1_final, stack2_final, stack3_final;
+//    std::stack<geometry_msgs::Pose2D> stack1_prelim, stack2_prelim, stack3_prelim;
+//    std::stack<geometry_msgs::Pose2D> stack1_final, stack2_final, stack3_final;
+    std::stack<geometry_msgs::Pose2D> stack_waypoints;
 };
 
 #endif /* SEARCH_CONTROLLER */
