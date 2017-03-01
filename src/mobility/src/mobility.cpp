@@ -567,9 +567,25 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                 // move back to transform step
                 stateMachineState = STATE_MACHINE_TRANSFORM;
                 // TODO Goal Reached stack code goes here.
+                if(!obstacleEncountered && !goalLocation) {
+                    if(goalLocation == searchController.peekWaypoint())
+                    {
+                        lastEncountered = WAYPOINT;
+                        searchController.popWaypoint();
+                    }
+                }
 
-                goalLocation = searchController.waypointNextLocation(currentLocation, publishedName); //goalLocation = searchController.search(currentLocation);
+                if(divergentLocation == goalLocation) {
+                    obstacleEncountered = false;
+                    targetEncountered = false;
+                }
+
+                //goalLocation = searchController.waypointNextLocation(currentLocation, publishedName); //goalLocation = searchController.search(currentLocation);
+                goalLocation = searchController.peekWaypoint();
+
                 pidController.resetTranslationalIntegrator();
+
+
             }
 
             break;
@@ -887,6 +903,27 @@ void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
             alternativeLocation.theta = currentLocation.theta - PI_OVER_4;
         }
         // TODO Obstacle Stack code goes here.
+        if(!obstacleEncountered && !targetEncountered) {
+            divergentLocation = currentLocation;
+            searchController.pushWaypoint(currentLocation);
+            searchController.pushWaypoint(alternativeLocation);
+        } else if(obstacleEncountered && !targetEncountered) {
+            searchController.popWaypoint();
+            searchController.pushWaypoint(alternativeLocation);
+        } else if(!obstacleEncountered && targetEncountered) {
+            searchController.pushWaypoint(alternativeLocation);
+        } else if(obstacleEncountered && targetEncountered && lastEncountered == OBSTACLE) {
+            searchController.popWaypoint();
+            searchController.pushWaypoint(alternativeLocation);
+        } else if(obstacleEncountered && targetEncountered && lastEncountered == TARGET) {
+            searchController.popWaypoint();
+            searchController.popWaypoint();
+            searchController.popWaypoint();
+            searchController.pushWaypoint(goalLocation);
+            searchController.pushWaypoint(alternativeLocation);
+        }
+        lastEncountered = OBSTACLE;
+        obstacleEncountered = true;
 
         // continues an interrupted search
         goalLocation = searchController.waypointNextLocation(currentLocation, publishedName); //goalLocation = searchController.continueInterruptedSearch(currentLocation, goalLocation);
