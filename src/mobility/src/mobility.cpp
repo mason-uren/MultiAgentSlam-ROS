@@ -570,7 +570,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                 if(!obstacleEncountered && !goalLocation) {
                     if(goalLocation == searchController.peekWaypoint())
                     {
-                        lastEncountered = WAYPOINT;
+                        lastEncountered = WAYPOINT_ENCOUNTERED;
                         searchController.popWaypoint();
                     }
                 }
@@ -640,24 +640,24 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     goalLocation.y = centerLocationOdom.y;
                     goalLocation.theta = atan2(centerLocationOdom.y - currentLocation.y, centerLocationOdom.x - currentLocation.x);
                     // TODO Pickup stack code goes here.
-                    if(!obstacleEncountered & !targetDetected)
+                    if(!obstacleEncountered && !targetDetected)
                     {
                         searchController.pushWaypoint(currentLocation);
                         searchController.pushWaypoint(goalLocation);
                         divergentLocation = currentLocation;
                     }
-                    if(obstacleEncountered & !targetEncountered)
+                    if(obstacleEncountered && !targetEncountered)
                     {
                         searchController.popWaypoint();
-                        searchController.pushWaypoint(centerLocation);
+                        searchController.pushWaypoint(goalLocation);
                     }
-                    if(!obstacleEncountered & targetEncountered)
+                    if(!obstacleEncountered && targetEncountered)
                     {
-                        searchController.pushWaypoint(centerLocation);
+                        searchController.pushWaypoint(goalLocation);
                     }
-                    if(obstacleEncountered & targetEncountered & lastEncountered == TARGET_ENCOUNTERED)
+                    if(obstacleEncountered && targetEncountered & lastEncountered == TARGET_ENCOUNTERED)
                     {
-                        searchController.pushWaypoint(centerLocation);
+                        searchController.pushWaypoint(goalLocation);
                     }
                     lastEncountered = TARGET_ENCOUNTERED;
                     targetEncountered = true;
@@ -912,17 +912,17 @@ void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
             searchController.pushWaypoint(alternativeLocation);
         } else if(!obstacleEncountered && targetEncountered) {
             searchController.pushWaypoint(alternativeLocation);
-        } else if(obstacleEncountered && targetEncountered && lastEncountered == OBSTACLE) {
+        } else if(obstacleEncountered && targetEncountered && lastEncountered == OBSTACLE_ENCOUNTERED) {
             searchController.popWaypoint();
             searchController.pushWaypoint(alternativeLocation);
-        } else if(obstacleEncountered && targetEncountered && lastEncountered == TARGET) {
+        } else if(obstacleEncountered && targetEncountered && lastEncountered == TARGET_ENCOUNTERED) {
             searchController.popWaypoint();
             searchController.popWaypoint();
             searchController.popWaypoint();
-            searchController.pushWaypoint(goalLocation);
+            searchController.pushWaypoint(centerLocationOdom);
             searchController.pushWaypoint(alternativeLocation);
         }
-        lastEncountered = OBSTACLE;
+        lastEncountered = OBSTACLE_ENCOUNTERED;
         obstacleEncountered = true;
 
         // continues an interrupted search
