@@ -655,7 +655,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     {
                         searchController.pushWaypoint(goalLocation);
                     }
-                    if(obstacleEncountered && targetEncountered & lastEncountered == TARGET_ENCOUNTERED)
+                    if(obstacleEncountered && targetEncountered && lastEncountered == TARGET_ENCOUNTERED)
                     {
                         searchController.pushWaypoint(goalLocation);
                     }
