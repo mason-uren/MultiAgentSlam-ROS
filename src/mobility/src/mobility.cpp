@@ -118,7 +118,7 @@ float searchVelocity = 0.2; // meters/second
 // New variables for improved obstacle avoidance and pickup of targets while keeping with waypoint based search
 bool obstacleEncountered = false;
 bool targetEncountered = false;
-enum last_encountered_enum { OBSTACLE, TARGET, WAYPOINT };
+enum last_encountered_enum { OBSTACLE_ENCOUNTERED, TARGET_ENCOUNTERED, WAYPOINT_ENCOUNTERED };
 last_encountered_enum lastEncountered = WAYPOINT;
 geometry_msgs::Pose2D divergentLocation; // I forgot what D means in the diagram!!!
 
@@ -628,7 +628,23 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     {
                         searchController.pushWaypoint(currentLocation);
                         searchController.pushWaypoint(goalLocation);
+                        divergentLocation = currentLocation;
                     }
+                    if(obstacleEncountered & !targetEncountered)
+                    {
+                        searchController.popWaypoint();
+                        searchController.pushWaypoint(centerLocation);
+                    }
+                    if(!obstacleEncountered & targetEncountered)
+                    {
+                        searchController.pushWaypoint(centerLocation);
+                    }
+                    if(obstacleEncountered & targetEncountered & lastEncountered == TARGET_ENCOUNTERED)
+                    {
+                        searchController.pushWaypoint(centerLocation);
+                    }
+                    lastEncountered = TARGET_ENCOUNTERED;
+                    targetEncountered = true;
 
                     // lower wrist to avoid ultrasound sensors
                     std_msgs::Float32 angle;

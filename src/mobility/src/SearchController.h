@@ -40,7 +40,7 @@ class SearchController {
 
     void pushWaypoint(geometry_msgs::Pose2D newLocation);
 
-    geometry_msgs::Pose2D peekWaypoint();
+    geometry_msgs::Pose2D popWaypoint();
 
 
   private:
