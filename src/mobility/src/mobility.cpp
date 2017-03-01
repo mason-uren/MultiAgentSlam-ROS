@@ -119,7 +119,7 @@ float searchVelocity = 0.2; // meters/second
 bool obstacleEncountered = false;
 bool targetEncountered = false;
 enum last_encountered_enum { OBSTACLE_ENCOUNTERED, TARGET_ENCOUNTERED, WAYPOINT_ENCOUNTERED };
-last_encountered_enum lastEncountered = WAYPOINT;
+last_encountered_enum lastEncountered = WAYPOINT_ENCOUNTERED;
 geometry_msgs::Pose2D divergentLocation; // I forgot what D means in the diagram!!!
 
 std_msgs::String msg;
