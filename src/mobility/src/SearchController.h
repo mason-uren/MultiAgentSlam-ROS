@@ -36,11 +36,11 @@ class SearchController {
 
     void waypointTempWaypoint(geometry_msgs::Pose2D currentLocation, std::string botName);
 
-    geometry_msgs::Pose2D SearchController::peekWaypoint();
+    geometry_msgs::Pose2D peekWaypoint();
 
-    void SearchController::pushOneWaypoint(geometry_msgs::Pose2D newLocation);
+    void pushWaypoint(geometry_msgs::Pose2D newLocation);
 
-    geometry_msgs::Pose2D SearchController::peekWaypoint();
+    geometry_msgs::Pose2D peekWaypoint();
 
 
   private:
