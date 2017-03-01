@@ -202,9 +202,24 @@ void SearchController::waypointSearchFound(geometry_msgs::Pose2D currentLocation
     stack_waypoints.push(currentLocation);
 }
 
-void SearchController::waypointTempWaypoint(geometry_msgs::Pose2D currentLocation, std::string botName)
+void SearchController::pushOneWaypoint(geometry_msgs::Pose2D newLocation)
 {
-    stack_waypoints.push(currentLocation);
+    stack_waypoints.push(newLocation);
+}
+
+geometry_msgs::Pose2D SearchController::popWaypoint()
+{
+    geometry_msgs::Pose2D nextWaypoint;
+    nextWaypoint = stack_waypoints.top();
+    stack_waypoints.pop();
+    return nextWaypoint;
+}
+
+geometry_msgs::Pose2D SearchController::peekWaypoint()
+{
+    geometry_msgs::Pose2D nextWaypoint;
+    nextWaypoint = stack_waypoints.top();
+    return nextWaypoint;
 }
 
 void SearchController::waypointObstacleAvoidance(geometry_msgs::Pose2D currentLocation, geometry_msgs::Pose2D oldGoalLocation, geometry_msgs::Pose2D alternativeLocation, std::string botName)
