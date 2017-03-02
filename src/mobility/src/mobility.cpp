@@ -121,7 +121,8 @@ bool targetEncountered = false;
 enum last_encountered_enum { OBSTACLE_ENCOUNTERED, TARGET_ENCOUNTERED, WAYPOINT_ENCOUNTERED };
 last_encountered_enum lastEncountered = WAYPOINT_ENCOUNTERED;
 geometry_msgs::Pose2D divergentLocation; // I forgot what D means in the diagram!!!
-
+//divergentLocation.x = 1000; // we don't want this to be set to 0 initially because our first goal location after pickup is 0.
+//divergentLocation.y = 1000;
 std_msgs::String msg;
 
 // state machine states
@@ -155,6 +156,7 @@ ros::Publisher rotationalVelocityPublish;
 ros::Publisher wrapAngleDifferencePublish;
 ros::Publisher leaderElectionPublish;
 ros::Publisher pickupCommandPublish;
+ros::Publisher stackSizePublish;
 
 // Subscribers
 ros::Subscriber joySubscriber;
@@ -198,6 +200,7 @@ double getRotationalVelocity();
 double getRotationalError();
 double getTranslationalVelocity();
 double getTranslationalError();
+bool compareLocations(geometry_msgs::Pose2D locationOne, geometry_msgs::Pose2D locationTwo, double threshold);
 int main(int argc, char **argv) {
 
     gethostname(host, sizeof (host));
@@ -239,7 +242,7 @@ int main(int argc, char **argv) {
     //goalLocation.x = SearchController::waypoints_x2_final[0];
     //goalLocation.y = SearchController::waypoints_y2_final[0];
     //goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
-    goalLocation = searchController.waypointNextLocation(currentLocation, publishedName);
+    //goalLocation = searchController.waypointNextLocation(currentLocation, publishedName);
     // NoSignalHandler so we can catch SIGINT ourselves and shutdown the node
     ros::init(argc, argv, (publishedName + "_MOBILITY"), ros::init_options::NoSigintHandler);
     ros::NodeHandle mNH;
@@ -271,6 +274,7 @@ int main(int argc, char **argv) {
     publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
     stateMachineTimer = mNH.createTimer(ros::Duration(mobilityLoopTimeStep), mobilityStateMachine);
     targetDetectedTimer = mNH.createTimer(ros::Duration(0), targetDetectedReset, true);
+    stackSizePublish = mNH.advertise<std_msgs::String>((publishedName + "/stackSize"), 1, true);
     // Constructors
     //searchController=SearchController::SearchController();
     //pidController=PIDController::PIDController();
@@ -304,6 +308,13 @@ void mobilityStateMachine(const ros::TimerEvent&) {
     ss<< "goalLocation: "<<goalLocation.x<<", "<<goalLocation.y<<", "<<goalLocation.theta;
     goalLocationMsg.data = ss.str();
     goalLocationPublish.publish(goalLocationMsg);
+
+    std_msgs::String stackSizeMsg;
+    std::ostringstream ss2;
+    ss2 << "stack size: " << searchController.getStackSize();
+    stackSizeMsg.data = ss2.str();
+    stackSizePublish.publish(stackSizeMsg);
+
     std_msgs::String stateMachineMsg;
     std_msgs::String currentLocationMsg;
     std_msgs::String pickupCommandMsg;
@@ -329,7 +340,8 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                 startingAngle = currentLocation.theta;
 
                 previousDifference = wrapAngle( currentLocation.theta - startingAngle);
-               // goalLocation = searchController.waypointNextLocation(currentLocation, publishedName);
+                goalLocation = searchController.peekWaypoint();
+                goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
                 // initialization has run
                 init = true;
             } else {
@@ -469,7 +481,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     targetDetected = false;
                     lockTarget = false;
                     sendDriveCommand(0.0,0);
-
+                    targetEncountered = false;
                     // move back to transform step
                     stateMachineState = STATE_MACHINE_TRANSFORM;
                     reachedCollectionPoint = false;;
@@ -495,14 +507,16 @@ void mobilityStateMachine(const ros::TimerEvent&) {
             else if (getRotationalError() > rotateOnlyAngleTolerance) {
                 stateMachineState = STATE_MACHINE_ROTATE;
             }
-            //If goal has not yet been reached drive and maintane heading
-            else if (notPastGoal || notNearGoal) {
+//            //If goal has not yet been reached we should drive and adjust heading
+//            else if (notPastGoal || notNearGoal) {
+            else if (!compareLocations(goalLocation,currentLocation,0.05)){
                 stateMachineState = STATE_MACHINE_SKID_STEER;
             }
             //Otherwise, drop off target and select new random uniform heading
             //If no targets have been detected, assign a new goal
             else if (!targetDetected && timerTimeElapsed > returnToSearchDelay) {
-                goalLocation = searchController.waypointNextLocation(currentLocation, publishedName); //goalLocation = searchController.search(currentLocation);
+                goalLocation = searchController.peekWaypoint();
+                goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
             }
 
             //Purposefully fall through to next case without breaking
@@ -527,7 +541,8 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                 stateMachineState = STATE_MACHINE_SKID_STEER;
 //                pidController.resetRotationalIntegrator(); // We don't need Rotational PID. UNM is providing this.  We just need to supply the rotational error to the sendDriveCommand.
                 pidController.resetTranslationalIntegrator();
-                //fall through on purpose.
+                break;
+                //don't fall through on purpose.
             }
         }
 
@@ -545,7 +560,8 @@ void mobilityStateMachine(const ros::TimerEvent&) {
             double translationalError = getTranslationalError();
             bool notNearGoal = translationalError > 0.25;
             // goal not yet reached drive while maintaining proper heading.
-            if (notPastGoal || notNearGoal) {
+//            if (notPastGoal || notNearGoal) {
+            if (!compareLocations(goalLocation,currentLocation,0.05)){
                 // drive and turn simultaniously
 
 
@@ -564,25 +580,39 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                 sendDriveCommand(0.0, 0.0);
                 avoidingObstacle = false;
 
-                // move back to transform step
-                stateMachineState = STATE_MACHINE_TRANSFORM;
                 // TODO Goal Reached stack code goes here.
-                if(!obstacleEncountered && !goalLocation) {
-                    if(goalLocation == searchController.peekWaypoint())
+                if(!obstacleEncountered && !targetEncountered) {
+                    stringstream ss;
+                    ss << "In Goal Reached " << goalLocation.x << ", " << goalLocation.y << ", " << searchController.peekWaypoint().x << ", " << searchController.peekWaypoint().y;
+                    msg.data = ss.str();
+                    infoLogPublisher.publish(msg);
+                    if(compareLocations(goalLocation, searchController.peekWaypoint(),0.01))
                     {
                         lastEncountered = WAYPOINT_ENCOUNTERED;
                         searchController.popWaypoint();
                     }
                 }
+                else if (!targetEncountered) {
+                    stringstream ss;
+                    ss << "In Goal Reached " << goalLocation.x << ", " << goalLocation.y << ", " << searchController.peekWaypoint().x << ", " << searchController.peekWaypoint().y;
+                    msg.data = ss.str();
+                    infoLogPublisher.publish(msg);
+                    if(compareLocations(goalLocation, searchController.peekWaypoint(),0.01))
+                    {
+                        lastEncountered = OBSTACLE_ENCOUNTERED;
+                        searchController.popWaypoint();
+                    }
+                }
 
-                if(divergentLocation == goalLocation) {
+                if(compareLocations(divergentLocation, goalLocation,0.001)) {
                     obstacleEncountered = false;
                     targetEncountered = false;
                 }
 
                 //goalLocation = searchController.waypointNextLocation(currentLocation, publishedName); //goalLocation = searchController.search(currentLocation);
                 goalLocation = searchController.peekWaypoint();
-
+                goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
+                stateMachineState = STATE_MACHINE_TRANSFORM;
                 pidController.resetTranslationalIntegrator();
 
 
@@ -643,21 +673,21 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     if(!obstacleEncountered && !targetDetected)
                     {
                         searchController.pushWaypoint(currentLocation);
-                        searchController.pushWaypoint(goalLocation);
+//                        searchController.pushWaypoint(goalLocation);
                         divergentLocation = currentLocation;
                     }
                     if(obstacleEncountered && !targetEncountered)
                     {
                         searchController.popWaypoint();
-                        searchController.pushWaypoint(goalLocation);
+//                        searchController.pushWaypoint(goalLocation);
                     }
                     if(!obstacleEncountered && targetEncountered)
                     {
-                        searchController.pushWaypoint(goalLocation);
+//                        searchController.pushWaypoint(goalLocation);
                     }
                     if(obstacleEncountered && targetEncountered && lastEncountered == TARGET_ENCOUNTERED)
                     {
-                        searchController.pushWaypoint(goalLocation);
+//                        searchController.pushWaypoint(goalLocation);
                     }
                     lastEncountered = TARGET_ENCOUNTERED;
                     targetEncountered = true;
@@ -683,6 +713,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
         }
 
         default: {
+            stateMachineMsg.data = "DEFAULT HIT";
             break;
         }
 
@@ -724,6 +755,10 @@ double getTranslationalError()
     return translationalError;
 }
 
+bool compareLocations(geometry_msgs::Pose2D locationOne, geometry_msgs::Pose2D locationTwo, double threshold)
+{
+    return (abs(locationOne.x-locationTwo.x)<threshold)&&(abs(locationOne.y-locationTwo.y)<threshold);
+}
 
 
 
@@ -885,21 +920,22 @@ void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
 void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
     geometry_msgs::Pose2D alternativeLocation;
     const double PI_OVER_4 = 0.78539816339;
+    double distanceToMove = 0.5 + rng->uniformReal(0, 1);
     if ((!targetDetected || targetCollected) && (message->data > 0)) {
         // obstacle on right side
         if (message->data == 1) {
             // select new heading 0.2 radians to the left
             //goalLocation.theta = currentLocation.theta + 0.6;
-            alternativeLocation.x = currentLocation.x + 0.5*cos(currentLocation.theta + PI_OVER_4);//hardcoded angle of pi/2 & length of 2, tunable
-            alternativeLocation.y = currentLocation.y + 0.5*sin(currentLocation.theta + PI_OVER_4);//hardcoded angle of pi/2 & length of 2, tunable
+            alternativeLocation.x = currentLocation.x + distanceToMove*cos(currentLocation.theta + PI_OVER_4);//hardcoded angle of pi/2 & length of 2, tunable
+            alternativeLocation.y = currentLocation.y + distanceToMove*sin(currentLocation.theta + PI_OVER_4);//hardcoded angle of pi/2 & length of 2, tunable
             alternativeLocation.theta = currentLocation.theta + PI_OVER_4;
         }
         // obstacle in front or on left side
         else if (message->data == 2) {
             // select new heading 0.2 radians to the right
             //goalLocation.theta = currentLocation.theta + 0.6;
-            alternativeLocation.x = currentLocation.x + 0.5*cos(currentLocation.theta - PI_OVER_4);
-            alternativeLocation.y = currentLocation.y + 0.5*sin(currentLocation.theta - PI_OVER_4);
+            alternativeLocation.x = currentLocation.x + distanceToMove*cos(currentLocation.theta - PI_OVER_4);
+            alternativeLocation.y = currentLocation.y + distanceToMove*sin(currentLocation.theta - PI_OVER_4);
             alternativeLocation.theta = currentLocation.theta - PI_OVER_4;
         }
         // TODO Obstacle Stack code goes here.
@@ -926,8 +962,8 @@ void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
         obstacleEncountered = true;
 
         // continues an interrupted search
-        goalLocation = searchController.waypointNextLocation(currentLocation, publishedName); //goalLocation = searchController.continueInterruptedSearch(currentLocation, goalLocation);
-
+        goalLocation = searchController.peekWaypoint();
+        goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
         // switch to transform state to trigger collision avoidance
         stateMachineState = STATE_MACHINE_ROTATE;
 
