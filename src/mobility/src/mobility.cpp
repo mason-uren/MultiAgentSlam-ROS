@@ -157,6 +157,7 @@ ros::Publisher wrapAngleDifferencePublish;
 ros::Publisher leaderElectionPublish;
 ros::Publisher pickupCommandPublish;
 ros::Publisher stackSizePublish;
+ros::Publisher stackDebugPublish;
 
 // Subscribers
 ros::Subscriber joySubscriber;
@@ -275,6 +276,7 @@ int main(int argc, char **argv) {
     stateMachineTimer = mNH.createTimer(ros::Duration(mobilityLoopTimeStep), mobilityStateMachine);
     targetDetectedTimer = mNH.createTimer(ros::Duration(0), targetDetectedReset, true);
     stackSizePublish = mNH.advertise<std_msgs::String>((publishedName + "/stackSize"), 1, true);
+    stackDebugPublish = mNH.advertise<std_msgs::String>((publishedName + "/stackDebug"), 1, true);
     // Constructors
     //searchController=SearchController::SearchController();
     //pidController=PIDController::PIDController();
@@ -314,6 +316,12 @@ void mobilityStateMachine(const ros::TimerEvent&) {
     ss2 << "stack size: " << searchController.getStackSize();
     stackSizeMsg.data = ss2.str();
     stackSizePublish.publish(stackSizeMsg);
+
+    std_msgs::String stackDebugMsg;
+    std::ostringstream ss3;
+    ss3 << "tE: " << targetEncountered << " oE: " << obstacleEncountered << " lE:" << lastEncountered;
+    stackDebugMsg.data = ss3.str();
+    stackDebugPublish.publish(stackDebugMsg);
 
     std_msgs::String stateMachineMsg;
     std_msgs::String currentLocationMsg;
@@ -453,8 +461,8 @@ void mobilityStateMachine(const ros::TimerEvent&) {
             if (targetCollected && !avoidingObstacle) {
                 // calculate the euclidean distance between
                 // centerLocation and currentLocation
-                dropOffController.setCenterDist(hypot(centerLocation.x - currentLocation.x, centerLocation.y - currentLocation.y));
-                dropOffController.setDataLocations(centerLocation, currentLocation, timerTimeElapsed);
+                dropOffController.setCenterDist(hypot(centerLocationOdom.x - currentLocation.x, centerLocationOdom.y - currentLocation.y));
+                dropOffController.setDataLocations(centerLocationOdom, currentLocation, timerTimeElapsed);
 
                 DropOffResult result = dropOffController.getState();
 
@@ -476,12 +484,16 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                 }
 
                 if (result.reset) {
+                    // We enter this block when the target is dropped off at the base.
                     timerStartTime = time(0);
                     targetCollected = false;
                     targetDetected = false;
                     lockTarget = false;
                     sendDriveCommand(0.0,0);
-                    targetEncountered = false;
+//                    targetEncountered = false;
+                    searchController.popWaypoint();
+                    goalLocation = searchController.peekWaypoint();
+
                     // move back to transform step
                     stateMachineState = STATE_MACHINE_TRANSFORM;
                     reachedCollectionPoint = false;;
@@ -592,17 +604,25 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                         searchController.popWaypoint();
                     }
                 }
-                else if (!targetEncountered) {
-                    stringstream ss;
-                    ss << "In Goal Reached " << goalLocation.x << ", " << goalLocation.y << ", " << searchController.peekWaypoint().x << ", " << searchController.peekWaypoint().y;
-                    msg.data = ss.str();
-                    infoLogPublisher.publish(msg);
+                else if (obstacleEncountered && lastEncountered == OBSTACLE_ENCOUNTERED) {
                     if(compareLocations(goalLocation, searchController.peekWaypoint(),0.01))
                     {
-                        lastEncountered = OBSTACLE_ENCOUNTERED;
+                        obstacleEncountered = false;
                         searchController.popWaypoint();
                     }
                 }
+//                else if (!targetEncountered) {
+//                    stringstream ss;
+//                    ss << "In Goal Reached " << goalLocation.x << ", " << goalLocation.y << ", " << searchController.peekWaypoint().x << ", " << searchController.peekWaypoint().y;
+//                    msg.data = ss.str();
+//                    infoLogPublisher.publish(msg);
+//                    if(compareLocations(goalLocation, searchController.peekWaypoint(),0.01))
+//                    {
+//                        lastEncountered = OBSTACLE_ENCOUNTERED;
+//                        obstacleEncountered = false;
+//                        searchController.popWaypoint();
+//                    }
+//                }
 
                 if(compareLocations(divergentLocation, goalLocation,0.001)) {
                     obstacleEncountered = false;
@@ -664,30 +684,30 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     // assume target has been picked up by gripper
                     targetCollected = true;
                     result.pickedUp = false;
-                    stateMachineState = STATE_MACHINE_TRANSFORM;
+                    stateMachineState = STATE_MACHINE_ROTATE;
                     // set center as goal position
                     goalLocation.x = centerLocationOdom.x;// = 0;
                     goalLocation.y = centerLocationOdom.y;
                     goalLocation.theta = atan2(centerLocationOdom.y - currentLocation.y, centerLocationOdom.x - currentLocation.x);
                     // TODO Pickup stack code goes here.
-                    if(!obstacleEncountered && !targetDetected)
+                    if(!obstacleEncountered && !targetEncountered)
                     {
                         searchController.pushWaypoint(currentLocation);
-//                        searchController.pushWaypoint(goalLocation);
+                        searchController.pushWaypoint(goalLocation);
                         divergentLocation = currentLocation;
                     }
                     if(obstacleEncountered && !targetEncountered)
                     {
                         searchController.popWaypoint();
-//                        searchController.pushWaypoint(goalLocation);
+                        searchController.pushWaypoint(goalLocation);
                     }
                     if(!obstacleEncountered && targetEncountered)
                     {
-//                        searchController.pushWaypoint(goalLocation);
+                        searchController.pushWaypoint(goalLocation);
                     }
                     if(obstacleEncountered && targetEncountered && lastEncountered == TARGET_ENCOUNTERED)
                     {
-//                        searchController.pushWaypoint(goalLocation);
+                        searchController.pushWaypoint(goalLocation);
                     }
                     lastEncountered = TARGET_ENCOUNTERED;
                     targetEncountered = true;
