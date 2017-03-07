@@ -493,7 +493,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     }
                     if (result.giveUp) {
                         targetDetected = false;
-                        stateMachineState = STATE_MACHINE_DROPOFF_TARGET;// Not sure what to do when we give up.
+                        stateMachineState = STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT;// I think this is where we give up and we should go back to waypoints again.
                         sendDriveCommand(0,0);
                         pickUpController.reset();
                     }
@@ -503,11 +503,8 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                         targetCollected = true;
                         result.pickedUp = false;
                         stateMachineState = STATE_MACHINE_GO_HOME;
-
-
                         lastEncountered = TARGET_ENCOUNTERED;
                         targetEncountered = true;
-
                         // lower wrist to avoid ultrasound sensors
                         std_msgs::Float32 angle;
                         angle.data = 0.8;
@@ -577,6 +574,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     sendDriveCommand(0.0, 0.0);
                     stateMachineState = STATE_MACHINE_DROPOFF_TARGET;
                     stateMachinePreviousState = STATE_MACHINE_GO_HOME;
+                    break;
                 }
             }
         }
@@ -810,13 +808,8 @@ void mobilityStateMachine(const ros::TimerEvent&) {
             stateMachineMsg.data = "TARGET DIVERGENT WAYPOINT";
             if(obstacleEncountered)
             {
-                if (!divertingFromSearchPath)
-                {
-                    obstacleDivergentLocation = currentLocation;
-                    divertingFromSearchPath = true;
-                }
                 stateMachineState = STATE_MACHINE_GO_TO_ALTERNATIVE_WAYPOINT;
-                stateMachinePreviousState = STATE_MACHINE_GO_TO_WAYPOINT;
+                stateMachinePreviousState = STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT;
                 break;
             }
             else if(targetEncountered)
