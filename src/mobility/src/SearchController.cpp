@@ -81,7 +81,8 @@ void SearchController::setStack(std::string botName) {
   {
       if(botName == "ajax")
       {
-          for (int i = sizeof(waypoints_x_preliminary)/sizeof(waypoints_x_preliminary[0]); i > 0; i--)
+//          for (int i = sizeof(waypoints_x_preliminary)/sizeof(waypoints_x_preliminary[0]); i > 0; i--) // spiral in
+          for (int i = 0; i < sizeof(waypoints_x_preliminary)/sizeof(waypoints_x_preliminary[0]); i++) // spiral out
           {
               nextPosition.x = waypoints_x_preliminary[i];
               nextPosition.y = waypoints_y_preliminary[i];
@@ -90,7 +91,8 @@ void SearchController::setStack(std::string botName) {
       }
       else if(botName == "achilles")
       {
-          for (int i = sizeof(waypoints_x2_preliminary)/sizeof(waypoints_x2_preliminary[0]); i > 0; i--)
+//          for (int i = sizeof(waypoints_x2_preliminary)/sizeof(waypoints_x2_preliminary[0]); i > 0; i--) // spiral in
+          for (int i = 0; i < sizeof(waypoints_x2_preliminary)/sizeof(waypoints_x2_preliminary[0]); i++) // spiral out
           {
               nextPosition.x = waypoints_x2_preliminary[i];
               nextPosition.y = waypoints_y2_preliminary[i];
@@ -99,7 +101,8 @@ void SearchController::setStack(std::string botName) {
       }
       else if(botName == "aeneas")
       {
-          for (int i = sizeof(waypoints_x3_preliminary)/sizeof(waypoints_x3_preliminary[0]); i > 0; i--)
+//          for (int i = sizeof(waypoints_x3_preliminary)/sizeof(waypoints_x3_preliminary[0]); i > 0; i--) // spiral in
+          for (int i = 0; i < sizeof(waypoints_x3_preliminary)/sizeof(waypoints_x3_preliminary[0]); i++) // spiral out
           {
               nextPosition.x = waypoints_x3_preliminary[i];
               nextPosition.y = waypoints_y3_preliminary[i];
@@ -217,7 +220,7 @@ geometry_msgs::Pose2D SearchController::popWaypoint()
     if(stack_waypoints.empty())
     {
         double newTheta = rng->uniformReal(0, 2 * M_PI); // theta between 0 and 2pi
-        double newRadius = rng->uniformReal(0,7.5); // radius between 0 and 1
+        double newRadius = rng->uniformReal(0,5); // radius between 0 and 1
         //random new waypoint
         nextWaypoint.x = (newRadius * cos(newTheta)); //(remainingGoalDist * cos(oldGoalLocation.theta));
         nextWaypoint.y = (newRadius * sin(newTheta)); //(remainingGoalDist * sin(oldGoalLocation.theta));
