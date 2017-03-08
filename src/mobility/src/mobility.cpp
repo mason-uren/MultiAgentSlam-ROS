@@ -465,11 +465,6 @@ void mobilityStateMachine(const ros::TimerEvent&) {
             stateMachineMsg.data = "PICKUP TARGET";
             if(obstacleEncountered)
             {
-                if (!divertingFromSearchPath)
-                {
-                    obstacleDivergentLocation = currentLocation;
-                    divertingFromSearchPath = true;
-                }
                 stateMachineState = STATE_MACHINE_GO_TO_ALTERNATIVE_WAYPOINT;
                 stateMachinePreviousState = STATE_MACHINE_PICKUP_TARGET;
                 break;
@@ -526,11 +521,6 @@ void mobilityStateMachine(const ros::TimerEvent&) {
             stateMachineMsg.data = "GO HOME";
             if(obstacleEncountered)
             {
-                if (!divertingFromSearchPath)
-                {
-                    obstacleDivergentLocation = currentLocation;
-                    divertingFromSearchPath = true;
-                }
                 stateMachineState = STATE_MACHINE_GO_TO_ALTERNATIVE_WAYPOINT;
                 stateMachinePreviousState = STATE_MACHINE_GO_HOME;
                 break;
@@ -583,11 +573,6 @@ void mobilityStateMachine(const ros::TimerEvent&) {
             stateMachineMsg.data = "DROPOFF TARGET";
             if(obstacleEncountered)
             {
-                if (!divertingFromSearchPath)
-                {
-                    obstacleDivergentLocation = currentLocation;
-                    divertingFromSearchPath = true;
-                }
                 stateMachineState = STATE_MACHINE_GO_TO_ALTERNATIVE_WAYPOINT;
                 stateMachinePreviousState = STATE_MACHINE_DROPOFF_TARGET;
                 break;
@@ -640,12 +625,13 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     } else if (result.goalDriving && timerTimeElapsed >= 5 ) {
                         goalLocation = result.centerGoal;
                         stateMachineState = STATE_MACHINE_GO_HOME;
+                        centerSeen = false; // This prevents us from coming back to dropoff immediately after transitioning to GO_HOME.
                         timerStartTime = time(0);
                         break;
                     }
                     // we are in precision/timed driving
                     else {
-                        goalLocation = currentLocation;
+//                        goalLocation = currentLocation; // This is misleading since we aren't actually driving toward the goalLocation.
                         sendDriveCommand(result.cmdVel,result.angleError);
                         stateMachineState = STATE_MACHINE_DROPOFF_TARGET;
                         break;
@@ -653,52 +639,6 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                 }
             }
         }
-//        case STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT:
-//        {
-//            stateMachineMsg.data = "TARGET DIVERGENT WAYPOINT";
-//            if(obstacleEncountered)
-//            {
-//                stateMachineState = STATE_MACHINE_GO_TO_ALTERNATIVE_WAYPOINT;
-//                stateMachinePreviousState = STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT;
-//                break;
-//            }
-//            else if (targetEncountered)
-//            {
-//                stateMachineState = STATE_MACHINE_PICKUP_TARGET;
-//                stateMachinePreviousState = STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT;
-//                break;
-//            }
-//            else
-//            {
-//                goalLocation = targetDivergentLocation;
-//                // Calculate the diffrence between current and desired heading in radians.
-//                float errorYaw = getRotationalError();           // If angle > 0.4 radians rotate but dont drive forward.
-//                float linearVelocity = getTranslationalVelocity();
-//                if (fabs(errorYaw) > rotateOnlyAngleTolerance) {
-//                    // rotate but dont drive  0.05 is to prevent turning in reverse
-//                    sendDriveCommand(0.05, errorYaw);
-//                    stateMachineState = STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT;
-//                    break;
-//                } else {
-//                    // move to differential drive step
-//                    if (!compareLocations(goalLocation,currentLocation,0.05)){
-//                        // drive and turn simultaniously
-//                        sendDriveCommand(linearVelocity, errorYaw/2);
-//                        stateMachineState = STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT;
-//                    }
-//                    else
-//                    {
-//                        // stop
-//                        sendDriveCommand(0.0, 0.0);
-//                        divertingFromSearchPath = false;
-//                        stateMachineState = STATE_MACHINE_INIT;
-//                        stateMachinePreviousState = STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT;
-//                    }
-//                    break;
-//                }
-//            }
-
-//        }
         case STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT:
         {
             stateMachineMsg.data = "OBSTACLE DIVERGENT WAYPOINT";
@@ -784,7 +724,16 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     }
                     else if (stateMachinePreviousState == STATE_MACHINE_DROPOFF_TARGET)
                     {
-                        stateMachineState = STATE_MACHINE_DROPOFF_TARGET;
+                        if(targetCollected)
+                        {
+                            stateMachineState = STATE_MACHINE_GO_HOME; // This is intentional.  If you set this to Dropoff the rover will just drop the target outside the collection zone.
+                            centerSeen = false; // Also need this to keep the rover from dropping the target as soon as you enter the GO_HOME state.
+                            reachedCollectionPoint = false;
+                        }
+                        else
+                        {
+                            stateMachineState = STATE_MACHINE_DROPOFF; // if we have already placed the target then DROPOFF state will handle tansitioning to next action.
+                        }
                     }
                     else if (stateMachinePreviousState == STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT)
                     {
@@ -842,7 +791,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                         sendDriveCommand(0.0, 0.0);
                         divertingFromSearchPath = false;
                         stateMachineState = STATE_MACHINE_INIT;
-                        stateMachinePreviousState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
+                        stateMachinePreviousState = STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT;
                     }
                     break;
                 }
