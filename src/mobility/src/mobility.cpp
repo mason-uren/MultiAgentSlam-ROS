@@ -80,6 +80,7 @@ float killSwitchTimeout = 10;
 double previousDifference = 0;
 bool targetDetected = false;
 bool targetCollected = false;
+float heartbeat_publish_interval = 2;
 
 // Set true when the target block is less than targetDist so we continue
 // attempting to pick it up rather than switching to another block in view.
@@ -161,6 +162,7 @@ ros::Publisher fingerAnglePublish;
 ros::Publisher wristAnglePublish;
 ros::Publisher infoLogPublisher;
 ros::Publisher driveControlPublish;
+ros::Publisher heartbeatPublisher;
 ros::Publisher goalLocationPublish;
 ros::Publisher currentLocationPublish;
 ros::Publisher rotationalErrorPublish;
@@ -186,6 +188,7 @@ ros::Subscriber leaderElectionSubscriber;
 ros::Timer stateMachineTimer;
 ros::Timer publish_status_timer;
 ros::Timer targetDetectedTimer;
+ros::Timer publish_heartbeat_timer;
 
 // records time for delays in sequanced actions, 1 second resolution.
 time_t timerStartTime;
@@ -211,6 +214,8 @@ void mapHandler(const nav_msgs::Odometry::ConstPtr& message);
 void mobilityStateMachine(const ros::TimerEvent&);
 void publishStatusTimerEventHandler(const ros::TimerEvent& event);
 void targetDetectedReset(const ros::TimerEvent& event);
+void publishHeartBeatTimerEventHandler(const ros::TimerEvent& event);
+
 double getRotationalVelocity();
 double getRotationalError();
 double getTranslationalVelocity();
@@ -286,6 +291,8 @@ int main(int argc, char **argv) {
     translationalErrorPublish = mNH.advertise<std_msgs::Float32>((publishedName + "/ourData/translateError"), 1, true);
     translationalVelocityPublish = mNH.advertise<std_msgs::Float32>((publishedName + "/ourData/translateVel"), 1, true);
     wrapAngleDifferencePublish = mNH.advertise<std_msgs::Float32>((publishedName + "/ourData/wrapAngle"),1,true);
+    heartbeatPublisher = mNH.advertise<std_msgs::String>((publishedName + "/mobility/heartbeat"), 1, true);
+
     publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
     stateMachineTimer = mNH.createTimer(ros::Duration(mobilityLoopTimeStep), mobilityStateMachine);
     targetDetectedTimer = mNH.createTimer(ros::Duration(0), targetDetectedReset, true);
@@ -294,6 +301,8 @@ int main(int argc, char **argv) {
     // Constructors
     //searchController=SearchController::SearchController();
     //pidController=PIDController::PIDController();
+
+    publish_heartbeat_timer = mNH.createTimer(ros::Duration(heartbeat_publish_interval), publishHeartBeatTimerEventHandler);
 
     tfListener = new tf::TransformListener();
     std_msgs::String msg;
@@ -1455,4 +1464,10 @@ void mapAverage() {
 
 
     }
+}
+
+void publishHeartBeatTimerEventHandler(const ros::TimerEvent&) {
+    std_msgs::String msg;
+    msg.data = "";
+    heartbeatPublisher.publish(msg);
 }
