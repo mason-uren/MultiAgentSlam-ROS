@@ -1277,6 +1277,47 @@ void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
 }
 
 void odometryHandler(const nav_msgs::Odometry::ConstPtr& message) {
+//    //Get (x,y) location directly from pose
+//    currentLocation.x = message->pose.pose.position.x;
+//    currentLocation.y = message->pose.pose.position.y;
+
+//    if(publishedName == "ajax")
+//    {
+//        currentLocation.x = message->pose.pose.position.x + 1;
+//        currentLocation.y = message->pose.pose.position.y + 0;
+//    }
+//    else if(publishedName == "achilles")
+//    {
+//        currentLocation.x = message->pose.pose.position.x + 0;
+//        currentLocation.y = message->pose.pose.position.y + 1;
+//    }
+//    else if(publishedName == "aeneas")
+//    {
+//        currentLocation.x = message->pose.pose.position.x + 1;
+//        currentLocation.y = message->pose.pose.position.y + 1;
+//    }
+
+
+    //Get theta rotation by converting quaternion orientation to pitch/roll/yaw
+    tf::Quaternion q(message->pose.pose.orientation.x, message->pose.pose.orientation.y, message->pose.pose.orientation.z, message->pose.pose.orientation.w);
+    tf::Matrix3x3 m(q);
+    double roll, pitch, yaw;
+    m.getRPY(roll, pitch, yaw);
+//    currentLocation.theta = yaw;
+
+//    std_msgs::String currentLocationMsg;
+//    std::ostringstream ssCL;
+//    ssCL<< "currentLocation: "<<currentLocation.x<<", "<<currentLocation.y<<", "<<currentLocation.theta;
+//    currentLocationMsg.data = ssCL.str();
+//    currentLocationPublish.publish(currentLocationMsg);
+}
+
+void mapHandler(const nav_msgs::Odometry::ConstPtr& message) {
+    //Get (x,y) location directly from pose
+    currentLocationMap.x = message->pose.pose.position.x;
+    currentLocationMap.y = message->pose.pose.position.y;
+
+    // The code below is for test only.
     //Get (x,y) location directly from pose
     currentLocation.x = message->pose.pose.position.x;
     currentLocation.y = message->pose.pose.position.y;
@@ -1296,26 +1337,8 @@ void odometryHandler(const nav_msgs::Odometry::ConstPtr& message) {
         currentLocation.x = message->pose.pose.position.x + 1;
         currentLocation.y = message->pose.pose.position.y + 1;
     }
+    // The code above is for test only.
 
-
-    //Get theta rotation by converting quaternion orientation to pitch/roll/yaw
-    tf::Quaternion q(message->pose.pose.orientation.x, message->pose.pose.orientation.y, message->pose.pose.orientation.z, message->pose.pose.orientation.w);
-    tf::Matrix3x3 m(q);
-    double roll, pitch, yaw;
-    m.getRPY(roll, pitch, yaw);
-    currentLocation.theta = yaw;
-
-    std_msgs::String currentLocationMsg;
-    std::ostringstream ssCL;
-    ssCL<< "currentLocation: "<<currentLocation.x<<", "<<currentLocation.y<<", "<<currentLocation.theta;
-    currentLocationMsg.data = ssCL.str();
-    currentLocationPublish.publish(currentLocationMsg);
-}
-
-void mapHandler(const nav_msgs::Odometry::ConstPtr& message) {
-    //Get (x,y) location directly from pose
-    currentLocationMap.x = message->pose.pose.position.x;
-    currentLocationMap.y = message->pose.pose.position.y;
 
     //Get theta rotation by converting quaternion orientation to pitch/roll/yaw
     tf::Quaternion q(message->pose.pose.orientation.x, message->pose.pose.orientation.y, message->pose.pose.orientation.z, message->pose.pose.orientation.w);
@@ -1323,6 +1346,13 @@ void mapHandler(const nav_msgs::Odometry::ConstPtr& message) {
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
     currentLocationMap.theta = yaw;
+    currentLocation.theta = yaw;
+
+    std_msgs::String currentLocationMsg;
+    std::ostringstream ssCL;
+    ssCL<< "currentLocation: "<<currentLocation.x<<", "<<currentLocation.y<<", "<<currentLocation.theta;
+    currentLocationMsg.data = ssCL.str();
+    currentLocationPublish.publish(currentLocationMsg);
 }
 
 void joyCmdHandler(const sensor_msgs::Joy::ConstPtr& message) {

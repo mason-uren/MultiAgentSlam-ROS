@@ -222,8 +222,8 @@ geometry_msgs::Pose2D SearchController::popWaypoint()
         double newTheta = rng->uniformReal(0, 2 * M_PI); // theta between 0 and 2pi
         double newRadius = rng->uniformReal(0,5); // radius between 0 and 1
         //random new waypoint
-        nextWaypoint.x = (newRadius * cos(newTheta)); //(remainingGoalDist * cos(oldGoalLocation.theta));
-        nextWaypoint.y = (newRadius * sin(newTheta)); //(remainingGoalDist * sin(oldGoalLocation.theta));
+        nextWaypoint.x = 7;//(newRadius * cos(newTheta)); //(remainingGoalDist * cos(oldGoalLocation.theta));
+        nextWaypoint.y = 7;//(newRadius * sin(newTheta)); //(remainingGoalDist * sin(oldGoalLocation.theta));
         pushWaypoint(nextWaypoint);
     }
     else
@@ -243,8 +243,8 @@ geometry_msgs::Pose2D SearchController::peekWaypoint()
         double newTheta = rng->uniformReal(0, 2 * M_PI); // theta between 0 and 2pi
         double newRadius = rng->uniformReal(0,5.0); // radius between 0 and 5 meters
         //random new waypoint
-        nextWaypoint.x = (newRadius * cos(newTheta)); //(remainingGoalDist * cos(oldGoalLocation.theta));
-        nextWaypoint.y = (newRadius * sin(newTheta)); //(remainingGoalDist * sin(oldGoalLocation.theta));
+        nextWaypoint.x = 7;//(newRadius * cos(newTheta)); //(remainingGoalDist * cos(oldGoalLocation.theta));
+        nextWaypoint.y = 7;//(newRadius * sin(newTheta)); //(remainingGoalDist * sin(oldGoalLocation.theta));
         pushWaypoint(nextWaypoint);
     }
     else
