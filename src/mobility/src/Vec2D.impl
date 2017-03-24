@@ -1,0 +1,103 @@
+#ifndef VEC2D_IMPL
+#define VEC2D_IMPL
+
+inline double& Vec2D::operator[](size_t idx) {
+    if((idx % 2) == 0) {
+        return x;
+    } else {
+        return y;
+    }
+}
+
+inline const double& Vec2D::operator[](size_t idx) const {
+    if((idx % 2) == 0) {
+        return x;
+    } else {
+        return y;
+    }
+}
+
+inline double dot(Vec2D lhs, Vec2D rhs) {
+    return (lhs.x * rhs.x) + (lhs.y * rhs.y);
+}
+
+inline double cross_2D(Vec2D lhs, Vec2D rhs) {
+    return (lhs.x * rhs.y) - (lhs.y * rhs.x);
+}
+
+inline Vec2D perp(const Vec2D& v) {
+    return Vec2D(v.y, -v.x);
+}
+
+inline double distance(Vec2D lhs, Vec2D rhs) {
+    return mag(lhs-rhs);
+}
+
+inline double distance_sqr(Vec2D lhs, Vec2D rhs) {
+    return mag_sqr(lhs-rhs);
+}
+
+inline double angle_rad(Vec2D v) {
+    return std::atan2(v.y, v.x);
+}
+
+inline double mag_sqr(Vec2D v) {
+    return (v.x * v.x) + (v.y * v.y);
+}
+
+inline double mag(Vec2D v) {
+    return std::sqrt(mag_sqr(v));
+}
+
+inline Vec2D normal(Vec2D v) {
+    return v / mag(v);
+}
+
+inline Vec2D operator-(const Vec2D& v) {
+    return Vec2D(-v.x, -v.y);
+}
+
+inline Vec2D operator+(Vec2D lhs, const Vec2D& rhs) {
+    return Vec2D(lhs.x + rhs.x, lhs.y + rhs.y);
+}
+
+inline Vec2D operator-(Vec2D lhs, const Vec2D& rhs) {
+    return Vec2D(lhs.x - rhs.x, lhs.y - rhs.y);
+}
+
+inline Vec2D operator*(Vec2D lhs, const double& rhs) {
+    return Vec2D(lhs.x * rhs, lhs.y * rhs);
+}
+
+inline Vec2D operator*(double lhs, const Vec2D& rhs) {
+    return Vec2D(lhs * rhs.x, lhs * rhs.y);
+}
+
+inline Vec2D operator/(Vec2D lhs, const double& rhs) {
+    return Vec2D(lhs.x / rhs, lhs.y / rhs);
+}
+
+inline Vec2D& Vec2D::operator=(const Vec2D& rhs) {
+    this->x = rhs.x;
+    this->y = rhs.y;
+
+    return *this;
+}
+
+inline Vec2D& Vec2D::operator+=(const Vec2D& rhs) {
+    return *this = *this + rhs;
+}
+
+inline Vec2D& Vec2D::operator-=(const Vec2D& rhs) {
+    return *this = *this - rhs;
+}
+
+inline Vec2D& Vec2D::operator*=(const double& rhs) {
+    return *this = *this * rhs;
+}
+
+inline Vec2D& Vec2D::operator/=(const double& rhs) {
+    return *this = *this / rhs;
+}
+
+#endif

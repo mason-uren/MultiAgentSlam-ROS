@@ -36,11 +36,13 @@ class SearchController {
 
     void waypointTempWaypoint(geometry_msgs::Pose2D currentLocation, std::string botName);
 
-    geometry_msgs::Pose2D peekWaypoint();
+    geometry_msgs::Pose2D peekWaypoint(geometry_msgs::Pose2D currentLocation);
 
     void pushWaypoint(geometry_msgs::Pose2D newLocation);
 
-    geometry_msgs::Pose2D popWaypoint();
+    geometry_msgs::Pose2D popWaypoint(geometry_msgs::Pose2D currentLocation);
+
+    bool waypointIntersectsHome(geometry_msgs::Pose2D currentLocation, geometry_msgs::Pose2D goalLocation);
 
 
   private:
@@ -50,7 +52,7 @@ class SearchController {
 
     //Initial waypoints
     static const float d = 0.5;
-
+    static const float HOME_RADIUS = 1.0;// Really it is sqrt(0.5) but I want to add a little margin to account for GPS errors.
     static const double final_boundary = 11.0;
     //    float waypoints_x_final [] {final_boundary-d, -(final_boundary-d), -(final_boundary-d),    final_boundary-d,   final_boundary-d, -(final_boundary-2*d), -(final_boundary-2*d),    final_boundary-2*d, final_boundary-2*d, -(final_boundary-3*d), -(final_boundary-3*d),    final_boundary-3*d, final_boundary-3*d, -(final_boundary-4*d), -(final_boundary-4*d),   final_boundary-4*d, final_boundary-4*d};
     //    float waypoints_y_final [] {final_boundary-d,    final_boundary-d, -(final_boundary-d), -(final_boundary-d), final_boundary-2*d,    final_boundary-2*d, -(final_boundary-2*d), -(final_boundary-2*d), final_boundary-3*d,    final_boundary-3*d, -(final_boundary-3*d), -(final_boundary-3*d), final_boundary-4*d,    final_boundary-4*d, -(final_boundary-4*d), -(final_boundary-4*d), final_boundary-5*d};

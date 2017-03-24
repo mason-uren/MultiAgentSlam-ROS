@@ -1,4 +1,5 @@
 #include "SearchController.h"
+#include "Vec2D.hpp"
 
 SearchController::SearchController() {
   rng = new random_numbers::RandomNumberGenerator();
@@ -214,17 +215,34 @@ void SearchController::pushWaypoint(geometry_msgs::Pose2D newLocation)
     stack_waypoints.push(newLocation);
 }
 
-geometry_msgs::Pose2D SearchController::popWaypoint()
+geometry_msgs::Pose2D SearchController::popWaypoint(geometry_msgs::Pose2D currentLocation)
 {
     geometry_msgs::Pose2D nextWaypoint;
+    bool invalidWaypoint = true;
     if(stack_waypoints.empty())
     {
-        double newTheta = rng->uniformReal(0, 2 * M_PI); // theta between 0 and 2pi
-        double newRadius = rng->uniformReal(0,5); // radius between 0 and 1
-        //random new waypoint
-        nextWaypoint.x = 7;//(newRadius * cos(newTheta)); //(remainingGoalDist * cos(oldGoalLocation.theta));
-        nextWaypoint.y = 7;//(newRadius * sin(newTheta)); //(remainingGoalDist * sin(oldGoalLocation.theta));
-        pushWaypoint(nextWaypoint);
+        if(sqrt(currentLocation.x*currentLocation.x + currentLocation.y*currentLocation.y)<=HOME_RADIUS) // We are too close to the home circle.
+        {
+            double newTheta = atan2(currentLocation.y, currentLocation.x); // Find the nearest direction out of the circle.
+            nextWaypoint.x = 1.5*HOME_RADIUS*cos(newTheta); // We just want to get out of the home circle so go to 3m to get out of there.
+            nextWaypoint.y = 1.5*HOME_RADIUS*sin(newTheta);
+        }
+        else
+        {
+            while(invalidWaypoint)
+            {
+                double newTheta = rng->uniformReal(0, 2 * M_PI); // theta between 0 and 2pi
+                double newRadius = rng->uniformReal(0,2.0); // radius between 0 and 5 meters
+                //random new waypoint
+                nextWaypoint.x = currentLocation.x + newRadius * cos(newTheta); //(remainingGoalDist * cos(oldGoalLocation.theta));
+                nextWaypoint.y = currentLocation.y + newRadius * sin(newTheta); //(remainingGoalDist * sin(oldGoalLocation.theta));
+                if(!waypointIntersectsHome(currentLocation, nextWaypoint))
+                {
+                    invalidWaypoint = false;
+                }
+            }
+        }
+//        pushWaypoint(nextWaypoint); We are in the pop method so we don't want to push here.
     }
     else
     {
@@ -235,16 +253,33 @@ geometry_msgs::Pose2D SearchController::popWaypoint()
     return nextWaypoint;
 }
 
-geometry_msgs::Pose2D SearchController::peekWaypoint()
+geometry_msgs::Pose2D SearchController::peekWaypoint(geometry_msgs::Pose2D currentLocation)
 {
     geometry_msgs::Pose2D nextWaypoint;
+    bool invalidWaypoint = true;
     if(stack_waypoints.empty())
     {
-        double newTheta = rng->uniformReal(0, 2 * M_PI); // theta between 0 and 2pi
-        double newRadius = rng->uniformReal(0,5.0); // radius between 0 and 5 meters
-        //random new waypoint
-        nextWaypoint.x = 7;//(newRadius * cos(newTheta)); //(remainingGoalDist * cos(oldGoalLocation.theta));
-        nextWaypoint.y = 7;//(newRadius * sin(newTheta)); //(remainingGoalDist * sin(oldGoalLocation.theta));
+        if(sqrt(currentLocation.x*currentLocation.x + currentLocation.y*currentLocation.y)<=HOME_RADIUS) // We are too close to the home circle.
+        {
+            double newTheta = atan2(currentLocation.y, currentLocation.x); // Find the nearest direction out of the circle.
+            nextWaypoint.x = 1.5*HOME_RADIUS*cos(newTheta); // We just want to get out of the home circle so go to 3m to get out of there.
+            nextWaypoint.y = 1.5*HOME_RADIUS*sin(newTheta);
+        }
+        else
+        {
+            while(invalidWaypoint)
+            {
+                double newTheta = rng->uniformReal(0, 2 * M_PI); // theta between 0 and 2pi
+                double newRadius = rng->uniformReal(0,2.0); // radius between 0 and 5 meters
+                //random new waypoint
+                nextWaypoint.x = currentLocation.x + newRadius * cos(newTheta); //(remainingGoalDist * cos(oldGoalLocation.theta));
+                nextWaypoint.y = currentLocation.y + newRadius * sin(newTheta); //(remainingGoalDist * sin(oldGoalLocation.theta));
+                if(!waypointIntersectsHome(currentLocation, nextWaypoint))
+                {
+                    invalidWaypoint = false;
+                }
+            }
+        }
         pushWaypoint(nextWaypoint);
     }
     else
@@ -286,4 +321,44 @@ geometry_msgs::Pose2D SearchController::waypointNextLocation(geometry_msgs::Pose
 int SearchController::getStackSize()
 {
     return stack_waypoints.size();
+}
+
+bool SearchController::waypointIntersectsHome(geometry_msgs::Pose2D currentLocation, geometry_msgs::Pose2D goalLocation)
+{
+    bool lineSegmentIntersectsHome = false;
+    if((currentLocation.x==goalLocation.x) && (currentLocation.y==goalLocation.y))
+    {
+        lineSegmentIntersectsHome = false;
+    }
+    else
+    {
+        Vec2D seg_a = Vec2D(currentLocation.x, currentLocation.y);
+        Vec2D seg_b = Vec2D(goalLocation.x, goalLocation.y);
+        Vec2D seg_v = seg_b-seg_a;
+        Vec2D circ_pos = Vec2D(0.0,0.0);
+        Vec2D pt_v = circ_pos - seg_a;
+        float length_seg_v = sqrt(seg_v.x * seg_v.x + seg_v.y * seg_v.y);
+        float length_projected = (pt_v.x * seg_v.x + pt_v.y * seg_v.y)/length_seg_v;
+        Vec2D closest;
+        if (length_projected <= 0)
+        {
+            closest = seg_a;
+        }
+        else if(length_projected >= length_seg_v)
+        {
+            closest = seg_b;
+        }
+        else
+        {
+            Vec2D proj_v = Vec2D((length_projected/length_seg_v)*seg_v.x,(length_projected/length_seg_v)*seg_v.y);
+            closest = seg_a+proj_v;
+        }
+        Vec2D dist_v = circ_pos - closest;
+        float length_dist_v = sqrt(dist_v.x*dist_v.x + dist_v.y*dist_v.y);
+        if (length_dist_v < HOME_RADIUS)
+        {
+            lineSegmentIntersectsHome = true;
+        }
+    }
+    return lineSegmentIntersectsHome;
 }
