@@ -115,21 +115,21 @@ void SearchController::setStack(std::string botName) {
 ///**
 // * This code implements a basic random walk search.
 // */
-//geometry_msgs::Pose2D SearchController::search(geometry_msgs::Pose2D currentLocation, geometry_msgs::Pose2D oldGoalLocation, std::string botName) {
+geometry_msgs::Pose2D SearchController::search(geometry_msgs::Pose2D currentLocation) {
 
-//  geometry_msgs::Pose2D newGoalLocation;
+  geometry_msgs::Pose2D newGoalLocation;
 
-//  //select new heading from Gaussian distribution around current heading
-//  // newGoalLocation.theta = rng->gaussian(currentLocation.theta, 0.25);
+  //select new heading from Gaussian distribution around current heading
+  newGoalLocation.theta = rng->gaussian(currentLocation.theta, 0.25);
 
-//  //select new position 50 cm from current location
-//  //newGoalLocation.x = currentLocation.x + (0.5 * cos(goalLocation.theta));
-//  //newGoalLocation.y = currentLocation.y + (0.5 * sin(goalLocation.theta));
+  //select new position 50 cm from current location
+  newGoalLocation.x = currentLocation.x + (0.5 * cos(newGoalLocation.theta));
+  newGoalLocation.y = currentLocation.y + (0.5 * sin(newGoalLocation.theta));
 
-//  // Nick's code to disable movement for testing the gripper.
-//  //newGoalLocation.theta = 0.0;
-//  //newGoalLocation.x = 0.0;
-//  //newGoalLocation.y = 0.0;
+  // Nick's code to disable movement for testing the gripper.
+  //newGoalLocation.theta = 0.0;
+  //newGoalLocation.x = 0.0;
+  //newGoalLocation.y = 0.0;
 
 //  // This should check to see if we have reached our current waypoint and then call waypointNextLocation if we have.
 //  double remainingGoalDist = hypot(oldGoalLocation.x - currentLocation.x, oldGoalLocation.y - currentLocation.y);
@@ -139,8 +139,8 @@ void SearchController::setStack(std::string botName) {
 //    newGoalLocation = waypointNextLocation(botName);
 //  }
 
-//  return newGoalLocation;
-//}
+  return newGoalLocation;
+}
 
 ///**
 // * Continues search pattern after interruption. For example, avoiding the
