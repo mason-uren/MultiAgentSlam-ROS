@@ -1,5 +1,5 @@
 #include "SearchController.h"
-#include "Vec2D.hpp"
+//#include "Vec2D.hpp"
 
 SearchController::SearchController() {
   rng = new random_numbers::RandomNumberGenerator();
@@ -229,6 +229,7 @@ geometry_msgs::Pose2D SearchController::popWaypoint(geometry_msgs::Pose2D curren
         }
         else
         {
+            int retryCounter = 0;
             while(invalidWaypoint)
             {
                 double newTheta = rng->uniformReal(0, 2 * M_PI); // theta between 0 and 2pi
@@ -236,10 +237,11 @@ geometry_msgs::Pose2D SearchController::popWaypoint(geometry_msgs::Pose2D curren
                 //random new waypoint
                 nextWaypoint.x = currentLocation.x + newRadius * cos(newTheta); //(remainingGoalDist * cos(oldGoalLocation.theta));
                 nextWaypoint.y = currentLocation.y + newRadius * sin(newTheta); //(remainingGoalDist * sin(oldGoalLocation.theta));
-                if(!waypointIntersectsHome(currentLocation, nextWaypoint))
+                if(!waypointIntersectsHome(currentLocation, nextWaypoint) || (retryCounter > 10))
                 {
                     invalidWaypoint = false;
                 }
+                retryCounter++;
             }
         }
 //        pushWaypoint(nextWaypoint); We are in the pop method so we don't want to push here.
@@ -267,6 +269,7 @@ geometry_msgs::Pose2D SearchController::peekWaypoint(geometry_msgs::Pose2D curre
         }
         else
         {
+            int retryCounter = 0;
             while(invalidWaypoint)
             {
                 double newTheta = rng->uniformReal(0, 2 * M_PI); // theta between 0 and 2pi
@@ -274,10 +277,11 @@ geometry_msgs::Pose2D SearchController::peekWaypoint(geometry_msgs::Pose2D curre
                 //random new waypoint
                 nextWaypoint.x = currentLocation.x + newRadius * cos(newTheta); //(remainingGoalDist * cos(oldGoalLocation.theta));
                 nextWaypoint.y = currentLocation.y + newRadius * sin(newTheta); //(remainingGoalDist * sin(oldGoalLocation.theta));
-                if(!waypointIntersectsHome(currentLocation, nextWaypoint))
+                if(!waypointIntersectsHome(currentLocation, nextWaypoint) || (retryCounter > 10))
                 {
                     invalidWaypoint = false;
                 }
+                retryCounter++;
             }
         }
         pushWaypoint(nextWaypoint);
@@ -332,14 +336,33 @@ bool SearchController::waypointIntersectsHome(geometry_msgs::Pose2D currentLocat
     }
     else
     {
-        Vec2D seg_a = Vec2D(currentLocation.x, currentLocation.y);
-        Vec2D seg_b = Vec2D(goalLocation.x, goalLocation.y);
-        Vec2D seg_v = seg_b-seg_a;
-        Vec2D circ_pos = Vec2D(0.0,0.0);
-        Vec2D pt_v = circ_pos - seg_a;
+//        Vec2D seg_a = Vec2D(currentLocation.x, currentLocation.y);
+        geometry_msgs::Pose2D seg_a = currentLocation;
+
+//        Vec2D seg_b = Vec2D(goalLocation.x, goalLocation.y);
+        geometry_msgs::Pose2D seg_b = goalLocation;
+
+//        Vec2D seg_v = seg_b-seg_a;
+        geometry_msgs::Pose2D seg_v;
+        seg_v.x = seg_b.x - seg_a.x;
+        seg_v.y = seg_b.y - seg_a.y;
+
+//        Vec2D circ_pos = Vec2D(0.0,0.0);
+        geometry_msgs::Pose2D circ_pos;
+        circ_pos.x = 0.0;
+        circ_pos.y = 0.0;
+
+//        Vec2D pt_v = circ_pos - seg_a;
+        geometry_msgs::Pose2D pt_v;
+        pt_v.x = circ_pos.x - seg_a.x;
+        pt_v.y = circ_pos.y - seg_a.y;
+
         float length_seg_v = sqrt(seg_v.x * seg_v.x + seg_v.y * seg_v.y);
         float length_projected = (pt_v.x * seg_v.x + pt_v.y * seg_v.y)/length_seg_v;
-        Vec2D closest;
+
+//        Vec2D closest;
+        geometry_msgs::Pose2D closest;
+
         if (length_projected <= 0)
         {
             closest = seg_a;
@@ -350,10 +373,20 @@ bool SearchController::waypointIntersectsHome(geometry_msgs::Pose2D currentLocat
         }
         else
         {
-            Vec2D proj_v = Vec2D((length_projected/length_seg_v)*seg_v.x,(length_projected/length_seg_v)*seg_v.y);
-            closest = seg_a+proj_v;
+//            Vec2D proj_v = Vec2D((length_projected/length_seg_v)*seg_v.x,(length_projected/length_seg_v)*seg_v.y);
+            geometry_msgs::Pose2D proj_v;
+            proj_v.x = (length_projected/length_seg_v)*seg_v.x;
+            proj_v.y = (length_projected/length_seg_v)*seg_v.y;
+
+//            closest = seg_a+proj_v;
+            closest.x = seg_a.x+proj_v.x;
+            closest.y = seg_a.y+proj_v.y;
         }
-        Vec2D dist_v = circ_pos - closest;
+//        Vec2D dist_v = circ_pos - closest;
+        geometry_msgs::Pose2D dist_v;
+        dist_v.x = circ_pos.x - closest.x;
+        dist_v.y = circ_pos.y - closest.y;
+
         float length_dist_v = sqrt(dist_v.x*dist_v.x + dist_v.y*dist_v.y);
         if (length_dist_v < HOME_RADIUS)
         {

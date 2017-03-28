@@ -340,11 +340,11 @@ int main(int argc, char **argv) {
 // controllers in the abridge package.
 void mobilityStateMachine(const ros::TimerEvent&) {
 
-    std_msgs::String stackSizeMsg;
-    std::ostringstream ss2;
-    ss2 << "stack size: " << searchController.getStackSize();
-    stackSizeMsg.data = ss2.str();
-    stackSizePublish.publish(stackSizeMsg);
+//    std_msgs::String stackSizeMsg;
+//    std::ostringstream ss2;
+//    ss2 << "stack size: " << searchController.getStackSize();
+//    stackSizeMsg.data = ss2.str();
+//    stackSizePublish.publish(stackSizeMsg);
 
     std_msgs::String stateMachineMsg;
     std_msgs::String currentLocationMsg;
@@ -521,7 +521,14 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     }
                     if (result.giveUp) {
                         targetDetected = false;
-                        stateMachineState = STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT;// I think this is where we give up and we should go back to waypoints again.
+                        if (stateMachinePreviousState == STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT)
+                        {
+                            stateMachineState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
+                        }
+                        else
+                        {
+                            stateMachineState = STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT;// I think this is where we give up and we should go back to waypoints again.
+                        }
                         pidController.resetTranslationalIntegrator();
                         sendDriveCommand(0.0,0);
                         pickUpController.reset();
@@ -565,22 +572,22 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                 if (!centerSeen)
                 {
                     // set center as goal position
-//                    goalLocation.x = centerLocationOdom.x;// = 0;
-//                    goalLocation.y = centerLocationOdom.y;
-//                    goalLocation.theta = atan2(centerLocationOdom.y - currentLocation.y, centerLocationOdom.x - currentLocation.x);
+                    goalLocation.x = centerLocationOdom.x;// = 0;
+                    goalLocation.y = centerLocationOdom.y;
+                    goalLocation.theta = atan2(centerLocationOdom.y - currentLocation.y, centerLocationOdom.x - currentLocation.x);
 
-                    goalLocation.x = 0.0;
-                    goalLocation.y = 0.0;
-                    goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
+//                    goalLocation.x = 0.0;
+//                    goalLocation.y = 0.0;
+//                    goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
 
                     // Calculate the diffrence between current and desired heading in radians.
                     float errorYaw = getRotationalError();           // If angle > 0.4 radians rotate but dont drive forward.
                     float linearVelocity = getTranslationalVelocity();
-                    if (fabs(errorYaw) > rotateOnlyAngleTolerance) {
-                        // rotate but dont drive  0.05 is to prevent turning in reverse
-                        sendDriveCommand(0.05, errorYaw);
-                        stateMachineState = STATE_MACHINE_GO_HOME;
-                        break;
+                    if (false){// This is just to test if something in rotate state is causing crash. (fabs(errorYaw) > rotateOnlyAngleTolerance) {
+//                        // rotate but dont drive  0.05 is to prevent turning in reverse
+//                        sendDriveCommand(0.05, errorYaw/2);
+//                        stateMachineState = STATE_MACHINE_GO_HOME;
+//                        break;
                     } else {
                         // move to differential drive step
                         if (!compareLocations(goalLocation,currentLocation,0.2)){
@@ -593,7 +600,6 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                             // stop
                             sendDriveCommand(0.0, 0.0);
                             stateMachineState = STATE_MACHINE_DROPOFF_TARGET;
-                            stateMachinePreviousState = STATE_MACHINE_GO_HOME;
                         }
                         break;
                     }
@@ -602,7 +608,6 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                 {
                     sendDriveCommand(0.0, 0.0);
                     stateMachineState = STATE_MACHINE_DROPOFF_TARGET;
-                    stateMachinePreviousState = STATE_MACHINE_GO_HOME;
                     break;
                 }
             }
@@ -653,11 +658,14 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                         lockTarget = false;
                         sendDriveCommand(-0.3,0); // added to get robot to backup before turning around.
                         targetEncountered = false;
-                        //                    searchController.popWaypoint(currentLocation);
-                        //                    goalLocation = searchController.peekWaypoint(currentLocation);
-
-                        // move back to transform step
-                        stateMachineState = STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT;
+                        if (stateMachinePreviousState == STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT) // This is a big no no, but a quick fix.  Want to see if we entered the dropoff sequence after avoiding and obstacle.
+                        {
+                            stateMachineState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
+                        }
+                        else
+                        {
+                            stateMachineState = STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT;// I think this is where we give up and we should go back to waypoints again.
+                        }
                         pidController.resetTranslationalIntegrator();
                         reachedCollectionPoint = false;
                         //                    centerLocationOdom = currentLocation; //This is too far from center. Turnning off for now.
@@ -823,7 +831,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                 if(sqrt(currentLocation.x*currentLocation.x + currentLocation.y*currentLocation.y)<=HOME_RADIUS) // We are too close to the home circle.
                 {
                     double newTheta = atan2(currentLocation.y, currentLocation.x); // Find the nearest direction out of the circle.
-                    goalLocation.x = 1.5*HOME_RADIUS*cos(newTheta); // We just want to get out of the home circle so get out of there.
+                    goalLocation.x = 1.5*HOME_RADIUS*cos(newTheta); // We just want to get out of the home circle so get out of there. 1.5 is to just add some extra space.
                     goalLocation.y = 1.5*HOME_RADIUS*sin(newTheta);
                 }
                 else
@@ -835,10 +843,10 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                         float tDL = atan2(targetDivergentLocation.y - currentLocation.y, targetDivergentLocation.x - currentLocation.x);
                         float distToWaypoint = hypot(targetDivergentLocation.x - currentLocation.x, targetDivergentLocation.y - currentLocation.y);
                         goalLocation.x = currentLocation.x + distToWaypoint*cos(tDL+retryCounter*0.0872665);
-                        goalLocation.y = currentLocation.y + distToWaypoint*sin(tDL+retryCounter*0.0872665); // 5 degrees is 0.0872665 radians.
+                        goalLocation.y = currentLocation.y + distToWaypoint*sin(tDL+retryCounter*0.0872665); // 5 degrees is 0.0872665 radians. 5 degree choice is arbitrary.  Just want to rotate a little and check.
                         goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
 
-                        if(!searchController.waypointIntersectsHome(currentLocation, goalLocation))
+                        if(!searchController.waypointIntersectsHome(currentLocation, goalLocation) || (retryCounter > 10))
                         {
                             invalidWaypoint = false;
                         }
@@ -1027,26 +1035,29 @@ void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& messag
     // with safety timer at greater than 5 seconds.
     PickUpResult result;
 
-    if (message->detections.size() > 0 && !targetCollected && timerTimeElapsed > 5) {
-        targetDetected = true;
-        //add position to stack
-        //searchController.waypointSearchFound(currentLocation, goalLocation, publishedName);
+    if (sqrt(currentLocation.x*currentLocation.x + currentLocation.y*currentLocation.y)>HOME_RADIUS*1.5) // Don't try to pick up a target already near home base. 1.5 is arbitrary to give some buffer around home for GPS errors.
+    {
+        if (message->detections.size() > 0 && !targetCollected && timerTimeElapsed > 5) {
+            targetDetected = true;
+            //add position to stack
+            //searchController.waypointSearchFound(currentLocation, goalLocation, publishedName);
 
-        // pickup state so target handler can take over driving.
-//        stateMachineState = STATE_MACHINE_PICKUP_TARGET;
-        targetEncountered = true;
-        result = pickUpController.selectTarget(message);
+            // pickup state so target handler can take over driving.
+            //        stateMachineState = STATE_MACHINE_PICKUP_TARGET;
+            targetEncountered = true;
+            result = pickUpController.selectTarget(message);
 
-        std_msgs::Float32 angle;
+            std_msgs::Float32 angle;
 
-        if (result.fingerAngle != -1) {
-            angle.data = result.fingerAngle;
-            fingerAnglePublish.publish(angle);
-        }
+            if (result.fingerAngle != -1) {
+                angle.data = result.fingerAngle;
+                fingerAnglePublish.publish(angle);
+            }
 
-        if (result.wristAngle != -1) {
-            angle.data = result.wristAngle;
-            wristAnglePublish.publish(angle);
+            if (result.wristAngle != -1) {
+                angle.data = result.wristAngle;
+                wristAnglePublish.publish(angle);
+            }
         }
     }
 }
@@ -1077,8 +1088,8 @@ void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
         if(sqrt(currentLocation.x*currentLocation.x + currentLocation.y*currentLocation.y)<=HOME_RADIUS) // We are too close to the home circle.
         {
             double newTheta = atan2(currentLocation.y, currentLocation.x); // Find the nearest direction out of the circle.
-            alternativeLocation.x = 1.5*HOME_RADIUS*cos(newTheta); // We just want to get out of the home circle so get out of there.
-            alternativeLocation.y = 1.5*HOME_RADIUS*sin(newTheta);
+            alternativeLocation.x = 1.25*HOME_RADIUS*cos(newTheta); // We just want to get out of the home circle so get out of there.
+            alternativeLocation.y = 1.25*HOME_RADIUS*sin(newTheta);
         }
         else
         {
@@ -1086,23 +1097,23 @@ void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
             int retryCounter = 0;
             while(invalidWaypoint)
             {
-                double distanceToMove = 0.5 + rng->uniformReal(0, 1);
+                double distanceToMove = rng->uniformReal(0, 1);
                 if (message->data == 1) {
                     // select new heading 0.2 radians to the left
                     //goalLocation.theta = currentLocation.theta + 0.6;
-                    alternativeLocation.x = currentLocation.x + distanceToMove*cos(currentLocation.theta + PI_OVER_4+retryCounter*5.0);//hardcoded angle of pi/2 & length of 2, tunable
-                    alternativeLocation.y = currentLocation.y + distanceToMove*sin(currentLocation.theta + PI_OVER_4+retryCounter*5.0);//hardcoded angle of pi/2 & length of 2, tunable
-                    alternativeLocation.theta = currentLocation.theta + PI_OVER_4+retryCounter*5.0;
+                    alternativeLocation.x = currentLocation.x + distanceToMove*cos(currentLocation.theta + PI_OVER_4+retryCounter*0.0872665);//hardcoded angle of pi/2 & length of 2, tunable
+                    alternativeLocation.y = currentLocation.y + distanceToMove*sin(currentLocation.theta + PI_OVER_4+retryCounter*0.0872665);//hardcoded angle of pi/2 & length of 2, tunable
+                    alternativeLocation.theta = currentLocation.theta + PI_OVER_4+retryCounter*0.0872665;
                 }
                 // obstacle in front or on left side
                 else if (message->data == 2) {
                     // select new heading 0.2 radians to the right
                     //goalLocation.theta = currentLocation.theta + 0.6;
-                    alternativeLocation.x = currentLocation.x + distanceToMove*cos(currentLocation.theta - PI_OVER_4-retryCounter*5.0);
-                    alternativeLocation.y = currentLocation.y + distanceToMove*sin(currentLocation.theta - PI_OVER_4-retryCounter*5.0);
-                    alternativeLocation.theta = currentLocation.theta - PI_OVER_4-retryCounter*5.0;
+                    alternativeLocation.x = currentLocation.x + distanceToMove*cos(currentLocation.theta - PI_OVER_4-retryCounter*0.0872665);
+                    alternativeLocation.y = currentLocation.y + distanceToMove*sin(currentLocation.theta - PI_OVER_4-retryCounter*0.0872665);
+                    alternativeLocation.theta = currentLocation.theta - PI_OVER_4-retryCounter*0.0872665;
                 }
-                if(!searchController.waypointIntersectsHome(currentLocation, alternativeLocation))
+                if(!searchController.waypointIntersectsHome(currentLocation, alternativeLocation) || (retryCounter > 10) )
                 {
                     invalidWaypoint = false;
                 }
