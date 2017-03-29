@@ -28,7 +28,7 @@
 // properly in response to "rosnode kill"
 #include <ros/ros.h>
 #include <signal.h>
-//#include <string>
+#include <string>
 #include <vector>
 
 using namespace std;
@@ -157,6 +157,11 @@ int stateMachinePreviousState = STATE_MACHINE_INIT;
 geometry_msgs::Twist velocity;
 char host[128];
 string publishedName;
+string memberNames[6];
+const int maxSwarmSize = 6;
+int sent_name = 0;
+int swarmSize = 0;
+int self_idx = -1;
 char prev_state_machine[128];
 
 // Publishers
@@ -166,6 +171,8 @@ ros::Publisher fingerAnglePublish;
 ros::Publisher wristAnglePublish;
 ros::Publisher infoLogPublisher;
 ros::Publisher driveControlPublish;
+ros::Publisher namePublish;
+ros::Publisher debugPublish;
 ros::Publisher heartbeatPublisher;
 ros::Publisher goalLocationPublish;
 ros::Publisher currentLocationPublish;
@@ -174,7 +181,7 @@ ros::Publisher translationalErrorPublish;
 ros::Publisher translationalVelocityPublish;
 ros::Publisher rotationalVelocityPublish;
 ros::Publisher wrapAngleDifferencePublish;
-ros::Publisher leaderElectionPublish;
+//ros::Publisher leaderElectionPublish;
 ros::Publisher pickupCommandPublish;
 ros::Publisher stackSizePublish;
 ros::Publisher stackDebugPublish;
@@ -187,7 +194,8 @@ ros::Subscriber targetSubscriber;
 ros::Subscriber obstacleSubscriber;
 ros::Subscriber odometrySubscriber;
 ros::Subscriber mapSubscriber;
-ros::Subscriber leaderElectionSubscriber;
+ros::Subscriber nameSubscriber;
+//ros::Subscriber leaderElectionSubscriber;
 
 // Timers
 ros::Timer stateMachineTimer;
@@ -200,7 +208,7 @@ time_t timerStartTime;
 
 // An initial delay to allow the rover to gather enough position data to
 // average its location.
-unsigned int startDelayInSeconds = 1;
+unsigned int startDelayInSeconds = 5;
 float timerTimeElapsed = 0;
 
 time_t timeOfLastObstacle;
@@ -227,6 +235,7 @@ void mobilityStateMachine(const ros::TimerEvent&);
 void publishStatusTimerEventHandler(const ros::TimerEvent& event);
 void targetDetectedReset(const ros::TimerEvent& event);
 void publishHeartBeatTimerEventHandler(const ros::TimerEvent& event);
+void idHandler(const std_msgs::String::ConstPtr& message);
 
 double getRotationalVelocity();
 double getRotationalError();
@@ -261,7 +270,7 @@ int main(int argc, char **argv) {
         cout << "No Name Selected. Default is: " << publishedName << endl;
     }
 
-    searchController.setStack(publishedName);
+//    searchController.setStack(publishedName);
     //    //set initial random heading
     //    goalLocation.theta = rng->uniformReal(0, 2 * M_PI); //goalLocation.theta = atan2(goalLocation.y,goalLocation.x);
 
@@ -288,6 +297,7 @@ int main(int argc, char **argv) {
     obstacleSubscriber = mNH.subscribe((publishedName + "/obstacle"), 10, obstacleHandler);
     odometrySubscriber = mNH.subscribe((publishedName + "/odom/filtered"), 10, odometryHandler);
     mapSubscriber = mNH.subscribe((publishedName + "/odom/ekf"), 10, mapHandler);
+    nameSubscriber = mNH.subscribe("identities", 10, idHandler);
 
     status_publisher = mNH.advertise<std_msgs::String>((publishedName + "/status"), 1, true);
     stateMachinePublish = mNH.advertise<std_msgs::String>((publishedName + "/state_machine"), 1, true);
@@ -310,9 +320,8 @@ int main(int argc, char **argv) {
     targetDetectedTimer = mNH.createTimer(ros::Duration(0), targetDetectedReset, true);
     stackSizePublish = mNH.advertise<std_msgs::String>((publishedName + "/stackSize"), 1, true);
     stackDebugPublish = mNH.advertise<std_msgs::String>((publishedName + "/stackDebug"), 1, true);
-    // Constructors
-    //searchController=SearchController::SearchController();
-    //pidController=PIDController::PIDController();
+    namePublish = mNH.advertise<std_msgs::String>(("identities"), 1, true);
+    debugPublish = mNH.advertise<std_msgs::String>((publishedName + "/debug"), 5, true);
 
     publish_heartbeat_timer = mNH.createTimer(ros::Duration(heartbeat_publish_interval), publishHeartBeatTimerEventHandler);
 
@@ -365,6 +374,8 @@ void mobilityStateMachine(const ros::TimerEvent&) {
             if (timerTimeElapsed > startDelayInSeconds) {
                 // Set the location of the center circle location in the map
                 // frame based upon our current average location on the map.
+
+                searchController.setStack(self_idx); // moved to init to wait for assigment of id number.
                 centerLocationMap.x = currentLocationAverage.x;
                 centerLocationMap.y = currentLocationAverage.y;
                 centerLocationMap.theta = currentLocationAverage.theta;
@@ -956,6 +967,50 @@ void sendDriveCommand(double linearVel, double angularError)
  * ROS CALLBACK HANDLERS *
  *************************/
 
+void idHandler(const std_msgs::String::ConstPtr& message) {
+
+    if(swarmSize > maxSwarmSize) {
+        return;
+    }
+
+    int insert_idx = swarmSize - 1;
+    string name = message->data;
+
+    for(size_t i = 0; i < swarmSize; i++) {
+        if(memberNames[i] == name) {
+            return;
+        }
+    }
+
+    if(insert_idx >= 0) {
+        while(name < memberNames[insert_idx]) {
+            memberNames[insert_idx + 1] = memberNames[insert_idx];
+            insert_idx--;
+        }
+    }
+
+    insert_idx += 1;
+
+    if(name == publishedName) {
+         self_idx = insert_idx;
+    }
+
+    std_msgs::String msg;
+    char num_buf[3] = { '\0' };
+    sprintf(&num_buf[0], "%d", self_idx);
+    msg.data = publishedName + "'s index: " + string(num_buf);
+    debugPublish.publish(msg);
+
+    memberNames[insert_idx] = name;
+
+    if(swarmSize < maxSwarmSize) {
+        swarmSize++;
+    } else {
+        nameSubscriber.shutdown(); //it'd be a waste of resources to keep this subscribed
+    }
+
+}
+
 void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& message) {
 
     // If in manual mode do not try to automatically pick up the target
@@ -1154,17 +1209,33 @@ void mapHandler(const nav_msgs::Odometry::ConstPtr& message) {
     currentLocation.x = currentLocationMovingAvg.x; //message->pose.pose.position.x;
     currentLocation.y = currentLocationMovingAvg.y; //message->pose.pose.position.y;
 
-    if(publishedName == "ajax")
+//    if(publishedName == "ajax")
+//    {
+//        currentLocation.x = currentLocationMovingAvg.x + 1.25;
+//        currentLocation.y = currentLocationMovingAvg.y + 0;
+//    }
+//    else if(publishedName == "achilles")
+//    {
+//        currentLocation.x = currentLocationMovingAvg.x - 1.25;
+//        currentLocation.y = currentLocationMovingAvg.y + 0;
+//    }
+//    else if(publishedName == "aeneas")
+//    {
+//        currentLocation.x = currentLocationMovingAvg.x + 0;
+//        currentLocation.y = currentLocationMovingAvg.y - 1.25;
+//    }
+
+    if(self_idx == 2)
     {
         currentLocation.x = currentLocationMovingAvg.x + 1.25;
         currentLocation.y = currentLocationMovingAvg.y + 0;
     }
-    else if(publishedName == "achilles")
+    else if(self_idx == 0)
     {
         currentLocation.x = currentLocationMovingAvg.x - 1.25;
         currentLocation.y = currentLocationMovingAvg.y + 0;
     }
-    else if(publishedName == "aeneas")
+    else if(self_idx == 1)
     {
         currentLocation.x = currentLocationMovingAvg.x + 0;
         currentLocation.y = currentLocationMovingAvg.y - 1.25;
@@ -1195,6 +1266,13 @@ void joyCmdHandler(const sensor_msgs::Joy::ConstPtr& message) {
 
 
 void publishStatusTimerEventHandler(const ros::TimerEvent&) {
+    if(sent_name < 10) {
+        std_msgs::String name_msg;
+        name_msg.data = publishedName.c_str();
+        namePublish.publish(name_msg);
+        sent_name++;
+    }
+
     std_msgs::String msg;
     msg.data = "online";
     status_publisher.publish(msg);

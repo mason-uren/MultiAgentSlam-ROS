@@ -16,7 +16,8 @@ class SearchController {
 
     SearchController();
 
-    void setStack(std::string botName);
+//    void setStack(std::string botName);
+    void setStack(int self_idx);
 
     // performs search pattern
     geometry_msgs::Pose2D search(geometry_msgs::Pose2D currentLocation);
