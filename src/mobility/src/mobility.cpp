@@ -1085,11 +1085,12 @@ void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
 //        obstacleHandlerPublish.publish(obstacleHandlerMsg);
         // obstacle on right side
 
-        if(sqrt(currentLocation.x*currentLocation.x + currentLocation.y*currentLocation.y)<=HOME_RADIUS) // We are too close to the home circle.
+        if(sqrt(currentLocation.x*currentLocation.x + currentLocation.y*currentLocation.y)<1.5*HOME_RADIUS) // We are too close to the home circle.
         {
             double newTheta = atan2(currentLocation.y, currentLocation.x); // Find the nearest direction out of the circle.
-            alternativeLocation.x = 1.25*HOME_RADIUS*cos(newTheta); // We just want to get out of the home circle so get out of there.
-            alternativeLocation.y = 1.25*HOME_RADIUS*sin(newTheta);
+            alternativeLocation.x = 1.5*HOME_RADIUS*cos(newTheta); // We just want to get out of the home circle so get out of there.
+            alternativeLocation.y = 1.5*HOME_RADIUS*sin(newTheta);
+            sendDriveCommand(-0.3, 0.0); // Just back up.
         }
         else
         {
