@@ -9,7 +9,7 @@ SearchController::SearchController() {
 void SearchController::setStack(int self_idx) {
   // Start: From old code:
   const float d = 0.5;
-  const double final_boundary = 11.0;
+  const double final_boundary = 7.5; //11.0; change back soon.
   float waypoints_x_final [] {final_boundary-d, -(final_boundary-d), -(final_boundary-d),    final_boundary-d,   final_boundary-d, -(final_boundary-2*d), -(final_boundary-2*d),    final_boundary-2*d, final_boundary-2*d, -(final_boundary-3*d), -(final_boundary-3*d),    final_boundary-3*d, final_boundary-3*d, -(final_boundary-4*d), -(final_boundary-4*d),   final_boundary-4*d, final_boundary-4*d};
   float waypoints_y_final [] {final_boundary-d,    final_boundary-d, -(final_boundary-d), -(final_boundary-d), final_boundary-2*d,    final_boundary-2*d, -(final_boundary-2*d), -(final_boundary-2*d), final_boundary-3*d,    final_boundary-3*d, -(final_boundary-3*d), -(final_boundary-3*d), final_boundary-4*d,    final_boundary-4*d, -(final_boundary-4*d), -(final_boundary-4*d), final_boundary-5*d};
 
@@ -27,8 +27,8 @@ void SearchController::setStack(int self_idx) {
 //  float waypoints_y2_preliminary [] {preliminary_boundary-6*d,    preliminary_boundary-6*d, -(preliminary_boundary-6*d), -(preliminary_boundary-6*d), preliminary_boundary-7*d,    preliminary_boundary-7*d, -(preliminary_boundary-7*d), -(preliminary_boundary-7*d), preliminary_boundary-8*d,    preliminary_boundary-8*d, -(preliminary_boundary-8*d), -(preliminary_boundary-8*d), preliminary_boundary-9*d,    preliminary_boundary-9*d, -(preliminary_boundary-9*d), -(preliminary_boundary-9*d), preliminary_boundary-10*d,     preliminary_boundary-10*d, -(preliminary_boundary-10*d), -(preliminary_boundary-10*d), preliminary_boundary-11*d,    preliminary_boundary-11*d, -(preliminary_boundary-11*d), -(preliminary_boundary-11*d), preliminary_boundary-12*d,    preliminary_boundary-12*d, -(preliminary_boundary-12*d), -(preliminary_boundary-12*d), preliminary_boundary-13*d};
 
 
-  float waypoints_x2_preliminary [] {preliminary_boundary-d, -(preliminary_boundary-2*d), -(preliminary_boundary-2*d),    preliminary_boundary-2*d, preliminary_boundary-2*d, -(preliminary_boundary-3*d), -(preliminary_boundary-3*d),    preliminary_boundary-3*d, preliminary_boundary-3*d, -(preliminary_boundary-4*d), -(preliminary_boundary-4*d),   preliminary_boundary-4*d, preliminary_boundary-4*d};
-  float waypoints_y2_preliminary [] {preliminary_boundary-2*d,    preliminary_boundary-2*d, -(preliminary_boundary-2*d), -(preliminary_boundary-2*d), preliminary_boundary-3*d,    preliminary_boundary-3*d, -(preliminary_boundary-3*d), -(preliminary_boundary-3*d), preliminary_boundary-4*d,    preliminary_boundary-4*d, -(preliminary_boundary-4*d), -(preliminary_boundary-4*d), preliminary_boundary-5*d};
+  float waypoints_x2_preliminary [] {final_boundary-d, -(final_boundary-d), -(final_boundary-d),    final_boundary-d, preliminary_boundary-d, -(preliminary_boundary-2*d), -(preliminary_boundary-2*d),    preliminary_boundary-2*d, preliminary_boundary-2*d, -(preliminary_boundary-3*d), -(preliminary_boundary-3*d),    preliminary_boundary-3*d, preliminary_boundary-3*d, -(preliminary_boundary-4*d), -(preliminary_boundary-4*d),   preliminary_boundary-4*d, preliminary_boundary-4*d};
+  float waypoints_y2_preliminary [] {final_boundary-d,    final_boundary-d, -(final_boundary-d), -(final_boundary-d), preliminary_boundary-2*d,    preliminary_boundary-2*d, -(preliminary_boundary-2*d), -(preliminary_boundary-2*d), preliminary_boundary-3*d,    preliminary_boundary-3*d, -(preliminary_boundary-3*d), -(preliminary_boundary-3*d), preliminary_boundary-4*d,    preliminary_boundary-4*d, -(preliminary_boundary-4*d), -(preliminary_boundary-4*d), preliminary_boundary-5*d};
 
 //  float waypoints_x_preliminary [] {preliminary_boundary-3*d, -(preliminary_boundary-4*d), -(preliminary_boundary-4*d),   preliminary_boundary-4*d, preliminary_boundary-4*d};
 //  float waypoints_y_preliminary [] {preliminary_boundary-4*d,    preliminary_boundary-4*d, -(preliminary_boundary-4*d), -(preliminary_boundary-4*d), preliminary_boundary-5*d};
@@ -36,8 +36,8 @@ void SearchController::setStack(int self_idx) {
   float waypoints_x3_preliminary [] {preliminary_boundary-4*d, -(preliminary_boundary-5*d), -(preliminary_boundary-5*d),    preliminary_boundary-5*d,    preliminary_boundary-5*d, -(preliminary_boundary-6*d), -(preliminary_boundary-6*d),    preliminary_boundary-6*d, preliminary_boundary-6*d,  -(preliminary_boundary-7*d), -(preliminary_boundary-7*d),    preliminary_boundary-7*d, preliminary_boundary-7*d, -(preliminary_boundary-8*d), -(preliminary_boundary-8*d),    preliminary_boundary-8*d, preliminary_boundary-8*d, preliminary_boundary-8*d, -(preliminary_boundary-9*d), -(preliminary_boundary-9*d),   preliminary_boundary-9*d};
   float waypoints_y3_preliminary [] {preliminary_boundary-5*d,    preliminary_boundary-5*d, -(preliminary_boundary-5*d), -(preliminary_boundary-5*d),    preliminary_boundary-6*d,    preliminary_boundary-6*d, -(preliminary_boundary-6*d), -(preliminary_boundary-6*d), preliminary_boundary-7*d,     preliminary_boundary-7*d, -(preliminary_boundary-7*d), -(preliminary_boundary-7*d), preliminary_boundary-8*d,    preliminary_boundary-8*d, -(preliminary_boundary-8*d), -(preliminary_boundary-8*d), preliminary_boundary-9*d, preliminary_boundary-9*d,    preliminary_boundary-9*d, -(preliminary_boundary-9*d), -(preliminary_boundary-9*d)};
 
-  float waypoints_x_preliminary [] { preliminary_boundary-9*d,  -(preliminary_boundary-10*d), -(preliminary_boundary-10*d),   preliminary_boundary-10*d,  preliminary_boundary-10*d, -(preliminary_boundary-11*d), -(preliminary_boundary-11*d),    preliminary_boundary-11*d, preliminary_boundary-11*d, -(preliminary_boundary-12*d), -(preliminary_boundary-12*d),    preliminary_boundary-12*d, preliminary_boundary-12*d, -(preliminary_boundary-13*d), -(preliminary_boundary-13*d),    preliminary_boundary-13*d, preliminary_boundary-13*d, -(preliminary_boundary-14*d), -(preliminary_boundary-14*d),    preliminary_boundary-14*d};
-  float waypoints_y_preliminary [] {preliminary_boundary-10*d,     preliminary_boundary-10*d, -(preliminary_boundary-10*d), -(preliminary_boundary-10*d), preliminary_boundary-11*d,    preliminary_boundary-11*d, -(preliminary_boundary-11*d), -(preliminary_boundary-11*d), preliminary_boundary-12*d,    preliminary_boundary-12*d, -(preliminary_boundary-12*d), -(preliminary_boundary-12*d), preliminary_boundary-13*d,    preliminary_boundary-13*d, -(preliminary_boundary-13*d), -(preliminary_boundary-13*d), preliminary_boundary-14*d,    preliminary_boundary-14*d, -(preliminary_boundary-14*d), -(preliminary_boundary-14*d)};
+  float waypoints_x_preliminary [] { preliminary_boundary-9*d,  -(preliminary_boundary-10*d), -(preliminary_boundary-10*d),   preliminary_boundary-10*d,  preliminary_boundary-10*d, -(preliminary_boundary-11*d), -(preliminary_boundary-11*d),    preliminary_boundary-11*d, preliminary_boundary-11*d, -(preliminary_boundary-12*d), -(preliminary_boundary-12*d),    preliminary_boundary-12*d, preliminary_boundary-12*d, -(preliminary_boundary-13*d), -(preliminary_boundary-13*d),    preliminary_boundary-13*d};
+  float waypoints_y_preliminary [] {preliminary_boundary-10*d,     preliminary_boundary-10*d, -(preliminary_boundary-10*d), -(preliminary_boundary-10*d), preliminary_boundary-11*d,    preliminary_boundary-11*d, -(preliminary_boundary-11*d), -(preliminary_boundary-11*d), preliminary_boundary-12*d,    preliminary_boundary-12*d, -(preliminary_boundary-12*d), -(preliminary_boundary-12*d), preliminary_boundary-13*d,    preliminary_boundary-13*d, -(preliminary_boundary-13*d), -(preliminary_boundary-13*d)};
 
 
   // End: From old code:
@@ -239,7 +239,7 @@ geometry_msgs::Pose2D SearchController::popWaypoint(geometry_msgs::Pose2D curren
             int retryCounter = 0;
             while(invalidWaypoint)
             {
-                double newTheta = rng->uniformReal(0, 2 * M_PI); // theta between 0 and 2pi
+                double newTheta = rng->gaussian(currentLocation.theta, 0.25); //rng->uniformReal(0, 2 * M_PI); // theta between 0 and 2pi
                 double newRadius = rng->uniformReal(0,2.0); // radius between 0 and 5 meters
                 //random new waypoint
                 nextWaypoint.x = currentLocation.x + newRadius * cos(newTheta); //(remainingGoalDist * cos(oldGoalLocation.theta));
@@ -279,7 +279,7 @@ geometry_msgs::Pose2D SearchController::peekWaypoint(geometry_msgs::Pose2D curre
             int retryCounter = 0;
             while(invalidWaypoint)
             {
-                double newTheta = rng->uniformReal(0, 2 * M_PI); // theta between 0 and 2pi
+                double newTheta = rng->gaussian(currentLocation.theta, 0.25);// rng->uniformReal(0, 2 * M_PI); // theta between 0 and 2pi
                 double newRadius = rng->uniformReal(0,2.0); // radius between 0 and 5 meters
                 //random new waypoint
                 nextWaypoint.x = currentLocation.x + newRadius * cos(newTheta); //(remainingGoalDist * cos(oldGoalLocation.theta));

@@ -208,7 +208,7 @@ time_t timerStartTime;
 
 // An initial delay to allow the rover to gather enough position data to
 // average its location.
-unsigned int startDelayInSeconds = 5;
+unsigned int startDelayInSeconds = 10;
 float timerTimeElapsed = 0;
 
 time_t timeOfLastObstacle;
@@ -742,6 +742,10 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                         divertingFromSearchPath = false;
                         stateMachineState = STATE_MACHINE_INIT;
                         stateMachinePreviousState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
+                        if((sqrt(currentLocation.x*currentLocation.x + currentLocation.y*currentLocation.y)>6) && (sqrt(goalLocation.x*goalLocation.x + goalLocation.y*goalLocation.y)>6)) // Why 6?  I don't know if we are in prelim or finals.  TODO.
+                        {
+                            searchController.popWaypoint(currentLocation); // This is if our waypoint is too close to wall.
+                        }
                     }
                     break;
                 }
@@ -1199,7 +1203,7 @@ void mapHandler(const nav_msgs::Odometry::ConstPtr& message) {
     currentLocationMap.x = message->pose.pose.position.x;
     currentLocationMap.y = message->pose.pose.position.y;
 
-    float alpha = 0.5;
+    float alpha = 0.4;
     currentLocationMovingAvg.x = alpha * currentLocationMap.x + (1-alpha) * currentLocationMovingAvgOld.x;
     currentLocationMovingAvg.y = alpha * currentLocationMap.y + (1-alpha) * currentLocationMovingAvgOld.y;
     currentLocationMovingAvgOld.x = currentLocationMovingAvg.x;
