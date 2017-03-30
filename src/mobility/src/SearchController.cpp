@@ -5,8 +5,8 @@ SearchController::SearchController() {
   rng = new random_numbers::RandomNumberGenerator();
 }
 
-//void SearchController::setStack(std::string botName) {
-void SearchController::setStack(int self_idx) {
+void SearchController::setStack(std::string botName) {
+//void SearchController::setStack(int self_idx) {
   // Start: From old code:
   const float d = 0.5;
   const double final_boundary = 7.5; //11.0; change back soon.
@@ -51,8 +51,8 @@ void SearchController::setStack(int self_idx) {
   //push waypoints onto stack
   if (finalRound)
   {
-//            if(botName == "ajax")
-      if(self_idx == 2)
+      if(botName == "ajax")
+//      if(self_idx == 2)
       {
           for (int i = sizeof(waypoints_x_final)/sizeof(waypoints_x_final[0]); i > 0; i--)
           {
@@ -61,8 +61,8 @@ void SearchController::setStack(int self_idx) {
               stack_waypoints.push(nextPosition);
           }
       }
-//            else if(botName == "achilles")
-      else if(self_idx == 0)
+      else if(botName == "achilles")
+//      else if(self_idx == 0)
       {
           for (int i = sizeof(waypoints_x2_final)/sizeof(waypoints_x2_final[0]); i > 0; i--)
           {
@@ -71,8 +71,8 @@ void SearchController::setStack(int self_idx) {
               stack_waypoints.push(nextPosition);
           }
       }
-//            else if(botName == "aeneas")
-      else if(self_idx == 1)
+      else if(botName == "aeneas")
+//      else if(self_idx == 1)
       {
           for (int i = sizeof(waypoints_x3_final)/sizeof(waypoints_x3_final[0]); i > 0; i--)
           {
@@ -84,8 +84,8 @@ void SearchController::setStack(int self_idx) {
   }
   else
   {
-//            if(botName == "ajax")
-      if(self_idx == 2)
+      if(botName == "ajax")
+//      if(self_idx == 2)
       {
           //          for (int i = sizeof(waypoints_x_preliminary)/sizeof(waypoints_x_preliminary[0]); i > 0; i--) // spiral in
           for (int i = 0; i < sizeof(waypoints_x_preliminary)/sizeof(waypoints_x_preliminary[0]); i++) // spiral out
@@ -95,8 +95,8 @@ void SearchController::setStack(int self_idx) {
               stack_waypoints.push(nextPosition);
           }
       }
-//            else if(botName == "achilles")
-      else if(self_idx == 0)
+      else if(botName == "achilles")
+//      else if(self_idx == 0)
       {
           //          for (int i = sizeof(waypoints_x2_preliminary)/sizeof(waypoints_x2_preliminary[0]); i > 0; i--) // spiral in
           for (int i = 0; i < sizeof(waypoints_x2_preliminary)/sizeof(waypoints_x2_preliminary[0]); i++) // spiral out
@@ -106,8 +106,8 @@ void SearchController::setStack(int self_idx) {
               stack_waypoints.push(nextPosition);
           }
       }
-//            else if(botName == "aeneas")
-      else if(self_idx == 1)
+      else if(botName == "aeneas")
+//      else if(self_idx == 1)
       {
           //          for (int i = sizeof(waypoints_x3_preliminary)/sizeof(waypoints_x3_preliminary[0]); i > 0; i--) // spiral in
           for (int i = 0; i < sizeof(waypoints_x3_preliminary)/sizeof(waypoints_x3_preliminary[0]); i++) // spiral out
