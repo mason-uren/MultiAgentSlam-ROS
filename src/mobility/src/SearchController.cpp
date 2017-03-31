@@ -3,6 +3,7 @@
 
 SearchController::SearchController() {
   rng = new random_numbers::RandomNumberGenerator();
+  mode = true; // mode is true if we are crossing from outside to inside and false otherwise.
 }
 
 void SearchController::setStack(std::string botName) {
@@ -124,29 +125,55 @@ void SearchController::setStack(std::string botName) {
 // */
 geometry_msgs::Pose2D SearchController::search(geometry_msgs::Pose2D currentLocation) {
 
-  geometry_msgs::Pose2D newGoalLocation;
+    geometry_msgs::Pose2D newGoalLocation;
+    if (!initialFindHome)
+    {
+        newGoalLocation.theta = currentLocation.theta;
+        newGoalLocation.x = currentLocation.x + 5*cos(newGoalLocation.theta);
+        newGoalLocation.y = currentLocation.y + 5*sin(newGoalLocation.theta);
+        initialFindHome = true;
+    }
+    else
+    {
+        float innerRadius = 2.0;
+        float outerRadius = 6.0;
 
-  //select new heading from Gaussian distribution around current heading
-  newGoalLocation.theta = rng->gaussian(currentLocation.theta, 0.25);
+        double newRadius = rng->uniformReal(0,1.5); // radius between 0 and 5 meters
 
-  //select new position 50 cm from current location
-  newGoalLocation.x = currentLocation.x + (0.5 * cos(newGoalLocation.theta));
-  newGoalLocation.y = currentLocation.y + (0.5 * sin(newGoalLocation.theta));
+        if (sqrt(currentLocation.x*currentLocation.x + currentLocation.y*currentLocation.y) < innerRadius)
+        {
+            //select new heading from Gaussian distribution around current heading
+            newGoalLocation.theta = atan2(currentLocation.y, currentLocation.x) + rng->uniformReal(-M_PI/2, M_PI/2);
+            if(!mode)
+            {
+                mode = true;
+            }
+        }
+        else if (sqrt(currentLocation.x*currentLocation.x + currentLocation.y*currentLocation.y) > outerRadius)
+        {
+            newGoalLocation.theta = atan2(-currentLocation.y, -currentLocation.x) + rng->uniformReal(-M_PI/2, M_PI/2);
+            if(mode)
+            {
+                mode = false;
+            }
+        }
+        else
+        {
+            if (mode) // move away from origin
+            {
+                newGoalLocation.theta = atan2(currentLocation.y, currentLocation.x) + rng->uniformReal(-M_PI/2, M_PI/2);
+            }
+            else // move toward the origin
+            {
+                newGoalLocation.theta = atan2(-currentLocation.y, -currentLocation.x) + rng->uniformReal(-M_PI/2, M_PI/2);
+            }
+        }
 
-  // Nick's code to disable movement for testing the gripper.
-  //newGoalLocation.theta = 0.0;
-  //newGoalLocation.x = 0.0;
-  //newGoalLocation.y = 0.0;
-
-//  // This should check to see if we have reached our current waypoint and then call waypointNextLocation if we have.
-//  double remainingGoalDist = hypot(oldGoalLocation.x - currentLocation.x, oldGoalLocation.y - currentLocation.y);
-//  double thresholdRadius = 0.1; // Units of meters.  This is the maximum distance we can be from the waypoint before calling it good.
-//  if(remainGoalDist<thresholdRadius)
-//  {
-//    newGoalLocation = waypointNextLocation(botName);
-//  }
-
-  return newGoalLocation;
+        //select new position 50 cm from current location
+        newGoalLocation.x = currentLocation.x + (newRadius * cos(newGoalLocation.theta));
+        newGoalLocation.y = currentLocation.y + (newRadius * sin(newGoalLocation.theta));
+    }
+    return newGoalLocation;
 }
 
 ///**

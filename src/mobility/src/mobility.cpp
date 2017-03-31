@@ -120,6 +120,7 @@ geometry_msgs::Pose2D mapLocation[mapHistorySize];
 bool avoidingObstacle = false;
 bool divertingFromSearchPath = false;
 
+
 float searchVelocity = 0.2; // meters/second
 
 // New variables for improved obstacle avoidance and pickup of targets while keeping with waypoint based search
@@ -148,8 +149,8 @@ std_msgs::String msg;
 #define STATE_MACHINE_GO_HOME 9
 #define STATE_MACHINE_DROPOFF_TARGET 10
 #define STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT 11
-#define STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT 12
-#define STATE_MACHINE_GO_TO_ALTERNATIVE_WAYPOINT 13
+//#define STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT 13
+#define STATE_MACHINE_GO_TO_ALTERNATIVE_WAYPOINT 12
 
 int stateMachineState = STATE_MACHINE_INIT;
 int stateMachinePreviousState = STATE_MACHINE_INIT;
@@ -202,7 +203,7 @@ time_t timerStartTime;
 
 // An initial delay to allow the rover to gather enough position data to
 // average its location.
-unsigned int startDelayInSeconds = 10;
+unsigned int startDelayInSeconds = 1;
 float timerTimeElapsed = 0;
 
 time_t timeOfLastObstacle;
@@ -263,7 +264,9 @@ int main(int argc, char **argv) {
         cout << "No Name Selected. Default is: " << publishedName << endl;
     }
 
-    searchController.setStack(publishedName);
+//    searchController.setStack(publishedName); Don't set stack.  All waypoints will be random for final competition.
+
+
     //    //set initial random heading
     //    goalLocation.theta = rng->uniformReal(0, 2 * M_PI); //goalLocation.theta = atan2(goalLocation.y,goalLocation.x);
 
@@ -339,11 +342,11 @@ int main(int argc, char **argv) {
 // controllers in the abridge package.
 void mobilityStateMachine(const ros::TimerEvent&) {
 
-//    std_msgs::String stackSizeMsg;
-//    std::ostringstream ss2;
-//    ss2 << "stack size: " << searchController.getStackSize();
-//    stackSizeMsg.data = ss2.str();
-//    stackSizePublish.publish(stackSizeMsg);
+    //    std_msgs::String stackSizeMsg;
+    //    std::ostringstream ss2;
+    //    ss2 << "stack size: " << searchController.getStackSize();
+    //    stackSizeMsg.data = ss2.str();
+    //    stackSizePublish.publish(stackSizeMsg);
 
     std_msgs::String stateMachineMsg;
     std_msgs::String currentLocationMsg;
@@ -364,7 +367,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
             if (timerTimeElapsed > startDelayInSeconds) {
                 // Set the location of the center circle location in the map
                 // frame based upon our current average location on the map.
-
+                sendDriveCommand(0.2, 0.0);
                 centerLocationMap.x = currentLocationAverage.x;
                 centerLocationMap.y = currentLocationAverage.y;
                 centerLocationMap.theta = currentLocationAverage.theta;
@@ -372,7 +375,8 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                 currentLocationMovingAvgOld.x = currentLocationAverage.x;
                 currentLocationMovingAvgOld.y = currentLocationAverage.y;
                 previousDifference = wrapAngle( currentLocation.theta - startingAngle);
-                goalLocation = searchController.peekWaypoint(currentLocation);
+//                goalLocation = searchController.peekWaypoint(currentLocation);
+                goalLocation = searchController.search(currentLocation);
                 goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
                 // initialization has run
                 init = true;
@@ -431,7 +435,8 @@ void mobilityStateMachine(const ros::TimerEvent&) {
         case STATE_MACHINE_INIT:
         {
             stateMachineMsg.data = "INIT";
-            goalLocation = searchController.peekWaypoint(currentLocation);
+//            goalLocation = searchController.peekWaypoint(currentLocation);
+            goalLocation = searchController.search(currentLocation);
             goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
             pidController.resetTranslationalIntegrator();
             stateMachineState = STATE_MACHINE_GO_TO_WAYPOINT;
@@ -443,11 +448,11 @@ void mobilityStateMachine(const ros::TimerEvent&) {
             stateMachineMsg.data = "GO TO WAYPOINT";
             if(obstacleEncountered)
             {
-                if (!divertingFromSearchPath)
-                {
-                    obstacleDivergentLocation = currentLocation;
-                    divertingFromSearchPath = true;
-                }
+                //                if (!divertingFromSearchPath)
+                //                {
+                //                    obstacleDivergentLocation = currentLocation;
+                //                    divertingFromSearchPath = true;
+                //                }
                 stateMachineState = STATE_MACHINE_GO_TO_ALTERNATIVE_WAYPOINT;
                 stateMachinePreviousState = STATE_MACHINE_GO_TO_WAYPOINT;
                 break;
@@ -475,7 +480,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     break;
                 } else {
                     // move to differential drive step
-                    if (!compareLocations(goalLocation,currentLocation,0.2)){
+                    if (!compareLocations(goalLocation,currentLocation,0.25)){
                         // drive and turn simultaniously
                         sendDriveCommand(linearVelocity, errorYaw/2);
                         stateMachineState = STATE_MACHINE_GO_TO_WAYPOINT;
@@ -484,7 +489,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     {
                         // stop
                         sendDriveCommand(0.0, 0.0);
-                        searchController.popWaypoint(currentLocation); // We made it to our waypoint, so pop.
+//                        searchController.popWaypoint(currentLocation); // We made it to our waypoint, so pop.
                         stateMachineState = STATE_MACHINE_INIT;
                         stateMachinePreviousState = STATE_MACHINE_GO_TO_WAYPOINT;
                     }
@@ -521,14 +526,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     }
                     if (result.giveUp) {
                         targetDetected = false;
-                        if (stateMachinePreviousState == STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT)
-                        {
-                            stateMachineState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
-                        }
-                        else
-                        {
-                            stateMachineState = STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT;// I think this is where we give up and we should go back to waypoints again.
-                        }
+                        stateMachineState = STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT;// I think this is where we give up and we should go back to waypoints again.
                         pidController.resetTranslationalIntegrator();
                         sendDriveCommand(0.0,0);
                         pickUpController.reset();
@@ -547,7 +545,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                         wristAnglePublish.publish(angle);
                         sendDriveCommand(0.0,0);
                         return;
-                    }                   
+                    }
                 }
                 else
                 {
@@ -576,18 +574,18 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     goalLocation.y = centerLocationOdom.y;
                     goalLocation.theta = atan2(centerLocationOdom.y - currentLocation.y, centerLocationOdom.x - currentLocation.x);
 
-//                    goalLocation.x = 0.0;
-//                    goalLocation.y = 0.0;
-//                    goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
+                    //                    goalLocation.x = 0.0;
+                    //                    goalLocation.y = 0.0;
+                    //                    goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
 
                     // Calculate the diffrence between current and desired heading in radians.
                     float errorYaw = getRotationalError();           // If angle > 0.4 radians rotate but dont drive forward.
                     float linearVelocity = getTranslationalVelocity();
                     if (false){// This is just to test if something in rotate state is causing crash. (fabs(errorYaw) > rotateOnlyAngleTolerance) {
-//                        // rotate but dont drive  0.05 is to prevent turning in reverse
-//                        sendDriveCommand(0.05, errorYaw/2);
-//                        stateMachineState = STATE_MACHINE_GO_HOME;
-//                        break;
+                        //                        // rotate but dont drive  0.05 is to prevent turning in reverse
+                        //                        sendDriveCommand(0.05, errorYaw/2);
+                        //                        stateMachineState = STATE_MACHINE_GO_HOME;
+                        //                        break;
                     } else {
                         // move to differential drive step
                         if (!compareLocations(goalLocation,currentLocation,0.2)){
@@ -628,8 +626,8 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                 if (targetCollected) {
                     // calculate the euclidean distance between
                     // centerLocation and currentLocation
-                    dropOffController.setCenterDist(hypot(centerLocationOdom.x - currentLocation.x, centerLocationOdom.y - currentLocation.y));
-                    dropOffController.setDataLocations(centerLocationOdom, currentLocation, timerTimeElapsed);
+                    dropOffController.setCenterDist(hypot(centerLocation.x - currentLocation.x, centerLocation.y - currentLocation.y));
+                    dropOffController.setDataLocations(centerLocation, currentLocation, timerTimeElapsed);
 
                     DropOffResult result = dropOffController.getState();
 
@@ -656,19 +654,14 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                         targetCollected = false;
                         targetDetected = false;
                         lockTarget = false;
+                        centerLocationOdom = currentLocation;
+                        centerLocationOdom.x = currentLocation.x + 0.5*cos(currentLocation.theta);
+                        centerLocationOdom.y = currentLocation.y + 0.5*sin(currentLocation.theta);
                         sendDriveCommand(-0.3,0); // added to get robot to backup before turning around.
                         targetEncountered = false;
-                        if (stateMachinePreviousState == STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT) // This is a big no no, but a quick fix.  Want to see if we entered the dropoff sequence after avoiding and obstacle.
-                        {
-                            stateMachineState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
-                        }
-                        else
-                        {
-                            stateMachineState = STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT;// I think this is where we give up and we should go back to waypoints again.
-                        }
+                        stateMachineState = STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT;// I think this is where we give up and we should go back to waypoints again.
                         pidController.resetTranslationalIntegrator();
                         reachedCollectionPoint = false;
-                        //                    centerLocationOdom = currentLocation; //This is too far from center. Turnning off for now.
                         dropOffController.reset();
                         break;
                     } else if (result.goalDriving && timerTimeElapsed >= 5 ) {
@@ -681,7 +674,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     }
                     // we are in precision/timed driving
                     else {
-//                        goalLocation = currentLocation; // This is misleading since we aren't actually driving toward the goalLocation.
+                        //                        goalLocation = currentLocation; // This is misleading since we aren't actually driving toward the goalLocation.
                         sendDriveCommand(result.cmdVel,result.angleError);
                         stateMachineState = STATE_MACHINE_DROPOFF_TARGET;
                         break;
@@ -689,68 +682,61 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                 }
                 else
                 {
-                    if (stateMachinePreviousState == STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT) // This is a big no no, but a quick fix.  Want to see if we entered the dropoff sequence after avoiding and obstacle.
-                    {
-                        stateMachineState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
-                    }
-                    else
-                    {
-                        stateMachineState = STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT;// I think this is where we give up and we should go back to waypoints again.
-                    }
+                    stateMachineState = STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT;// I think this is where we give up and we should go back to waypoints again.
                 }
             }
         }
-        case STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT:
-        {
-            stateMachineMsg.data = "OBSTACLE DIVERGENT WAYPOINT";
-            if(targetEncountered)
-            {
-                stateMachineState = STATE_MACHINE_PICKUP_TARGET;
-                stateMachinePreviousState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
-                pidController.resetTranslationalIntegrator();
-                break;
-            }
-            else if (obstacleEncountered)
-            {
-                stateMachineState = STATE_MACHINE_GO_TO_ALTERNATIVE_WAYPOINT;
-                stateMachinePreviousState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
-                pidController.resetTranslationalIntegrator();
-                break;
-            }
-            else
-            {
-                goalLocation = obstacleDivergentLocation;
-                // Calculate the diffrence between current and desired heading in radians.
-                float errorYaw = getRotationalError();           // If angle > 0.4 radians rotate but dont drive forward.
-                float linearVelocity = getTranslationalVelocity();
-                if (fabs(errorYaw) > rotateOnlyAngleTolerance) {
-                    // rotate but dont drive  0.05 is to prevent turning in reverse
-                    sendDriveCommand(0.05, errorYaw/2);
-                    stateMachineState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
-                    break;
-                } else {
-                    // move to differential drive step
-                    if (!compareLocations(goalLocation,currentLocation,0.2)){
-                        // drive and turn simultaniously
-                        sendDriveCommand(linearVelocity, errorYaw/2);
-                        stateMachineState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
-                    }
-                    else
-                    {
-                        // stop
-                        sendDriveCommand(0.0, 0.0);
-                        divertingFromSearchPath = false;
-                        stateMachineState = STATE_MACHINE_INIT;
-                        stateMachinePreviousState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
-                        if((sqrt(currentLocation.x*currentLocation.x + currentLocation.y*currentLocation.y)>6) && (sqrt(goalLocation.x*goalLocation.x + goalLocation.y*goalLocation.y)>6)) // Why 6?  I don't know if we are in prelim or finals.  TODO.
-                        {
-                            searchController.popWaypoint(currentLocation); // This is if our waypoint is too close to wall.
-                        }
-                    }
-                    break;
-                }
-            }
-        }
+            //        case STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT:
+            //        {
+            //            stateMachineMsg.data = "OBSTACLE DIVERGENT WAYPOINT";
+            //            if(targetEncountered)
+            //            {
+            //                stateMachineState = STATE_MACHINE_PICKUP_TARGET;
+            //                stateMachinePreviousState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
+            //                pidController.resetTranslationalIntegrator();
+            //                break;
+            //            }
+            //            else if (obstacleEncountered)
+            //            {
+            //                stateMachineState = STATE_MACHINE_GO_TO_ALTERNATIVE_WAYPOINT;
+            //                stateMachinePreviousState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
+            //                pidController.resetTranslationalIntegrator();
+            //                break;
+            //            }
+            //            else
+            //            {
+            //                goalLocation = obstacleDivergentLocation;
+            //                // Calculate the diffrence between current and desired heading in radians.
+            //                float errorYaw = getRotationalError();           // If angle > 0.4 radians rotate but dont drive forward.
+            //                float linearVelocity = getTranslationalVelocity();
+            //                if (fabs(errorYaw) > rotateOnlyAngleTolerance) {
+            //                    // rotate but dont drive  0.05 is to prevent turning in reverse
+            //                    sendDriveCommand(0.05, errorYaw/2);
+            //                    stateMachineState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
+            //                    break;
+            //                } else {
+            //                    // move to differential drive step
+            //                    if (!compareLocations(goalLocation,currentLocation,0.2)){
+            //                        // drive and turn simultaniously
+            //                        sendDriveCommand(linearVelocity, errorYaw/2);
+            //                        stateMachineState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
+            //                    }
+            //                    else
+            //                    {
+            //                        // stop
+            //                        sendDriveCommand(0.0, 0.0);
+            //                        divertingFromSearchPath = false;
+            //                        stateMachineState = STATE_MACHINE_INIT;
+            //                        stateMachinePreviousState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
+            //                        if((sqrt(currentLocation.x*currentLocation.x + currentLocation.y*currentLocation.y)>6) && (sqrt(goalLocation.x*goalLocation.x + goalLocation.y*goalLocation.y)>6)) // Why 6?  I don't know if we are in prelim or finals.  TODO.
+            //                        {
+            //                            searchController.popWaypoint(currentLocation); // This is if our waypoint is too close to wall.
+            //                        }
+            //                    }
+            //                    break;
+            //                }
+            //            }
+            //        }
         case STATE_MACHINE_GO_TO_ALTERNATIVE_WAYPOINT:
         {
             stateMachineMsg.data = "AVOIDING OSTACLE";
@@ -766,7 +752,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                 break;
             } else {
                 // move to differential drive step
-                if (!compareLocations(goalLocation,currentLocation,0.2)){
+                if (!compareLocations(goalLocation,currentLocation,0.25)){
                     // drive and turn simultaniously
                     sendDriveCommand(linearVelocity, errorYaw/2);
                     stateMachineState = STATE_MACHINE_GO_TO_ALTERNATIVE_WAYPOINT;
@@ -779,7 +765,8 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     obstacleEncountered = false;
                     if (stateMachinePreviousState == STATE_MACHINE_GO_TO_WAYPOINT)
                     {
-                        stateMachineState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
+                        //                        stateMachineState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
+                        stateMachineState = STATE_MACHINE_INIT;
                         pidController.resetTranslationalIntegrator();
                     }
                     else if (stateMachinePreviousState == STATE_MACHINE_PICKUP_TARGET)
@@ -810,14 +797,15 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                         stateMachineState = STATE_MACHINE_GO_TO_TARGET_DIVERGENT_WAYPOINT;
                         pidController.resetTranslationalIntegrator();
                     }
-                    else if (stateMachinePreviousState == STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT)
-                    {
-                        stateMachineState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
-                        pidController.resetTranslationalIntegrator();
-                    }
+                    //                    else if (stateMachinePreviousState == STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT)
+                    //                    {
+                    //                        stateMachineState = STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT;
+                    //                        pidController.resetTranslationalIntegrator();
+                    //                    }
                     else
                     {
-                        stateMachineState = 911;
+                        //                        stateMachineState = 911;
+                        stateMachineState = STATE_MACHINE_INIT;
                     }
                     stateMachinePreviousState = STATE_MACHINE_GO_TO_ALTERNATIVE_WAYPOINT;
                 }
@@ -869,11 +857,6 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                     }
                 }
 
-
-
-
-
-
                 // Calculate the diffrence between current and desired heading in radians.
                 float errorYaw = getRotationalError();           // If angle > 0.4 radians rotate but dont drive forward.
                 float linearVelocity = getTranslationalVelocity();
@@ -915,10 +898,10 @@ void mobilityStateMachine(const ros::TimerEvent&) {
     }
 
     // publish state machine string for user, only if it has changed, though
-//    if (strcmp(stateMachineMsg.data.c_str(), prev_state_machine) != 0) {
-        stateMachinePublish.publish(stateMachineMsg);
-//        sprintf(prev_state_machine, "%s", stateMachineMsg.data.c_str());
-//    }
+    //    if (strcmp(stateMachineMsg.data.c_str(), prev_state_machine) != 0) {
+    stateMachinePublish.publish(stateMachineMsg);
+    //        sprintf(prev_state_machine, "%s", stateMachineMsg.data.c_str());
+    //    }
 }
 
 double wrapAngle( double angle )
@@ -930,17 +913,17 @@ double wrapAngle( double angle )
 double getRotationalError()
 {
     double rotationalError = angles::shortest_angular_distance(currentLocation.theta, atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x)); // no abs on this error.
-//    std_msgs::Float32 rErrorMsg;
-//    rErrorMsg.data = rotationalError;
-//    rotationalErrorPublish.publish(rErrorMsg);
+    //    std_msgs::Float32 rErrorMsg;
+    //    rErrorMsg.data = rotationalError;
+    //    rotationalErrorPublish.publish(rErrorMsg);
     return rotationalError;
 }
 double getTranslationalError()
 {
     double translationalError = hypot(goalLocation.x - currentLocation.x, goalLocation.y - currentLocation.y);
-//    std_msgs::Float32 tErrorMsg;
-//    tErrorMsg.data = translationalError;
-//    translationalErrorPublish.publish(tErrorMsg);
+    //    std_msgs::Float32 tErrorMsg;
+    //    tErrorMsg.data = translationalError;
+    //    translationalErrorPublish.publish(tErrorMsg);
     return translationalError;
 }
 
@@ -952,16 +935,16 @@ bool compareLocations(geometry_msgs::Pose2D locationOne, geometry_msgs::Pose2D l
 double getTranslationalVelocity()
 {
     double translationalVelocity = pidController.calculateTranslationalVelocity(currentLocation,goalLocation);
-//    std_msgs::Float32 tVelocityMsg;
-//    tVelocityMsg.data = translationalVelocity;
-//    translationalVelocityPublish.publish(tVelocityMsg);
+    //    std_msgs::Float32 tVelocityMsg;
+    //    tVelocityMsg.data = translationalVelocity;
+    //    translationalVelocityPublish.publish(tVelocityMsg);
     return translationalVelocity;
 }
 
 void sendDriveCommand(double linearVel, double angularError)
 {
     velocity.linear.x = linearVel,
-    velocity.angular.z = angularError;
+            velocity.angular.z = angularError;
 
     // publish the drive commands
     driveControlPublish.publish(velocity);
@@ -1067,24 +1050,53 @@ void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& messag
                 } else {
                     countLeft++;
                 }
-
+                centerLocationOdom = currentLocation;
+                centerLocationOdom.x = currentLocation.x + 0.5*cos(currentLocation.theta);
+                centerLocationOdom.y = currentLocation.y + 0.5*sin(currentLocation.theta);
                 centerSeen = true;
                 count++;
             }
         }
 
         if (centerSeen && targetCollected) {
-//            stateMachineState = 911; //STATE_MACHINE_PICKUP_TARGET; // This used to be STATE_MACHINE_TRANSFORM
-//            goalLocation = currentLocation;
+            //            stateMachineState = 911; //STATE_MACHINE_PICKUP_TARGET; // This used to be STATE_MACHINE_TRANSFORM
+            //            goalLocation = currentLocation;
         }
 
         dropOffController.setDataTargets(count,countLeft,countRight);
+//        // if we see the center and we dont have a target collected
+//        if (centerSeen && !targetCollected)
+//        {
+//            float centeringTurn = 0.15; //radians
+//            targetDetected = false;
+//            pickUpController.reset();
+//            return;
+//        }
         // if we see the center and we dont have a target collected
-        if (centerSeen && !targetCollected)
-        {
+        if (centerSeen && !targetCollected) {
+
             float centeringTurn = 0.15; //radians
+//            stateMachineState = STATE_MACHINE_TRANSFORM;
+
+            // this code keeps the robot from driving over
+            // the center when searching for blocks
+            if (right) {
+                // turn away from the center to the left if just driving
+                // around/searching.
+                goalLocation.theta += centeringTurn;
+            } else {
+                // turn away from the center to the right if just driving
+                // around/searching.
+                goalLocation.theta -= centeringTurn;
+            }
+
+            // continues an interrupted search
+            goalLocation.x = currentLocation.x + cos(goalLocation.theta);
+            goalLocation.y = currentLocation.y + sin(goalLocation.theta);
+
             targetDetected = false;
             pickUpController.reset();
+
             return;
         }
     }
@@ -1134,14 +1146,14 @@ void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
 
     if ((!targetDetected || targetCollected) && (message->data > 0)) {
         consecutiveObstacleDetections++;
-    //    timeSinceLastObstacle = 0;
+        //    timeSinceLastObstacle = 0;
         timeOfLastObstacle = time(0);
 
-//        std_msgs::String obstacleHandlerMsg;
-//        std::ostringstream ssOH;
-//        ssOH<< "consecutiveDetections: "<<consecutiveObstacleDetections<<", "<<"timeOfLastObstacle"<<", "<<timeOfLastObstacle;
-//        obstacleHandlerMsg.data = ssOH.str();
-//        obstacleHandlerPublish.publish(obstacleHandlerMsg);
+        //        std_msgs::String obstacleHandlerMsg;
+        //        std::ostringstream ssOH;
+        //        ssOH<< "consecutiveDetections: "<<consecutiveObstacleDetections<<", "<<"timeOfLastObstacle"<<", "<<timeOfLastObstacle;
+        //        obstacleHandlerMsg.data = ssOH.str();
+        //        obstacleHandlerPublish.publish(obstacleHandlerMsg);
         // obstacle on right side
 
         if(sqrt(currentLocation.x*currentLocation.x + currentLocation.y*currentLocation.y)<1.5*HOME_RADIUS) // We are too close to the home circle.
@@ -1213,37 +1225,37 @@ void mapHandler(const nav_msgs::Odometry::ConstPtr& message) {
     currentLocation.x = currentLocationMovingAvg.x; //message->pose.pose.position.x;
     currentLocation.y = currentLocationMovingAvg.y; //message->pose.pose.position.y;
 
-    if(publishedName == "ajax")
-    {
-        currentLocation.x = currentLocationMovingAvg.x + 1.25;
-        currentLocation.y = currentLocationMovingAvg.y + 0;
-    }
-    else if(publishedName == "achilles")
-    {
-        currentLocation.x = currentLocationMovingAvg.x - 1.25;
-        currentLocation.y = currentLocationMovingAvg.y + 0;
-    }
-    else if(publishedName == "aeneas")
-    {
-        currentLocation.x = currentLocationMovingAvg.x + 0;
-        currentLocation.y = currentLocationMovingAvg.y - 1.25;
-    }
+    //    if(publishedName == "ajax")
+    //    {
+    //        currentLocation.x = currentLocationMovingAvg.x + 1.25;
+    //        currentLocation.y = currentLocationMovingAvg.y + 0;
+    //    }
+    //    else if(publishedName == "achilles")
+    //    {
+    //        currentLocation.x = currentLocationMovingAvg.x - 1.25;
+    //        currentLocation.y = currentLocationMovingAvg.y + 0;
+    //    }
+    //    else if(publishedName == "aeneas")
+    //    {
+    //        currentLocation.x = currentLocationMovingAvg.x + 0;
+    //        currentLocation.y = currentLocationMovingAvg.y - 1.25;
+    //    }
 
-//    if(self_idx == 2)
-//    {
-//        currentLocation.x = currentLocationMovingAvg.x + 1.25;
-//        currentLocation.y = currentLocationMovingAvg.y + 0;
-//    }
-//    else if(self_idx == 0)
-//    {
-//        currentLocation.x = currentLocationMovingAvg.x - 1.25;
-//        currentLocation.y = currentLocationMovingAvg.y + 0;
-//    }
-//    else if(self_idx == 1)
-//    {
-//        currentLocation.x = currentLocationMovingAvg.x + 0;
-//        currentLocation.y = currentLocationMovingAvg.y - 1.25;
-//    }
+    //    if(self_idx == 2)
+    //    {
+    //        currentLocation.x = currentLocationMovingAvg.x + 1.25;
+    //        currentLocation.y = currentLocationMovingAvg.y + 0;
+    //    }
+    //    else if(self_idx == 0)
+    //    {
+    //        currentLocation.x = currentLocationMovingAvg.x - 1.25;
+    //        currentLocation.y = currentLocationMovingAvg.y + 0;
+    //    }
+    //    else if(self_idx == 1)
+    //    {
+    //        currentLocation.x = currentLocationMovingAvg.x + 0;
+    //        currentLocation.y = currentLocationMovingAvg.y - 1.25;
+    //    }
     // The code above is for test only.
 
 
@@ -1255,11 +1267,11 @@ void mapHandler(const nav_msgs::Odometry::ConstPtr& message) {
     currentLocationMap.theta = yaw;
     currentLocation.theta = yaw;
 
-//    std_msgs::String currentLocationMsg;
-//    std::ostringstream ssCL;
-//    ssCL<< "currentLocation: "<<currentLocation.x<<", "<<currentLocation.y<<", "<<currentLocation.theta;
-//    currentLocationMsg.data = ssCL.str();
-//    currentLocationPublish.publish(currentLocationMsg);
+    //    std_msgs::String currentLocationMsg;
+    //    std::ostringstream ssCL;
+    //    ssCL<< "currentLocation: "<<currentLocation.x<<", "<<currentLocation.y<<", "<<currentLocation.theta;
+    //    currentLocationMsg.data = ssCL.str();
+    //    currentLocationPublish.publish(currentLocationMsg);
 }
 
 void joyCmdHandler(const sensor_msgs::Joy::ConstPtr& message) {

@@ -6,8 +6,8 @@ DropOffController::DropOffController() {
     seenEnoughCenterTagsCount = 10;
     collectionPointVisualDistance = 0.5; //in meters
     reachedCollectionPoint = false;
-    spinSize = 0.10; //in meters aka 10cm 
-    addSpinSizeAmmount = 0.10; //in meters
+    spinSize = 0.50; //in meters aka 50cm
+    addSpinSizeAmmount = 0.250; //in meters
 
     result.cmdVel = 0;
     result.angleError = 0;
@@ -81,7 +81,7 @@ void DropOffController::calculateDecision() {
         result.centerGoal.y = centerLocation.y;
         //spinWasTrue = true; only turn on for random walk to center
     }
-    else if (timerTimeElapsed >=5)//spin search for center
+    else if (timerTimeElapsed > 1)//spin search for center
     {
         //sets a goal that is 60cm from the centerLocation and spinner
         //radians counterclockwise from being purly along the x-axis.
