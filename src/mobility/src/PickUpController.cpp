@@ -73,7 +73,7 @@ PickUpResult PickUpController::pickUpSelectedTarget(bool blockBlock) {
         result.angleError = 0.0;
         timeOut = true;
     }
-    else if (Td > 2.4) //raise the wrist
+    else if (Td > 2.2) //raise the wrist
     {
         result.cmdVel = -0.25;
         result.angleError = 0.0;

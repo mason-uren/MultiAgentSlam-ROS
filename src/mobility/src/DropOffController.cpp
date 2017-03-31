@@ -81,7 +81,7 @@ void DropOffController::calculateDecision() {
         result.centerGoal.y = centerLocation.y;
         //spinWasTrue = true; only turn on for random walk to center
     }
-    else if (timerTimeElapsed > 1)//spin search for center
+    else if (timerTimeElapsed > 5)//spin search for center
     {
         //sets a goal that is 60cm from the centerLocation and spinner
         //radians counterclockwise from being purly along the x-axis.
