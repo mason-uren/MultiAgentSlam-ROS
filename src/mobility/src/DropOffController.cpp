@@ -89,7 +89,7 @@ void DropOffController::calculateDecision() {
         result.centerGoal.y = centerLocation.y + (spinSize + addSpinSize) * sin(spinner);
         result.centerGoal.theta = atan2(result.centerGoal.y - currentLocation.y, result.centerGoal.x - currentLocation.x);
 
-        spinner += 45*(M_PI/180); //add 45 degrees in radians to spinner.
+        spinner += 30*(M_PI/180); //add 30 degrees in radians to spinner.
         if (spinner > 2*M_PI)
         {
             spinner -= 2*M_PI;

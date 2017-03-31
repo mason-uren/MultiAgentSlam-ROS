@@ -58,6 +58,7 @@ geometry_msgs::Pose2D currentLocationMovingAvgOld;
 geometry_msgs::Pose2D currentLocationAverage;
 geometry_msgs::Pose2D goalLocation;
 geometry_msgs::Pose2D alternativeLocation;
+geometry_msgs::Pose2D vectorToCenter;
 
 geometry_msgs::Pose2D centerLocation;
 geometry_msgs::Pose2D centerLocationMap;
@@ -152,7 +153,7 @@ std_msgs::String msg;
 //#define STATE_MACHINE_GO_TO_OBSTACLE_DIVERGENT_WAYPOINT 13
 #define STATE_MACHINE_GO_TO_ALTERNATIVE_WAYPOINT 12
 
-int stateMachineState = STATE_MACHINE_INIT;
+int stateMachineState = STATE_MACHINE_GO_TO_WAYPOINT;
 int stateMachinePreviousState = STATE_MACHINE_INIT;
 
 geometry_msgs::Twist velocity;
@@ -414,6 +415,9 @@ void mobilityStateMachine(const ros::TimerEvent&) {
         goalLocationMsg.data = ss.str();
         goalLocationPublish.publish(goalLocationMsg);
 
+        vectorToCenter.x = currentLocation.x - centerLocationOdom.x;
+        vectorToCenter.y = currentLocation.y - centerLocationOdom.y;
+
         if (time(0)-timeOfLastObstacle>OBSTACLE_TIME_THRESHOLD)
         {
             consecutiveObstacleDetections = 0;
@@ -623,7 +627,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
             else
             {
                 // If returning with a target
-                if (targetCollected) {
+                if (targetCollected && !avoidingObstacle) {
                     // calculate the euclidean distance between
                     // centerLocation and currentLocation
                     dropOffController.setCenterDist(hypot(centerLocation.x - currentLocation.x, centerLocation.y - currentLocation.y));
@@ -831,7 +835,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
             }
             else
             {
-                if(sqrt(currentLocation.x*currentLocation.x + currentLocation.y*currentLocation.y)<=HOME_RADIUS) // We are too close to the home circle.
+                if(sqrt(vectorToCenter.x*vectorToCenter.x + vectorToCenter.y*vectorToCenter.y)<=HOME_RADIUS) // We are too close to the home circle.
                 {
                     double newTheta = atan2(currentLocation.y, currentLocation.x); // Find the nearest direction out of the circle.
                     goalLocation.x = 1.5*HOME_RADIUS*cos(newTheta); // We just want to get out of the home circle so get out of there. 1.5 is to just add some extra space.
@@ -849,7 +853,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
                         goalLocation.y = currentLocation.y + distToWaypoint*sin(tDL+retryCounter*0.0872665); // 5 degrees is 0.0872665 radians. 5 degree choice is arbitrary.  Just want to rotate a little and check.
                         goalLocation.theta = atan2(goalLocation.y - currentLocation.y, goalLocation.x - currentLocation.x);
 
-                        if(!searchController.waypointIntersectsHome(currentLocation, goalLocation) || (retryCounter > 10))
+                        if(!searchController.waypointIntersectsHome(vectorToCenter, goalLocation) || (retryCounter > 10))
                         {
                             invalidWaypoint = false;
                         }
@@ -1106,7 +1110,7 @@ void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& messag
     // with safety timer at greater than 5 seconds.
     PickUpResult result;
 
-    if (sqrt(currentLocation.x*currentLocation.x + currentLocation.y*currentLocation.y)>HOME_RADIUS*1.5) // Don't try to pick up a target already near home base. 1.5 is arbitrary to give some buffer around home for GPS errors.
+    if (sqrt(vectorToCenter.x*vectorToCenter.x + vectorToCenter.y*vectorToCenter.y)>HOME_RADIUS*1.0) // Don't try to pick up a target already near home base. 1.5 is arbitrary to give some buffer around home for GPS errors.
     {
         if (message->detections.size() > 0 && !targetCollected && timerTimeElapsed > 5) {
             targetDetected = true;
@@ -1155,8 +1159,7 @@ void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
         //        obstacleHandlerMsg.data = ssOH.str();
         //        obstacleHandlerPublish.publish(obstacleHandlerMsg);
         // obstacle on right side
-
-        if(sqrt(currentLocation.x*currentLocation.x + currentLocation.y*currentLocation.y)<1.5*HOME_RADIUS) // We are too close to the home circle.
+        if(sqrt(vectorToCenter.x*vectorToCenter.x + vectorToCenter.y*vectorToCenter.y)<1.5*HOME_RADIUS) // We are too close to the home circle.
         {
             double newTheta = atan2(currentLocation.y, currentLocation.x); // Find the nearest direction out of the circle.
             alternativeLocation.x = 1.5*HOME_RADIUS*cos(newTheta); // We just want to get out of the home circle so get out of there.
@@ -1185,7 +1188,7 @@ void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
                     alternativeLocation.y = currentLocation.y + distanceToMove*sin(currentLocation.theta - PI_OVER_4-retryCounter*0.0872665);
                     alternativeLocation.theta = currentLocation.theta - PI_OVER_4-retryCounter*0.0872665;
                 }
-                if(!searchController.waypointIntersectsHome(currentLocation, alternativeLocation) || (retryCounter > 10) )
+                if(!searchController.waypointIntersectsHome(vectorToCenter, alternativeLocation) || (retryCounter > 10) )
                 {
                     invalidWaypoint = false;
                 }
