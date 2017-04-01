@@ -73,13 +73,13 @@ PickUpResult PickUpController::pickUpSelectedTarget(bool blockBlock) {
         result.angleError = 0.0;
         timeOut = true;
     }
-    else if (Td > 2.2) //raise the wrist
+    else if (Td > 2.4) //raise the wrist
     {
         result.cmdVel = -0.25;
         result.angleError = 0.0;
         result.wristAngle = 0;
     }
-    else if (Td > 1.9) //close the fingers and stop driving
+    else if (Td > 1.8) //close the fingers and stop driving
     {
         result.cmdVel = -0.1;
         result.angleError = 0.0;
@@ -96,7 +96,7 @@ PickUpResult PickUpController::pickUpSelectedTarget(bool blockBlock) {
         else //recover begin looking for targets again
         {
             lockTarget = false;
-            result.cmdVel = -0.10;
+            result.cmdVel = -0.15;
             result.angleError = 0.0;
             //set gripper
             result.fingerAngle = M_PI_2;
