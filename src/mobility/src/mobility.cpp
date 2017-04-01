@@ -899,6 +899,7 @@ void mobilityStateMachine(const ros::TimerEvent&) {
     else {
         // publish current state for the operator to see
         stateMachineMsg.data = "WAITING";
+	sendDriveCommand(0.0, 0.0);
     }
 
     // publish state machine string for user, only if it has changed, though
