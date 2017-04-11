@@ -1165,7 +1165,10 @@ void obstacleHandler(const std_msgs::UInt8::ConstPtr& message) {
             double newTheta = atan2(currentLocation.y, currentLocation.x); // Find the nearest direction out of the circle.
             alternativeLocation.x = 1.5*HOME_RADIUS*cos(newTheta); // We just want to get out of the home circle so get out of there.
             alternativeLocation.y = 1.5*HOME_RADIUS*sin(newTheta);
-            sendDriveCommand(-0.3, 0.0); // Just back up.
+            if (currentMode == 2 || currentMode == 3) //robot is in automode
+            {
+	        sendDriveCommand(-0.3, 0.0); // Just back up.
+            }
         }
         else
         {
