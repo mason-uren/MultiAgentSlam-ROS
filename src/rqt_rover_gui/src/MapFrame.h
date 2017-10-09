@@ -34,6 +34,10 @@ class MapData;
 
 using namespace std;
 
+// Possible waypoint commands to send to the rover
+// See custom ROS message type in swarmie_msgs package for options.
+enum WaypointCmd {ADD, REMOVE};
+
 namespace rqt_rover_gui
 {
 
@@ -51,6 +55,10 @@ namespace rqt_rover_gui
       void setDisplayEncoderData(bool display);
       void setDisplayGPSData(bool display);
       void setDisplayEKFData(bool display);
+      void setGlobalOffset(bool display);
+      void setGlobalOffsetForRover(std::string rover, float x, float y);
+      void setDisplayUniqueRoverColors(bool display);
+      void setUniqueRoverColor(std::string, QColor rover_color);
 
       void addToGPSRoverPath(std::string rover, float x, float y);
       void addToEncoderRoverPath(std::string rover, float x, float y);
@@ -58,6 +66,10 @@ namespace rqt_rover_gui
 
       void setMapData(MapData* map_data);
 
+      // Create a waypoint on map. Rovers will navigate to the waypoint.
+      void addWaypoint(std::string rover, float x, float y);
+      void removeWaypoint( std::string rover, int id );
+     
       void clear();
       void clear(std::string rover);
 
@@ -79,10 +91,14 @@ namespace rqt_rover_gui
     signals:
 
       void sendInfoLogMessage(QString msg);
+      void sendWaypointCmd(WaypointCmd, int, float, float);
       void delayedUpdate();
 
     public slots:
 
+        void receiveWaypointReached(int);
+        void receiveCurrentRoverName(QString);
+        
     protected:
 
       void paintEvent(QPaintEvent *event);
@@ -100,11 +116,23 @@ namespace rqt_rover_gui
       bool display_gps_data;
       bool display_ekf_data;
       bool display_encoder_data;
+      bool display_global_offset;
+      bool display_unique_rover_colors;
 
       QTime frame_rate_timer;
       int frames;
 
       set<string> display_list;
+      std::map<std::string, QColor> unique_rover_colors;
+      std::map<std::string, QColor> unique_simulated_rover_colors;
+      QColor unique_physical_rover_colors[8] = { /* green         */ QColor(  0, 255,   0),
+                                                 /* yellow        */ QColor(255, 255,   0),
+                                                 /* white         */ QColor(255, 255, 255),
+                                                 /* red           */ QColor(255,   0,   0),
+                                                 /* deep sky blue */ QColor(  0, 191, 255),
+                                                 /* hot pink      */ QColor(255, 105, 180),
+                                                 /* chocolate     */ QColor(210, 105,  30),
+                                                 /* indigo        */ QColor( 75,   0, 130) };
 
       // For external pop out window
       QMainWindow* popout_window;
@@ -128,7 +156,32 @@ namespace rqt_rover_gui
       float min_seen_x_when_manual_enabled;
       float min_seen_y_when_manual_enabled;
 
+      QPoint mouse_pointer_position = QPoint(0,0);
+      
       MapData* map_data;
+
+      // Map coordinate data
+      // Calculate the axis positions
+      int map_origin_x = 0;
+      int map_origin_y = 0;
+      
+      int map_width = 0;
+      int map_height = 0; 
+      
+      int map_center_x = 0; 
+      int map_center_y = 0;
+
+      float max_seen_x = -std::numeric_limits<float>::max();
+      float max_seen_y = -std::numeric_limits<float>::max();
+      
+      float min_seen_x = std::numeric_limits<float>::max();
+      float min_seen_y = std::numeric_limits<float>::max();
+      
+      float max_seen_width = -std::numeric_limits<float>::max();
+      float max_seen_height = -std::numeric_limits<float>::max();
+
+      std::string rover_currently_selected; // This is the rover selected in the main GUI.
+      
   };
 
 }
