@@ -2,7 +2,10 @@
 #define SEARCH_CONTROLLER
 
 #include <random_numbers/random_numbers.h>
+#include <string>
+#include <stack>          // std::stack
 #include "Controller.h"
+#include "Pose.h"
 
 /**
  * This class implements the search control algorithm for the rovers. The code
@@ -26,6 +29,12 @@ public:
   void SetCurrentLocation(Point currentLocation);
   void SetCenterLocation(Point centerLocation);
   void SetSuccesfullPickup();
+  void fillStack(float waypoints_x [], float waypoints_y [], int array_length);
+  Point getNextWaypoint(Point current_location);
+  Point getCurrentWaypoint(Point current_location);
+  bool isSearchFinished();
+  Point generateRandomWaypoint(Point current_location);
+  float generateRandomFloat(float low, float high);
 
 protected:
 
@@ -45,6 +54,7 @@ private:
   // Flag to allow special behaviour for the first waypoint
   bool first_waypoint = true;
   bool succesfullPickup = false;
+  std::stack<Point> stack_waypoints;
 };
 
 #endif /* SEARCH_CONTROLLER */

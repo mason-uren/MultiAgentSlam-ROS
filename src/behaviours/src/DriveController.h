@@ -31,7 +31,7 @@ private:
 
   float rotateOnlyAngleTolerance = 0.05;  //May be too low?
   float finalRotationTolerance = 0.1;
-  const float waypointTolerance = 0.15; //15 cm tolerance.
+  const float waypointTolerance = 0.15; // 15 cm tolerance
 
   //0.65 MAX value
   float searchVelocity = 0.35; // meters/second
