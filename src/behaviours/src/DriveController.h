@@ -29,9 +29,8 @@ private:
 
   bool interupt = false;
 
-  float rotateOnlyAngleTolerance = 0.05;  //May be too low?
-  float finalRotationTolerance = 0.1;
-  const float waypointTolerance = 0.15; // 15 cm tolerance
+  float rotateOnlyAngleTolerance = 0.1;
+  const float waypointTolerance = 0.3;
 
   //0.65 MAX value
   float searchVelocity = 0.35; // meters/second

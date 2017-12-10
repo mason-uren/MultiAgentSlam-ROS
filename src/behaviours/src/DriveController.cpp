@@ -169,7 +169,7 @@ Result DriveController::DoWork()
 
 
     // goal not yet reached drive while maintaining proper heading.
-    if (fabs(errorYaw) < M_PI_2 &&  distance > waypointTolerance)
+    if (distance > waypointTolerance)// && fabs(errorYaw) < M_PI_2)
     {
       // drive and turn simultaniously
       result.pd.setPointVel = searchVelocity;
