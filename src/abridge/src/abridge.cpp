@@ -45,6 +45,11 @@ const float deltaTime = 0.1; //abridge's update interval
 int currentMode = 0;
 string publishedName;
 
+// Allowing messages to be sent to the arduino too fast causes a disconnect
+// This is the minimum time between messages to the arduino in microseconds.
+// Only used with the gripper commands to fix a manual control bug.
+unsigned int min_usb_send_delay = 100;
+
 float heartbeat_publish_interval = 2;
 
 
@@ -88,6 +93,7 @@ ros::Timer publish_heartbeat_timer;
 
 //Callback handlers
 void publishHeartBeatTimerEventHandler(const ros::TimerEvent& event);
+void modeHandler(const std_msgs::UInt8::ConstPtr& message);
 
 int main(int argc, char **argv) {
     
@@ -99,7 +105,7 @@ int main(int argc, char **argv) {
     string devicePath;
     param.param("device", devicePath, string("/dev/ttyUSB0"));
     usb.openUSBPort(devicePath, baud);
-    void modeHandler(const std_msgs::UInt8::ConstPtr& message);
+
     
     sleep(5);
     
@@ -156,265 +162,39 @@ int main(int argc, char **argv) {
 //Bennett, Stuart (November 1984). "Nicholas Minorsky and the automatic steering of ships". IEEE Control Systems Magazine. 4 (4): 10–15. doi:10.1109/MCS.1984.1104827. ISSN 0272-1708.
 void driveCommandHandler(const geometry_msgs::Twist::ConstPtr& message) {
    
-  // ********************************************************* 
-  // Change these six values to tune the PID.  
-  // *********************************************************
-  float Kpv = 140; //Proportinal Velocity
-  float Kiv = 20; //Integral Velocity
-  float Kdv = 15; //Derivative Velocity
-  
-  float Kpy = 200; //Proportinal Yaw   
-  float Kiy = 15; //Inegral Yaw
-  float Kdy = 15; //Derivative Yaw
-  
-    
-  // ********************************************************  
-    
-  float hz = 10; //This is the design frequency of the PID and if the update rate in mobility is changed this will have to
-                  //change to match as well as all tuning values.
-  float linearSpeed = 0.;
-  linearSpeed = (message->linear.x); //target linear velocity in meters per second
-  yawError[0] = (message->angular.z); //angular error in radians
 
-  float xVel = odom.twist.twist.linear.x;
-  float yVel = odom.twist.twist.linear.y;
-  float vel = sqrt(xVel*xVel + yVel*yVel);
-  
-  float PV = 0; //proportional velocity output 
-  float IV = 0; //Integral velocity output
-  float DV = 0; //Derivative velocity output
-  
-  float PY = 0; //proportional yaw output 
-  float IY = 0; //Integral yaw output
-  float DY = 0; //Derivative yaw output
-  
-  float sat = 255; //Saturation point
-  float velIntegralDeadspace = 0.01;
-  float yawIntegralDeadspace = 0.1;
-  
-  
-  if (!(linearSpeed == prevLin)) //if linear velocity setpoint changes reset integral and history to zero
-  {
-     for (int i= 0; i < histArrayLength; i++)
-     {
-       evArray[i] = 0;
-     }   
-     velError[0] = 0;
-     velError[1] = 0;
-     velError[2] = 0;
-     velError[3] = 0;
-     prevLin = linearSpeed; 
-   }
-   
-  //if yaw error setpoint changes reset yaw integral and yaw-error history to zero
-  if (prevYaw > 0 && yawError[0] < 0 || prevYaw < 0 && yawError > 0) 
-  {
-     for (int i= 0; i < histArrayLength; i++)
-     {
-       eyArray[i] = 0;
-     } 
-     yawError[1] = 0;
-     yawError[2] = 0;
-     yawError[3] = 0;
-     prevYaw = yawError[0];
-  }  
-   std::string getHumanFriendlyTime();
+  float left = (message->linear.x); //target linear velocity in meters per second
+  float right = (message->angular.z); //angular error in radians
 
-  if (currentMode == 1) //manual control
+  // Cap motor commands at 120. Experimentally determined that high values (tested 180 and 255) can cause 
+  // the hardware to fail when the robot moves itself too violently.
+  int max_motor_cmd = 120;
+
+  // Check that the resulting motor commands do not exceed the specified safe maximum value
+  if (left > max_motor_cmd)
   {
-	yawError[0] *= 255/Kpy;
-	velError[0] = linearSpeed * 255/Kpv; //scale values between -255 and 255;
+    left = max_motor_cmd;
   }
-  else //auto control
+  else if (left < -max_motor_cmd)
   {
-    //Feed Forward command
-    //this is a direct mapping of commanded linear velocity to a PWM (Pulse Width Modulation) value command for the motors
-    if (linearSpeed > 0.5) velFF = 255;
-    else if (linearSpeed > 0.4) velFF = 180;
-    else if (linearSpeed > 0.3) velFF = 130;
-    else if (linearSpeed > 0.2) velFF = 75;
-    else if (linearSpeed > 0.1) velFF = 40;
-    else if (linearSpeed > 0.0) velFF = 10;
-
-    velError[0] = linearSpeed - vel; //calculate the error
+    left = - max_motor_cmd;
   }
-  
-  
-  // ----- BEGIN PID CONTROLLER CODE -----
 
-  
-  //Velocity--------------------------
-
-  
-  //Proportional
-  PV = Kpv * ((velError[0]+velError[1])/2);  //this is the proportional output
-  if (PV > sat) //limit the max and minimum output of proportional
-  PV = sat;
-  if (PV < -sat)
-  PV = -sat; 
-  
-  //Integral
-  //only use integral when error is larger than presumed noise.
-  if (velError[0] > velIntegralDeadspace || velError[0] < -velIntegralDeadspace)
+  if (right > max_motor_cmd)
   {
-    evArray[stepV] = velError[0]; //add error into the error Array.
-    stepV++;
-    
-    if (stepV >= histArrayLength) stepV = 0;
-
-  }//deadzone ends here use integrel even without error as we have constant motion and drag.
-    
-    float sumV= 0;
-    for (int i= 0; i < histArrayLength; i++) //sum the array to get the error over time from t = 0 to present.
-    {
-        sumV += evArray[i];
-    }
-    
-    IV = Kiv * sumV; //this is integrated output
-     
-    //anti windup 
-    //anti windup reduces overshoot by limiting the acting time of the integral to areas where the 
-    //proportional term is less than half its saturation point.           
-    
-    //if PV is already commanding greater than half max PWM dont use the integral       
-    if (fabs(IV) > sat/2 || fabs(PV) > sat/2) //reset the integral to 0 if it hits its cap of half max PWM
-    {
-       for (int i= 0; i < histArrayLength; i++)
-        {
-           evArray[i] = 0;
-        }            
-        IV = 0;
-    }
-
-    //Derivative
-    if (!(fabs(PV) > sat/2)) 
-    {
-       //10 being the frequency of the system giving us a one second prediction base.
-       //calculates the derivative of the error using average of last 2 error values for current error
-       //and average of error 2 and 3 steps in the past as previouse error
-       DV = Kdv * ((velError[0]+velError[1])/2 - (velError[2]+velError[3])/2) * hz; 
-    }
-    velError[3] = velError[2];
-    velError[2] = velError[1];
-    velError[1] = velError[0]; //set previouse error to current error 
-    
-    float velOut = PV + IV + DV + velFF;
-    if (velOut > sat) //cap vel command
-    {
-        velOut = sat;
-    }
-    else if (velOut < -sat)
-    {
-        velOut = -sat;
-    }
-  
-    
-  //Yaw-----------------------------
-    
-
-  //Proportional
-  PY = Kpy * ((yawError[0]+yawError[1])/2);  //this is the proportional output
-  if (PY > sat) //limit the max and minimum output of proportional
-  PY = sat;
-  if (PY < -sat)
-  PY = -sat; 
-  
-  //Integral
-  //only use integral when error is larger than presumed noise.
-  if (yawError[0] > yawIntegralDeadspace || yawError[0] < -yawIntegralDeadspace)
+    right = max_motor_cmd;
+  }
+  else if (right < -max_motor_cmd)
   {
-    evArray[stepV] = velError[0]; //add error into the error Array.
-    stepV++;
+    right = -max_motor_cmd;
+  }
+
+  int leftInt = left;
+  int rightInt = right;
     
-    if (stepY >= histArrayLength) stepY = 0;
-    
-    float sumY= 0;
-    for (int i= 0; i < histArrayLength; i++) //sum the array to get the error over time from t = 0 to present.
-    {
-        sumY += eyArray[i];
-    }
-    
-    IY = Kiy * sumY; //this is integrated output
-
-   }//deadzone ends here use integrel only with error as there is no force to disturb our heading.
-     
-
-    //anti windup 
-    //anti windup reduces overshoot by limiting the acting time of the integral to areas where the 
-    //proportional term is less than half its saturation point.           
-    
-    //if PY is already commanding greater than half max PWM dont use the integral       
-    if (fabs(IY) > sat/2 || fabs(PY) > sat/2) //reset the integral to 0 if it hits its cap of half max PWM
-    {
-       for (int i= 0; i < histArrayLength; i++)
-        {
-           eyArray[i] = 0;
-        }            
-        IY = 0;
-    }
-
-    //Derivative
-    if (!(fabs(PY) > sat/2)) 
-    {
-       //10 being the frequency of the system giving us a one second prediction base.
-       //calculates the derivative of the error using average of last 2 error values for current error
-       //and average of error 2 and 3 steps in the past as previouse error
-       DY = Kdy * ((yawError[0]+yawError[1])/2 - (yawError[2]+yawError[3])/2) * hz; 
-    }
-    yawError[3] = yawError[2];
-    yawError[2] = yawError[1];
-    yawError[1] = yawError[0]; //set previouse error to current error 
-    
-    float yawOut = PY + IY + DY;
-    
-    //cap yaw command
-    if (yawOut > sat/2) {
-        yawOut = sat/2;
-    }
-    else if (yawOut < -sat/2) {
-        yawOut = -sat/2;
-    }
-
-    if (linearSpeed > 0 && velOut < 0) {
-	   velOut = 0;
-	}
-    else if(linearSpeed < 0 && velOut > 0) {
-	   velOut = 0;
-	}
-	 
-    if (PY > 0 && yawOut < 0)
-	{
-	   yawOut = 0;
-	}
-    else if(PY < 0 && yawOut > 0) {
-	   yawOut = 0;
-	}
-
-
-    // ----- END PID CONTROLLER CODE -----
-
-    if (currentMode == 1) {
-	    yawOut = PY;
-	    velOut = PV;	
-  	}
-   
-   int left = velOut - yawOut;
-   int right = velOut + yawOut;
-   
-   if (left  >  sat) {left  =  sat;}
-   if (left  < -sat) {left  = -sat;}
-   if (right >  sat) {right =  sat;}
-   if (right < -sat) {right = -sat;}
-
-   if(linearSpeed == 0 && yawError[0] == 0) {
-     left = 0;
-     right = 0;
-   }
-  
-    
-    sprintf(moveCmd, "v,%d,%d\n", left, right); //format data for arduino into c string
-    usb.sendData(moveCmd);                      //send movement command to arduino over usb
-    memset(&moveCmd, '\0', sizeof (moveCmd));   //clear the movement command string
+  sprintf(moveCmd, "v,%d,%d\n", leftInt, rightInt); //format data for arduino into c string
+  usb.sendData(moveCmd);                      //send movement command to arduino over usb
+  memset(&moveCmd, '\0', sizeof (moveCmd));   //clear the movement command string
 }
 
 
@@ -422,6 +202,10 @@ void driveCommandHandler(const geometry_msgs::Twist::ConstPtr& message) {
 // radians, write them to a string and send that to the arduino
 // for processing.
 void fingerAngleHandler(const std_msgs::Float32::ConstPtr& angle) {
+
+  // To throttle the message rate so we don't lose connection to the arduino
+  usleep(min_usb_send_delay);
+  
   char cmd[16]={'\0'};
 
   // Avoid dealing with negative exponents which confuse the conversion to string by checking if the angle is small
@@ -436,6 +220,9 @@ void fingerAngleHandler(const std_msgs::Float32::ConstPtr& angle) {
 }
 
 void wristAngleHandler(const std_msgs::Float32::ConstPtr& angle) {
+  // To throttle the message rate so we don't lose connection to the arduino
+  usleep(min_usb_send_delay);
+  
     char cmd[16]={'\0'};
 
     // Avoid dealing with negative exponents which confuse the conversion to string by checking if the angle is small

@@ -51,6 +51,7 @@
 #include <set>
 #include <mutex>
 #include <ublox_msgs/NavSOL.h>
+#include "swarmie_msgs/Waypoint.h" // For waypoint commands
 
 //ROS msg types
 //#include "rover_onboard_target_detection/ATag.h"
@@ -103,6 +104,7 @@ namespace rqt_rover_gui {
     QString stopROSJoyNode();
 
     void statusEventHandler(const ros::MessageEvent<std_msgs::String const>& event);
+    void waypointEventHandler(const swarmie_msgs::Waypoint& event);
     void joyEventHandler(const sensor_msgs::Joy::ConstPtr& joy_msg);
     void cameraEventHandler(const sensor_msgs::ImageConstPtr& image);
     void EKFEventHandler(const ros::MessageEvent<const nav_msgs::Odometry> &event);
@@ -122,7 +124,6 @@ namespace rqt_rover_gui {
     void infoLogMessageEventHandler(const ros::MessageEvent<std_msgs::String const>& event);
     void diagLogMessageEventHandler(const ros::MessageEvent<std_msgs::String const>& event);
 
-
     void addModelToGazebo();
     QString addPowerLawTargets();
     QString addUniformTargets();
@@ -141,6 +142,7 @@ namespace rqt_rover_gui {
 
   signals:
 
+    void sendWaypointReached(int waypoint_id);
     void sendInfoLogMessage(QString); // log message updates need to be implemented as signals so they can be used in ROS event handlers.
     void sendDiagLogMessage(QString);    
     void sendDiagsDataUpdate(QString, QString, QColor); // Provide the item to update and the diags text and text color
@@ -163,6 +165,8 @@ namespace rqt_rover_gui {
     void allStopButtonSignal();
     void updateCurrentSimulationTimeLabel(QString text);
 
+    void updateMapFrameWithCurrentRoverName(QString text);
+
   private slots:
 
     void receiveDiagsDataUpdate(QString, QString, QColor);
@@ -173,7 +177,10 @@ namespace rqt_rover_gui {
     void GPSCheckboxToggledEventHandler(bool checked);
     void EKFCheckboxToggledEventHandler(bool checked);
     void encoderCheckboxToggledEventHandler(bool checked);
+    void globalOffsetCheckboxToggledEventHandler(bool checked);
+    void uniqueRoverColorsCheckboxToggledEventHandler(bool checked);
     void overrideNumRoversCheckboxToggledEventHandler(bool checked);
+    void createSavableWorldCheckboxToggledEventHandler(bool checked);
 
     void mapSelectionListItemChangedHandler(QListWidgetItem* changed_item);
     void mapAutoRadioButtonEventHandler(bool marked);
@@ -186,6 +193,8 @@ namespace rqt_rover_gui {
     void allStopButtonEventHandler();
     void customWorldButtonEventHandler();
     void customWorldRadioButtonEventHandler(bool marked);
+    void powerlawDistributionRadioButtonEventHandler(bool marked);
+    void unboundedRadioButtonEventHandler(bool marked);
 
     void buildSimulationButtonEventHandler();
     void clearSimulationButtonEventHandler();
@@ -193,6 +202,7 @@ namespace rqt_rover_gui {
     void gazeboServerFinishedEventHandler();
     void displayInfoLogMessage(QString msg);
     void displayDiagLogMessage(QString msg);
+    void receiveWaypointCmd(WaypointCmd, int, float, float);
 
     // Needed to refocus the keyboard events when the user clicks on the widget list
     // to the main widget so keyboard manual control is handled properly
@@ -205,6 +215,7 @@ namespace rqt_rover_gui {
 
     // ROS Publishers
     map<string,ros::Publisher> control_mode_publishers;
+    map<string,ros::Publisher> waypoint_cmd_publishers;
     ros::Publisher joystick_publisher;
 
     // ROS Subscribers
@@ -214,6 +225,7 @@ namespace rqt_rover_gui {
     map<string,ros::Subscriber> gps_nav_solution_subscribers;
     map<string,ros::Subscriber> ekf_subscribers;
     map<string,ros::Subscriber> rover_diagnostic_subscribers;
+    map<string,ros::Subscriber> waypoint_subscribers;
     ros::Subscriber us_center_subscriber;
     ros::Subscriber us_left_subscriber;
     ros::Subscriber us_right_subscriber;
@@ -260,7 +272,7 @@ namespace rqt_rover_gui {
 
     bool display_sim_visualization;
 
-    // Object clearance. These values are used to quickly determine where objects can be placed int time simulation
+    // Object clearance. These values are used to quickly determine where objects can be placed in the simulation
     float target_cluster_size_64_clearance;
     float target_cluster_size_16_clearance;
     float target_cluster_size_4_clearance;
@@ -286,7 +298,12 @@ namespace rqt_rover_gui {
     size_t max_diag_log_length;
 
     std::mutex diag_update_mutex;
+
+    // Delay the between creating rovers. No delay causes Gazebo plugins to fail under Ubuntu 16.04
+    unsigned int rover_load_delay = 5;
   };
 } // end namespace
 
 #endif // ROVERGUIPLUGIN
+
+

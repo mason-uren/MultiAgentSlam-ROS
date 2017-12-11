@@ -18,7 +18,7 @@ Diagnostics::Diagnostics(std::string name) {
 
   this->publishedName = name;
   diagLogPublisher = nodeHandle.advertise<std_msgs::String>("/diagsLog", 1, true);
-  diagnosticDataPublisher  = nodeHandle.advertise<std_msgs::Float32MultiArray>("/"+publishedName+"/diagnostics", 10);
+  diagnosticDataPublisher  = nodeHandle.advertise<std_msgs::Float32MultiArray>("/"+publishedName+"/diagnostics", 1);
   fingerAngleSubscribe = nodeHandle.subscribe(publishedName + "/fingerAngle/prev_cmd", 10, &Diagnostics::fingerTimestampUpdate, this);
   wristAngleSubscribe = nodeHandle.subscribe(publishedName + "/fingerAngle/prev_cmd", 10, &Diagnostics::wristTimestampUpdate, this);
   imuSubscribe = nodeHandle.subscribe(publishedName + "/imu", 10, &Diagnostics::imuTimestampUpdate, this);
@@ -28,8 +28,7 @@ Diagnostics::Diagnostics(std::string name) {
   sonarRightSubscribe = nodeHandle.subscribe(publishedName + "/sonarRight", 10, &Diagnostics::sonarRightTimestampUpdate, this);
   abdridgeNodeSubscribe = nodeHandle.subscribe(publishedName + "/abridge/heartbeat", 1, &Diagnostics::abridgeNode,this);
   sbdridgeNodeSubscribe = nodeHandle.subscribe(publishedName + "/sbridge/heartbeat", 1, &Diagnostics::sbridgeNode,this);
-  obstacleNodeSubscribe = nodeHandle.subscribe(publishedName + "/obstacle/heartbeat", 1, &Diagnostics::obstacleNode,this);
-  mobilityNodeSubscribe = nodeHandle.subscribe(publishedName + "/mobility/heartbeat", 1, &Diagnostics::mobilityNode,this);
+  behaviourNodeSubscribe = nodeHandle.subscribe(publishedName + "/behaviour/heartbeat", 1, &Diagnostics::behaviourNode,this);
   ubloxNodeSubscribe = nodeHandle.subscribe(publishedName + "/fix" , 1, &Diagnostics::ubloxNode,this);
 
   // Initialize the variables we use to track the simulation update rate
@@ -53,7 +52,7 @@ Diagnostics::Diagnostics(std::string name) {
     char  arg0[] = "diagnostics";
     char* argv[] = { &arg0[0], NULL };
     int   argc   = (int)(sizeof(argv) / sizeof(argv[0])) - 1;
-    gazebo::setupClient(argc, argv);
+    gazebo::client::setup(argc, argv);
 
     // Create Gazebo node and init
     gazebo::transport::NodePtr newNode(new gazebo::transport::Node());
@@ -155,12 +154,8 @@ void Diagnostics::sbridgeNode(std_msgs::String msg) {
     sbridgeNodeTimestamp = ros::Time::now();
 }
 
-void Diagnostics::obstacleNode(std_msgs::String msg) {
-    obstacleNodeTimestamp = ros::Time::now();
-}
-
-void Diagnostics::mobilityNode(std_msgs::String msg) {
-    mobilityNodeTimestamp = ros::Time::now();
+void Diagnostics::behaviourNode(std_msgs::String msg) {
+    behaviourNodeTimestamp = ros::Time::now();
 }
 
 void Diagnostics::ubloxNode(const sensor_msgs::NavSatFix::ConstPtr& message) {
@@ -210,8 +205,7 @@ void Diagnostics::nodeCheckTimerEventHandler(const ros::TimerEvent& event) {
        checkSbridge();
     }
 
-    checkObstacle();
-    checkMobility();
+    checkBehaviour();
 
 }
 
@@ -389,31 +383,17 @@ void Diagnostics::checkSbridge() {
     }
 }
 
-void Diagnostics::checkObstacle() {
+void Diagnostics::checkBehaviour() {
 
-    if (ros::Time::now() - obstacleNodeTimestamp <= ros::Duration(node_heartbeat_timeout)) {
-        if (!obstacleRunning) {
-            obstacleRunning = true;
-            publishInfoLogMessage("the obstacle node is now running");
+    if (ros::Time::now() - behaviourNodeTimestamp <= ros::Duration(node_heartbeat_timeout)) {
+        if (!behaviourRunning) {
+            behaviourRunning = true;
+            publishInfoLogMessage("the behaviour node is now running");
         }
     }
-    else if (obstacleRunning) {
-        obstacleRunning = false;
-        publishErrorLogMessage("the obstacle node is not running");
-    }
-}
-
-void Diagnostics::checkMobility() {
-
-    if (ros::Time::now() - mobilityNodeTimestamp <= ros::Duration(node_heartbeat_timeout)) {
-        if (!mobilityRunning) {
-            mobilityRunning = true;
-            publishInfoLogMessage("the mobility node is now running");
-        }
-    }
-    else if (mobilityRunning) {
-        mobilityRunning = false;
-        publishErrorLogMessage("the mobility node is not running");
+    else if (behaviourRunning) {
+        behaviourRunning = false;
+        publishErrorLogMessage("the behaviour node is not running");
     }
 }
 

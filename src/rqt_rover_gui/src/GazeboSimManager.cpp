@@ -18,6 +18,7 @@ GazeboSimManager::GazeboSimManager()
     char *app_root_cstr;
     app_root_cstr = getenv(name);
     app_root = QString(app_root_cstr);
+    log_root = app_root+"/"+"logs/";
     custom_world_path = "";
 }
 
@@ -144,7 +145,8 @@ QString GazeboSimManager::stopRoverNode( QString rover_name )
     nodes.push_back("BASE2CAM");
     nodes.push_back("DIAGNOSTICS");
     nodes.push_back("MAP");
-    nodes.push_back("MOBILITY");
+    nodes.push_back("BEHAVIOUR");
+    nodes.push_back("SBRIDGE");
     nodes.push_back("NAVSAT");
     nodes.push_back("OBSTACLE");
     nodes.push_back("ODOM");
@@ -165,14 +167,14 @@ QString GazeboSimManager::stopRoverNode( QString rover_name )
 
 QString GazeboSimManager::startRoverNode( QString rover_name )
 {
-    QString argument = "roslaunch "+app_root+"/launch/swarmie.launch name:="+rover_name;
+  QString argument = "roslaunch "+app_root+"/launch/swarmie.launch name:="+rover_name+">"+log_root+rover_name+".log";
 
     QProcess* rover_process = new QProcess();
 
     rover_processes[rover_name] = rover_process;
 
     rover_process->start("sh", QStringList() << "-c" << argument);
-
+    
     return "rover process spawned";
 }
 

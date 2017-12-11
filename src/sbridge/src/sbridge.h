@@ -33,6 +33,7 @@ class sbridge {
 
 		//Subscribers
 		ros::Subscriber driveControlSubscriber;
+        ros::Subscriber modeSubscriber;
 
         //Timer callback handler
         void publishHeartBeatTimerEventHandler(const ros::TimerEvent& event);
