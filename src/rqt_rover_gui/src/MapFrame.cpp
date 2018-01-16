@@ -516,7 +516,10 @@ void MapFrame::paintEvent(QPaintEvent* event) {
     else painter.setPen(Qt::yellow);
     
     pair<float,float> current_coordinate;
-    current_coordinate = map_data->getEKFPath(rover_to_display)->back();
+    if(! map_data->getEKFPath(rover_to_display)->empty() )
+    {
+       current_coordinate = map_data->getEKFPath(rover_to_display)->back();
+    }
     
     float x = map_origin_x+((current_coordinate.first-min_seen_x)/max_seen_width)*(map_width-map_origin_x);
     float y = map_origin_y+((current_coordinate.second-min_seen_y)/max_seen_height)*(map_height-map_origin_y);
@@ -621,6 +624,19 @@ void MapFrame::mouseReleaseEvent(QMouseEvent *event)
 
 void MapFrame::mousePressEvent(QMouseEvent *event)
 {
+  std::set<std::string>::iterator it = display_list.find(rover_currently_selected);
+
+  // Failure condition: a valid rover is not selected.
+  if(it == display_list.end())
+  {
+    emit sendInfoLogMessage("Waypoints Error: a valid rover is not selected!");
+    return;
+  }
+  // Failure condition: don't accept waypoints for rovers in autonomous mode
+  else if(! map_data->inManualMode(rover_currently_selected))
+  {
+    return;
+  }
 
   float waypoint_click_tolerance = 0.25*(scale/10);
   
@@ -629,6 +645,16 @@ void MapFrame::mousePressEvent(QMouseEvent *event)
     // Solve for map coordinates in terms of frame coordinates
     float mouse_map_x = ((event->pos().x() - map_origin_x*1.0f)/(map_width-map_origin_x))*max_seen_width + min_seen_x;
     float mouse_map_y = ((event->pos().y() - map_origin_y*1.0f)/(map_height-map_origin_y))*max_seen_height + min_seen_y;
+
+    // We must "adjust" the clicked position when "global frame" is selected in the GUI
+    // If we do not do this here, then the rover will NOT move to where a user clicks,
+    //     but to a position offset by the selected rover's global offset.
+    if(map_data->isDisplayingGlobalOffset())
+    {
+      std::pair<float,float> offset = map_data->getGlobalOffsetForRover(rover_currently_selected);
+      mouse_map_x -= offset.first;
+      mouse_map_y -= offset.second;
+    }
 
     emit sendInfoLogMessage("MOX: " + QString::number(map_origin_x) + " map_width: " + QString::number(map_width) + " max_seen_width: " +  QString::number(min_seen_x));
     
@@ -877,6 +903,16 @@ void MapFrame::removeWaypoint( string rover, int id ) {
   }
 }
 
+void MapFrame::resetAllWaypointPaths()
+{
+  map_data->resetAllWaypointPaths();
+}
+
+void MapFrame::resetWaypointPathForSelectedRover(string rover)
+{
+  map_data->resetWaypointPathForSelectedRover(rover);
+}
+
 void MapFrame::receiveWaypointReached(int waypoint_id)
 {
   map_data->reachedWaypoint(waypoint_id);
@@ -891,6 +927,16 @@ void MapFrame::receiveCurrentRoverName( QString rover_name )
   {
       popout_mapframe->receiveCurrentRoverName(rover_name);
   }
+}
+
+void MapFrame::enableWaypoints(string rover_name)
+{
+  map_data->setManualMode(rover_name);
+}
+
+void MapFrame::disableWaypoints(string rover_name)
+{
+  map_data->setAutonomousMode(rover_name);
 }
 
 MapFrame::~MapFrame()
