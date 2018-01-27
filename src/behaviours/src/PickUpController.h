@@ -3,6 +3,10 @@
 
 #include "Controller.h"
 #include "Tag.h"
+#include <ros/ros.h>
+#include <std_msgs/String.h>
+
+extern void logMessage(long int currentTime, string component, string message);
 
 class PickUpController : virtual Controller
 {
@@ -76,6 +80,8 @@ private:
 
   //this controller has control~
   bool has_control = false;
+
+
 };
 
 #endif // end header define
