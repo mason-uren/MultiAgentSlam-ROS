@@ -66,9 +66,11 @@ Result ObstacleController::DoWork() {
     /*
      * Update "/logger" publisher -> Starting avoidance
      */
-    msg = "Starting obstacle avoidance routine.";
-    logMessage(current_time, "ObstacleController", msg);
-
+    if (!logInit) {
+      msg = "Starting obstacle avoidance routine.";
+      logMessage(current_time, "ObstacleController", msg);
+      logInit = true;
+    }
 
     // The obstacle is an april tag marking the collection zone
     if(collection_zone_seen){
@@ -87,6 +89,7 @@ Result ObstacleController::DoWork() {
      */
     msg = "Exiting obstacle avoidance.";
     logMessage(current_time, "ObstacleController", msg);
+    logInit = false;
 
     can_set_waypoint = false; //only one waypoint is set
     set_waypoint = false;
