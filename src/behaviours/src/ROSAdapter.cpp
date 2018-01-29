@@ -133,6 +133,11 @@ ros::Publisher heartbeatPublisher;
 // to indicate when waypoints have been reached.
 ros::Publisher waypointFeedbackPublisher;
 
+/*
+ * Added "/logger" publisher
+ */
+ros::Publisher logPublisher;
+
 // Subscribers
 ros::Subscriber joySubscriber;
 ros::Subscriber modeSubscriber; 
@@ -219,6 +224,8 @@ int main(int argc, char **argv) {
   driveControlPublish = mNH.advertise<geometry_msgs::Twist>((publishedName + "/driveControl"), 10);
   heartbeatPublisher = mNH.advertise<std_msgs::String>((publishedName + "/behaviour/heartbeat"), 1, true);
   waypointFeedbackPublisher = mNH.advertise<swarmie_msgs::Waypoint>((publishedName + "/waypoints"), 1, true);
+  // Logger
+  logPublisher = mNH.advertise<std_msgs::String>((publishedName + "/logger"), 1, true);
 
   publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
   stateMachineTimer = mNH.createTimer(ros::Duration(behaviourLoopTimeStep), behaviourStateMachine);

@@ -61,16 +61,32 @@ Result ObstacleController::DoWork() {
   set_waypoint = true;
   result.PIDMode = CONST_PID;
 
-  // The obstacle is an april tag marking the collection zone
-  if(collection_zone_seen){
-    avoidCollectionZone();
+  if (obstacleDetected) {
+    /*
+     * Update "/logger" publisher -> Starting avoidance
+     */
+    std_msgs::String msg;
+    msg.data = "[<" << current_time << "> <ObstacleController>] <Starting Obstacle Avoidance routine>";
+    logPublisher.publish(msg);
+
+    // The obstacle is an april tag marking the collection zone
+    if(collection_zone_seen){
+      avoidCollectionZone();
+    }
+    else {
+      avoidObstacle();
+    }
   }
-  else {
-    avoidObstacle();
-  }
+
 
   //if an obstacle has been avoided
   if (can_set_waypoint) {
+    /*
+     * Update "/logger" publisher -> Exiting avoidance
+     */
+    std_msgs::String msg;
+    msg.data = "[<" << current_time << "> <ObstacleController>] <Exiting Obstacle Avoidance>";
+    logPublisher.publish(msg);
 
     can_set_waypoint = false; //only one waypoint is set
     set_waypoint = false;
