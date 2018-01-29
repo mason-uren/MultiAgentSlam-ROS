@@ -132,8 +132,10 @@ ros::Publisher heartbeatPublisher;
 // Publishes swarmie_msgs::Waypoint messages on "/<robot>/waypooints"
 // to indicate when waypoints have been reached.
 ros::Publisher waypointFeedbackPublisher;
-// All logs should be published here. See WIKI for how to view logs.
+
+// All logs should be published here. See WIKI for how to view the logs.
 ros::Publisher loggerPublish;
+ros::Publisher loggerPublisher;
 
 // Subscribers
 ros::Subscriber joySubscriber;
@@ -212,7 +214,10 @@ int main(int argc, char **argv) {
   message_filters::Subscriber<sensor_msgs::Range> sonarLeftSubscriber(mNH, (publishedName + "/sonarLeft"), 10);
   message_filters::Subscriber<sensor_msgs::Range> sonarCenterSubscriber(mNH, (publishedName + "/sonarCenter"), 10);
   message_filters::Subscriber<sensor_msgs::Range> sonarRightSubscriber(mNH, (publishedName + "/sonarRight"), 10);
-  
+
+    // Added a publisher for logging capabilities through ROSTopics.
+  loggerPublish = mNH.advertise<std_msgs::String>((publishedName + "/logger"), 1, true);
+
   status_publisher = mNH.advertise<std_msgs::String>((publishedName + "/status"), 1, true);
   stateMachinePublish = mNH.advertise<std_msgs::String>((publishedName + "/state_machine"), 1, true);
   fingerAnglePublish = mNH.advertise<std_msgs::Float32>((publishedName + "/fingerAngle/cmd"), 1, true);
@@ -318,7 +323,7 @@ void behaviourStateMachine(const ros::TimerEvent&)
     
     //update the time used by all the controllers
     logicController.SetCurrentTimeInMilliSecs( getROSTimeInMilliSecs() );
-    
+
     //update center location
     logicController.SetCenterLocationOdom( updateCenterLocation() );
     
@@ -389,7 +394,7 @@ void behaviourStateMachine(const ros::TimerEvent&)
     logicController.SetCurrentTimeInMilliSecs( getROSTimeInMilliSecs() );
 
     // publish current state for the operator to see
-    stateMachineMsg.data = "WAITING";
+      stateMachineMsg.data = "WAITING";
 
     // poll the logicController to get the waypoints that have been
     // reached.
@@ -746,6 +751,10 @@ void humanTime() {
 
 void logMessage(long int currentTime, string component, string message) {
   std_msgs::String messageToPublish;
+<<<<<<< HEAD
   messageToPublish.data = "[" + std::to_string(currentTime) + " " + component + "]" + message;
+=======
+  messageToPublish.data = "[" + std::to_string(currentTime) + " " + component + "] " + message;
+>>>>>>> f6e7444a9606a06616371008914b2638269760e5
   loggerPublish.publish(messageToPublish);
 }
