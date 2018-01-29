@@ -4,6 +4,8 @@
 #include "Controller.h"
 #include "Tag.h"
 
+extern void logMessage(long int currentTime, string component, string message);
+
 class ObstacleController : virtual Controller
 {
 public:

@@ -132,11 +132,8 @@ ros::Publisher heartbeatPublisher;
 // Publishes swarmie_msgs::Waypoint messages on "/<robot>/waypooints"
 // to indicate when waypoints have been reached.
 ros::Publisher waypointFeedbackPublisher;
-
-/*
- * Added "/logger" publisher
- */
-ros::Publisher logPublisher;
+// All logs should be published here. See WIKI for how to view logs.
+ros::Publisher loggerPublish;
 
 // Subscribers
 ros::Subscriber joySubscriber;
@@ -224,8 +221,9 @@ int main(int argc, char **argv) {
   driveControlPublish = mNH.advertise<geometry_msgs::Twist>((publishedName + "/driveControl"), 10);
   heartbeatPublisher = mNH.advertise<std_msgs::String>((publishedName + "/behaviour/heartbeat"), 1, true);
   waypointFeedbackPublisher = mNH.advertise<swarmie_msgs::Waypoint>((publishedName + "/waypoints"), 1, true);
-  // Logger
-  logPublisher = mNH.advertise<std_msgs::String>((publishedName + "/logger"), 1, true);
+
+    // Added a publisher for logging capabilities through ROSTopics.
+  loggerPublish = mNH.advertise<std_msgs::String>((publishedName + "/logger"), 1, true);
 
   publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
   stateMachineTimer = mNH.createTimer(ros::Duration(behaviourLoopTimeStep), behaviourStateMachine);
@@ -744,4 +742,10 @@ void humanTime() {
   }
   
   //cout << "System has been Running for :: " << hoursTime << " : hours " << minutesTime << " : minutes " << timeDiff << "." << frac << " : seconds" << endl; //you can remove or comment this out it just gives indication something is happening to the log file
+}
+
+void logMessage(long int currentTime, string component, string message) {
+  std_msgs::String messageToPublish;
+  messageToPublish.data = "[" + std::to_string(currentTime) + " " + component + "]" + message;
+  loggerPublish.publish(messageToPublish);
 }
