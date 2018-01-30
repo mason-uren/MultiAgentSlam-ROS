@@ -1,6 +1,6 @@
 #!/bin/bash
 #This script has been added to aid in rapid development and deployment of multiple robots!
-
+#This is the script that is relevant to ticket SWAR-28 Automate pushing code to robots
 
 #-------------------------READ THIS----------------------------#
 #If you have changed your rovers password you MUST edit this variable with the correct password to 
