@@ -150,6 +150,9 @@ class RangeController : virtual Controller {
   // Remember whether we are already returning to the allowed forage range
   bool requested_return_to_valid_range = false;
 
+
+  //current ROS time from the RosAdapter
+  long int current_time;
 };
 
 

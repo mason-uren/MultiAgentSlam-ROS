@@ -372,7 +372,7 @@ void DropOffController::SetBlockBlockingUltrasound(bool blockBlock) {
   targetHeld = targetHeld || blockBlock;
 }
 
-void DropOffController::SetCurrentTimeInMilliSecs( long int time )
+void DropOffController::setCurrentTimeInMilliSecs( long int time )
 {
   current_time = time;
 }

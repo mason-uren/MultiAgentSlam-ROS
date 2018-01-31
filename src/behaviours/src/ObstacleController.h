@@ -71,7 +71,9 @@ private:
 
   Point currentLocation;
 
+  //current ROS time from the RosAdapter
   long int current_time;
+
   long int timeSinceTags;
   long int delay;
 

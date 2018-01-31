@@ -113,6 +113,7 @@ private:
 
   Result result;
 
+  //current ROS time from the RosAdapter
   long int current_time;
 
   bool interrupt = false;

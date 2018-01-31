@@ -91,6 +91,11 @@ private:
 
   void ProcessData();
 
+
+  //current ROS time from the RosAdapter
+  long int current_time;
+
+
 };
 
 #endif // DRIVECONTROLLER_H

@@ -16,6 +16,14 @@ DriveController::DriveController() {
 
 DriveController::~DriveController() {}
 
+
+
+void DriveController::setCurrentTimeInMilliSecs( long int time )
+{
+  current_time = time;
+}
+
+
 void DriveController::Reset()
 {
   waypoints.clear();
@@ -25,6 +33,8 @@ void DriveController::Reset()
     stateMachineState = STATE_MACHINE_WAYPOINTS;
   }
 }
+
+
 
 Result DriveController::DoWork()
 {

@@ -69,6 +69,8 @@ private:
 
    // coppied from DriveController: 15 cm
    const float waypoint_tolerance = 0.15;
+
+   long int current_time;
 };
 
 #endif // MANUALWAYPOINTCONTROLLER_H
