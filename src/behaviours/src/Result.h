@@ -71,7 +71,7 @@ struct Waypoints {
 struct Result {
   ResultType type; //stores the type of the result
 
-  BehaviorTrigger b; //hold the behaviour type
+  BehaviorTrigger behaviorType; //hold the behavior type
   Waypoints wpts; //hold the waypoints
   PrecisionDriving pd; //holds precision commands
 
