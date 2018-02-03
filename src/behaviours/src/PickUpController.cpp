@@ -140,6 +140,10 @@ void PickUpController::ProcessData()
     result.b = nextProcess;
     result.reset = true;
     targetHeld = true;
+
+      // Publish to the log.
+      string message = "Target successfully picked up.";
+      logMessage(current_time, "PICKUP", message);
   }
   //Lower wrist and open fingures if no locked targt
   else if (!lockTarget)
@@ -182,7 +186,6 @@ bool PickUpController::ShouldInterrupt(){
 
 Result PickUpController::DoWork()
 {
-
   has_control = true;
 
   if (!targetHeld)

@@ -129,7 +129,13 @@ ros::Publisher wristAnglePublish;
 ros::Publisher infoLogPublisher;
 ros::Publisher driveControlPublish;
 ros::Publisher heartbeatPublisher;
+// Publishes swarmie_msgs::Waypoint messages on "/<robot>/waypooints"
+// to indicate when waypoints have been reached.
 ros::Publisher waypointFeedbackPublisher;
+
+// All logs should be published here. See WIKI for how to view the logs.
+ros::Publisher loggerPublish;
+ros::Publisher loggerPublisher;
 
 // Subscribers
 ros::Subscriber joySubscriber;
@@ -138,6 +144,8 @@ ros::Subscriber targetSubscriber;
 ros::Subscriber odometrySubscriber;
 ros::Subscriber mapSubscriber;
 ros::Subscriber virtualFenceSubscriber;
+// manualWaypointSubscriber listens on "/<robot>/waypoints/cmd" for
+// swarmie_msgs::Waypoint messages.
 ros::Subscriber manualWaypointSubscriber;
 
 // Timers
@@ -206,7 +214,10 @@ int main(int argc, char **argv) {
   message_filters::Subscriber<sensor_msgs::Range> sonarLeftSubscriber(mNH, (publishedName + "/sonarLeft"), 10);
   message_filters::Subscriber<sensor_msgs::Range> sonarCenterSubscriber(mNH, (publishedName + "/sonarCenter"), 10);
   message_filters::Subscriber<sensor_msgs::Range> sonarRightSubscriber(mNH, (publishedName + "/sonarRight"), 10);
-  
+
+    // Added a publisher for logging capabilities through ROSTopics.
+  loggerPublish = mNH.advertise<std_msgs::String>((publishedName + "/logger"), 1, true);
+
   status_publisher = mNH.advertise<std_msgs::String>((publishedName + "/status"), 1, true);
   stateMachinePublish = mNH.advertise<std_msgs::String>((publishedName + "/state_machine"), 1, true);
   fingerAnglePublish = mNH.advertise<std_msgs::Float32>((publishedName + "/fingerAngle/cmd"), 1, true);
@@ -215,6 +226,9 @@ int main(int argc, char **argv) {
   driveControlPublish = mNH.advertise<geometry_msgs::Twist>((publishedName + "/driveControl"), 10);
   heartbeatPublisher = mNH.advertise<std_msgs::String>((publishedName + "/behaviour/heartbeat"), 1, true);
   waypointFeedbackPublisher = mNH.advertise<swarmie_msgs::Waypoint>((publishedName + "/waypoints"), 1, true);
+
+    // Added a publisher for logging capabilities through ROSTopics.
+  loggerPublish = mNH.advertise<std_msgs::String>((publishedName + "/logger"), 1, true);
 
   publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
   stateMachineTimer = mNH.createTimer(ros::Duration(behaviourLoopTimeStep), behaviourStateMachine);
@@ -309,7 +323,7 @@ void behaviourStateMachine(const ros::TimerEvent&)
     
     //update the time used by all the controllers
     logicController.SetCurrentTimeInMilliSecs( getROSTimeInMilliSecs() );
-    
+
     //update center location
     logicController.SetCenterLocationOdom( updateCenterLocation() );
     
@@ -380,8 +394,10 @@ void behaviourStateMachine(const ros::TimerEvent&)
     logicController.SetCurrentTimeInMilliSecs( getROSTimeInMilliSecs() );
 
     // publish current state for the operator to see
-    stateMachineMsg.data = "WAITING";
+      stateMachineMsg.data = "WAITING";
 
+    // poll the logicController to get the waypoints that have been
+    // reached.
     std::vector<int> cleared_waypoints = logicController.GetClearedWaypoints();
 
     for(std::vector<int>::iterator it = cleared_waypoints.begin();
@@ -395,9 +411,12 @@ void behaviourStateMachine(const ros::TimerEvent&)
     result = logicController.DoWork();
     if(result.type != behavior || result.b != wait)
     {
+      // if the logic controller requested that the robot drive, then
+      // drive. Otherwise there are no manual waypoints and the robot
+      // should sit idle. (ie. only drive according to joystick
+      // input).
       sendDriveCommand(result.pd.left,result.pd.right);
     }
-    //cout << endl;
   }
 
   // publish state machine string for user, only if it has changed, though
@@ -422,7 +441,14 @@ void sendDriveCommand(double left, double right)
  *************************/
 
 void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& message) {
-  
+
+  // Don't pass April tag data to the logic controller if the robot is not in autonomous mode.
+  // This is to make sure autonomous behaviours are not triggered while the rover is in manual mode. 
+  if(currentMode == 0 || currentMode == 1) 
+  { 
+    return; 
+  }
+
   if (message->detections.size() > 0) {
     vector<Tag> tags;
 
@@ -721,4 +747,10 @@ void humanTime() {
   }
   
   //cout << "System has been Running for :: " << hoursTime << " : hours " << minutesTime << " : minutes " << timeDiff << "." << frac << " : seconds" << endl; //you can remove or comment this out it just gives indication something is happening to the log file
+}
+
+void logMessage(long int currentTime, string component, string message) {
+  std_msgs::String messageToPublish;
+  messageToPublish.data = "[" + std::to_string(currentTime) + " " + component + "] " + message;
+  loggerPublish.publish(messageToPublish);
 }

@@ -4,6 +4,8 @@
 #include "Controller.h"
 #include "Tag.h"
 
+extern void logMessage(long int currentTime, string component, string message);
+
 class ObstacleController : virtual Controller
 {
 public:
@@ -50,8 +52,8 @@ private:
   const float triggerDistance = 0.8;
 
   /*
-     * Member variables
-     */
+   * Member variables
+   */
 
 
   bool obstacleInterrupt; //records if obstacle has interupted
@@ -85,6 +87,9 @@ private:
   bool can_set_waypoint = false;
 
   float camera_offset_correction = 0.020; //meters;
+
+  // Print only one log message once obstacle has been encountered
+  bool logInit = false;
 };
 
 #endif // OBSTACLECONTOLLER_H

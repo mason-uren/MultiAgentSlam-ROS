@@ -60,17 +60,36 @@ Result ObstacleController::DoWork() {
   clearWaypoints = true;
   set_waypoint = true;
   result.PIDMode = CONST_PID;
+  string msg;
 
-  // The obstacle is an april tag marking the collection zone
-  if(collection_zone_seen){
-    avoidCollectionZone();
+  if (obstacleDetected) {
+    /*
+     * Update "/logger" publisher -> Starting avoidance
+     */
+    if (!logInit) {
+      msg = "Starting obstacle avoidance routine.";
+      logMessage(current_time, "ObstacleController", msg);
+      logInit = true;
+    }
+
+    // The obstacle is an april tag marking the collection zone
+    if(collection_zone_seen){
+      avoidCollectionZone();
+    }
+    else {
+      avoidObstacle();
+    }
   }
-  else {
-    avoidObstacle();
-  }
+
 
   //if an obstacle has been avoided
   if (can_set_waypoint) {
+    /*
+     * Update "/logger" publisher -> Exiting avoidance
+     */
+    msg = "Exiting obstacle avoidance.";
+    logMessage(current_time, "ObstacleController", msg);
+    logInit = false;
 
     can_set_waypoint = false; //only one waypoint is set
     set_waypoint = false;
@@ -172,7 +191,7 @@ void ObstacleController::setTagData(vector<Tag> tags){
 
   // this loop is to get the number of center tags
   if (!targetHeld) {
-    for (int i = 0; i < tags.size(); i++) { //redudant for loop
+    for (int i = 0; i < tags.size(); i++) { //redundant for loop
       if (tags[i].getID() == 256) {
 
 	collection_zone_seen = checkForCollectionZoneTags( tags );
@@ -264,7 +283,7 @@ void ObstacleController::setTargetHeld() {
 
 void ObstacleController::setTargetHeldClear()
 {
-  //adjust current state on transition from cube held to not cube helf
+  //adjust current state on transition from cube held to cube not held
   if (targetHeld)
   {
     Reset();
