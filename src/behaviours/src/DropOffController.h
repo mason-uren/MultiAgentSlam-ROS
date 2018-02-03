@@ -5,6 +5,10 @@
 #include "Controller.h"
 #include "Tag.h"
 #include <math.h>
+#include <ros/ros.h>
+#include <std_msgs/String.h>
+
+extern void logMessage(long int currentTime, string component, string message);
 
 class DropOffController : virtual Controller
 {

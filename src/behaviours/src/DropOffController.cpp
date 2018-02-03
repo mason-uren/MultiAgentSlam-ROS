@@ -53,6 +53,8 @@ Result DropOffController::DoWork() {
         result.type = behavior;
         result.b = nextProcess;
         result.reset = true;
+        string message = "Exiting DropOff";
+        logMessage(current_time, "DROPOFF", message);
         return result;
       }
       else
@@ -71,6 +73,9 @@ Result DropOffController::DoWork() {
 
       result.pd.cmdVel = -0.3;
       result.pd.cmdAngularError = 0.0;
+
+      string message = "Resource released and exiting home";
+      logMessage(current_time, "DROPOFF", message);
     }
 
     return result;
@@ -88,6 +93,9 @@ Result DropOffController::DoWork() {
     isPrecisionDriving = false;
 
     timerTimeElapsed = 0;
+
+    string message = "Starting DropOff, setting waypoint to center location";
+    logMessage(current_time, "DROPOFF", message);
 
     return result;
 
@@ -134,6 +142,8 @@ Result DropOffController::DoWork() {
 
   if (count > 0 || seenEnoughCenterTags || prevCount > 0) //if we have a target and the center is located drive towards it.
   {
+    string message = "Attempting DropOff";
+    logMessage(current_time, "DROPOFF", message);
 
     cout << "9" << endl;
     centerSeen = true;
@@ -235,6 +245,9 @@ Result DropOffController::DoWork() {
       isPrecisionDriving = false;
       interrupt = false;
       precisionInterrupt = false;
+
+      string message = "Abandoning DropOff. Lost sight of home.";
+      logMessage(current_time, "DROPOFF", message);
     }
     else
     {
@@ -340,12 +353,14 @@ bool DropOffController::ShouldInterrupt() {
 
 bool DropOffController::HasWork() {
 
+
   if(timerTimeElapsed > -1) {
     long int elapsed = current_time - returnTimer;
     timerTimeElapsed = elapsed/1e3; // Convert from milliseconds to seconds
   }
 
   if (circularCenterSearching && timerTimeElapsed < 2 && !isPrecisionDriving) {
+
     return false;
   }
 
