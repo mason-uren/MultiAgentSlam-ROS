@@ -751,10 +751,6 @@ void humanTime() {
 
 void logMessage(long int currentTime, string component, string message) {
   std_msgs::String messageToPublish;
-<<<<<<< HEAD
-  messageToPublish.data = "[" + std::to_string(currentTime) + " " + component + "]" + message;
-=======
   messageToPublish.data = "[" + std::to_string(currentTime) + " " + component + "] " + message;
->>>>>>> f6e7444a9606a06616371008914b2638269760e5
   loggerPublish.publish(messageToPublish);
 }
