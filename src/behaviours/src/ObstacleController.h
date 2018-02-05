@@ -4,6 +4,44 @@
 #include "Controller.h"
 #include "Tag.h"
 
+/*
+ * Sonar has the most accurate readings at a range less than 2 meters
+ * Calculated % Error:
+ * ===================
+ * Range:       Error:
+ * -> 2m        5.31% error
+ * -> 1.5m      0.125% error
+ */
+#define MAX_THRESH 1.5
+
+/*
+ * Web cam has max april tag detection range of 0.6604m
+ * Any theoretical obstacle needs to be verified 'not a resource'
+ */
+#define MIN_THRESH 0.6
+
+/*
+ * With rover speed of 0.3m/s and min head on collisoin separation at 0.35m, structure size cannot exceed the value of 8.
+ */
+#define VECTOR_MAX 8
+
+/*
+ * Calculated max dist. lost when collision imminent between two rover, plus variance observed at 1.5m range
+ */
+#define DELTA 0.60894
+
+/*
+ * Types of avoidance
+ */
+typedef enum {
+    NO_OBSTACLE = 0,
+    OBS_LEFT,
+    OBS_CENTER,
+    OBS_RIGHT,
+    OBS_LEFT_CENTER,
+    OBS_RIGHT_CENTER,
+    HOME
+};
 extern void logMessage(long int currentTime, string component, string message);
 
 class ObstacleController : virtual Controller
@@ -32,6 +70,8 @@ public:
 protected:
 
   void ProcessData();
+    bool sonarVector(std::vector<float> &buffer, float range);
+    double sonarAnalysis(std::vector<float> &buffer);
 
 private:
 

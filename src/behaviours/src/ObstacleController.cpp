@@ -159,6 +159,8 @@ void ObstacleController::ProcessData() {
     }
   }
 
+  // TODO: adjust 'triggerDistance' to the current max tag idenfication range (~0.6m)
+  // TODO: better evaluate sonar data that is passed
   //if any sonar is below the trigger distance set physical obstacle true
   if (left < triggerDistance || right < triggerDistance || center < triggerDistance)
   {
@@ -291,4 +293,48 @@ void ObstacleController::setTargetHeldClear()
     previousTargetState = false;
     ignore_center_sonar = false;
   }
+}
+
+// TODO: build 'vectorIterator' function
+double ObstacleController::sonarAnalysis(std::vector<float> &buffer) {
+    double last_value; // Of vector
+    bool bad_detection;
+    float prev;
+    float curr;
+    bool isPopulated = false;
+    // check to make sure the passed structure has been populated
+    if (buffer.empty()) {
+        last_value = -1;
+    }
+    else {
+        for (auto detectionRange : buffer) {
+            if (isPopulated) {
+                curr = detectionRange;
+            }
+            else {
+                prev = curr;
+                curr = detectionRange;
+                
+            }
+        }
+    }
+}
+
+
+// TODO: build 'vectorManager' function
+/**
+ * Adds passed values of sonar detections to respective structures, then checks
+ * to make sure structure doesn't exceed specified size 'VECTOR_MAX'
+ * @param buffer : reference vector
+ * @param range : the distance to the theoretical obstacle
+ * @return check : is the structure full (boolean value)
+ */
+bool ObstacleController::sonarVector(std::vector<float> &buffer, float range) {
+    bool check = false;
+    buffer.push_back(range);
+    if (buffer.size() >= VECTOR_MAX) {
+
+    }
+    return check;
+
 }
