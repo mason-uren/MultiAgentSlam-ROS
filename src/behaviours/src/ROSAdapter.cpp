@@ -305,12 +305,13 @@ void behaviourStateMachine(const ros::TimerEvent&)
       /*
        * Update "/logger" publisher -> Initialization
        */
-      std_msgs::String msg;
-      msg.data = "[<" << startTime << "> <ROSAdapter>] <currentLocation(x,y,theta) = ("
-                 << currentLocation.x << ", " << currentLocation.y << ", " << currentLocation.theta <<
-                 ")> \n <currentLocationMap(x,y,theta) = ("
-                 << currentLocationMap.x << ", " << currentLocationMap << ", " << currentLocationMap.theta << ")>";
-      loggerPublish.publish(msg);
+      string loggerMessage;
+      loggerMessage = "currentLocation(x,y,theta) = (" + std::to_string(currentLocation.x)
+                      + ", " + std::to_string(currentLocation.y) + ", " + std::to_string(currentLocation.theta) + ")\n" +
+      "currentLocationMap(x,y,theta) = (" + std::to_string(currentLocationMap.x)
+                      + ", " + std::to_string(currentLocationMap.y) + ", " + std::to_string(currentLocationMap.theta) + ")";
+      logMessage(startTime,"ROSAdapter",loggerMessage);
+
     }
 
     else
