@@ -142,7 +142,7 @@ void PickUpController::ProcessData()
     targetHeld = true;
 
       // Publish to the log.
-      string message = "Target successfully picked up.";
+      string message = "Successful PickUp of resource.";
       logMessage(current_time, "PICKUP", message);
   }
   //Lower wrist and open fingures if no locked targt
@@ -187,6 +187,9 @@ bool PickUpController::ShouldInterrupt(){
 Result PickUpController::DoWork()
 {
   has_control = true;
+
+  string message = "Starting PickUp Routine.";
+  logMessage(current_time, "PICKUP", message);
 
   if (!targetHeld)
   {
@@ -266,6 +269,11 @@ Result PickUpController::DoWork()
         // This is a guard against being stuck permanently trying to pick up something that doesn't exist.
         timeOut = true;
 
+
+        string message = "Attempting to PickUp resource";
+        logMessage(current_time, "PICKUP", message);
+
+
         // Rotate towards the block that we are seeing.
         // The error is negated in order to turn in a way that minimizes error.
         result.pd.cmdAngularError = -blockYawError;
@@ -329,6 +337,9 @@ Result PickUpController::DoWork()
       //set gripper to open and down
       result.fingerAngle = M_PI_2;
       result.wristAngle = 0;
+
+      string message = "Re-Attempting to PickUp resource";
+      logMessage(current_time, "PICKUP", message);
     }
 
     //if no targets are found after too long a period go back to search pattern
@@ -339,6 +350,10 @@ Result PickUpController::DoWork()
       result.pd.cmdVel = 0.0;
       result.pd.cmdAngularError= 0.0;
       ignoreCenterSonar = true;
+
+	string message = "Exiting PickUp. Returning to Search.";
+    logMessage(current_time, "PICKUP", message);
+
     }
   }
 
