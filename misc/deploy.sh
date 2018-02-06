@@ -87,7 +87,7 @@ Pack()
 Transfer()
 {
 	echo "Copying compressed repository to swarmie at $roverIP"
-	scp $dirName.tgz swarmie@$roverIP:~
+	scp $dirName.tgz swarmies@$roverIP:~
 }
 
 Unpack_Run()
@@ -95,7 +95,7 @@ Unpack_Run()
 	echo "Unpacking repository $dirName on swarmie at $roverIP"
 
 	gnome-terminal --tab -x bash -c "echo -n -e '\033]0;$roverIP\007'
-		ssh -t swarmie@$roverIP 'echo 'Unpacking $dirName.tgz ...';
+		ssh -t swarmies@$roverIP 'echo 'Unpacking $dirName.tgz ...';
 		tar xzf $dirName.tgz;
 		sleep 2;			
 		echo 'Starting ROS nodes on swarmie at $roverIP with master at $hostName';
@@ -168,7 +168,7 @@ Reboot()
 {
 	info="Rebooting $roverIP and Reconnecting..."
 	echo "$info"
-	ssh -t swarmie@$roverIP "echo $roverPass | sudo -S reboot now; exit 1;"
+	ssh -t swarmies@$roverIP "echo $roverPass | sudo -S reboot now; exit 1;"
 	sleep 5
 	{
 		while(true); do
