@@ -5,7 +5,7 @@ DropOffController::DropOffController() {
   reachedCollectionPoint = false;
 
   result.type = behavior;
-  result.b = wait;
+  result.behaviourType = wait;
   result.wristAngle = 0.7;
   result.reset = false;
   interrupt = false;
@@ -51,7 +51,7 @@ Result DropOffController::DoWork() {
       if (finalInterrupt)
       {
         result.type = behavior;
-        result.b = nextProcess;
+        result.behaviourType = nextProcess;
         result.reset = true;
         return result;
       }
@@ -143,7 +143,7 @@ Result DropOffController::DoWork() {
       first_center = false;
       result.type = behavior;
       result.reset = false;
-      result.b = nextProcess;
+      result.behaviourType = nextProcess;
       return result;
     }
     isPrecisionDriving = true;
@@ -229,7 +229,7 @@ Result DropOffController::DoWork() {
       result.wpts.waypoints.push_back(this->centerLocation);
       if (isPrecisionDriving) {
         result.type = behavior;
-        result.b = prevProcess;
+        result.behaviourType = prevProcess;
         result.reset = false;
       }
       isPrecisionDriving = false;
@@ -258,7 +258,7 @@ Result DropOffController::DoWork() {
 
 void DropOffController::Reset() {
   result.type = behavior;
-  result.b = wait;
+  result.behaviourType = wait;
   result.pd.cmdVel = 0;
   result.pd.cmdAngularError = 0;
   result.fingerAngle = -1;
