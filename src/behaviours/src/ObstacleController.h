@@ -3,6 +3,7 @@
 
 #include "Controller.h"
 #include "Tag.h"
+#include "ObstacleAssistant.h"
 
 /*
  * Sonar has the most accurate readings at a range less than 2 meters
@@ -29,19 +30,6 @@
  * Calculated max dist. lost when collision imminent between two rover, plus variance observed at 1.5m range
  */
 #define DELTA 0.60894
-
-/*
- * Types of avoidance
- */
-typedef enum {
-    NO_OBSTACLE = 0,
-    OBS_LEFT,
-    OBS_CENTER,
-    OBS_RIGHT,
-    OBS_LEFT_CENTER,
-    OBS_RIGHT_CENTER,
-    HOME
-} OBS_TYPE;
 
 /*
  * Detections Object

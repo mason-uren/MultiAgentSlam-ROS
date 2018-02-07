@@ -5,10 +5,8 @@ ObstacleController::ObstacleController() {
     obstacleDetected = false;
     obstacleInterrupt = false;
     result.PIDMode = CONST_PID; //use the const PID to turn at a constant speed
-    detection.good_detection = false;
-    detection.last_detection = -1;
-    detection.corr_angle = 0;
-    detection.type = NO_OBSTACLE;
+    ObstacleAssistant obstacle_assistant = ObstacleAssistant::ObstacleAssistant();
+    obstacle_assistant.
 }
 
 
@@ -175,7 +173,7 @@ void ObstacleController::ProcessData() {
     if (right <= MAX_THRESH) {
         sonar_right_flag = sonarStruct(sonar_right, right);
     }
-    if ()
+
 
 
     // TODO: adjust 'triggerDistance' to the current max tag idenfication range (~0.6m)

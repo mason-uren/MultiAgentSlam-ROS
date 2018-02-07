@@ -35,7 +35,7 @@ add_executable(
   src/RangeController.cpp
   src/LogicController.cpp
   src/ManualWaypointController.cpp
-)
+        src/ObstacleAssistant.h)
 
 add_dependencies(behaviours ${catkin_EXPORTED_TARGETS})
 
