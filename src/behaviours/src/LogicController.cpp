@@ -43,10 +43,9 @@ Result LogicController::DoWork() {
       }
   }
 
+// string message will print out the 3 logic state: waiting, interrupt, and precision
   string message;
-  string currentState;
-  string previousState;
-
+  
   //logic state switch
   switch(logicState) {
 
@@ -54,9 +53,8 @@ Result LogicController::DoWork() {
   case LOGIC_STATE_INTERRUPT: {
 
 
-    currentState = "Interrupt";
-    previousState = " ";
-    message = "Current state: " + currentState + " Previous state: " + previousState;
+    // The previous state will be the previous line in the logger
+    message = "Logic State: Interupt ";
 
     logMessage(current_time, ClassName, message);
     
@@ -152,10 +150,11 @@ Result LogicController::DoWork() {
     //this case is primarly when logic controller is waiting for drive controller to reach its last waypoint
   case LOGIC_STATE_WAITING: {
 
-    currentState = "Waiting";
-    previousState = " ";
-    message = "Current state: " + currentState + " Previous state: " + previousState;
 
+
+    // The previous state will be the previous line in the logger
+    message = "Logic State: Waiting ";
+  
     logMessage(current_time, ClassName, message);
 
     //ask drive controller how to drive
@@ -175,10 +174,11 @@ Result LogicController::DoWork() {
     //used for precision driving pass through
   case LOGIC_STATE_PRECISION_COMMAND: {
 
-    currentState = "Precision Command";
-    previousState = " ";
-    message = "Current state: " + currentState + " Previous state: " + previousState;
 
+
+    // The previous state will be the previous line in the logger
+    message = "Logic State: Precision Command";
+    
     logMessage(current_time, ClassName, message);
 
     //unlike waypoints precision commands change every update tick so we ask the
@@ -416,5 +416,4 @@ void LogicController::SetModeManual()
     driveController.Reset();
   }
 }
-
 
