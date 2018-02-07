@@ -296,28 +296,52 @@ void ObstacleController::setTargetHeldClear()
 }
 
 // TODO: build 'vectorIterator' function
-double ObstacleController::sonarAnalysis(std::vector<float> &buffer) {
-    double last_value; // Of vector
-    bool bad_detection;
+/**
+ * Iterates of the passed structure and verifies detection are of acceptable range.
+ * Note: Acceptable values are messured against 'DELTA' (calculated max dist. the rover can cover in 1 sec.)
+ *
+ * @param buffer : referenced structure (vector)
+ * @return detection : a d
+ */
+OBJ_DETECTION ObstacleController::sonarAnalysis(std::vector<float> &buffer) {
+    OBJ_DETECTION detection;
     float prev;
     float curr;
-    bool isPopulated = false;
+    bool has_begun = false;
     // check to make sure the passed structure has been populated
     if (buffer.empty()) {
-        last_value = -1;
+        detection.good_detection = false;
     }
     else {
         for (auto detectionRange : buffer) {
-            if (isPopulated) {
+            if (!has_begun) {
                 curr = detectionRange;
+                has_begun = true;
             }
             else {
                 prev = curr;
                 curr = detectionRange;
-                
+                double diff = std::fabs(prev - curr);
+                if (diff < DELTA) {
+                    detection.last_detection = curr;
+                    detection.good_detection = true;
+//                    last_detect = curr;
+                    // TESTING: noticed false detections
+//                    if (curr > 0.06) {
+//                        last_detect = curr;
+//                    }
+//                    else {
+//                        bad_detection = true;
+//                        last_detect = -1;
+//                    }
+                }
+                else { // Throw out bad vector
+                    detection.good_detection = false;
+                }
             }
         }
     }
+    return detection;
 }
 
 
@@ -329,11 +353,11 @@ double ObstacleController::sonarAnalysis(std::vector<float> &buffer) {
  * @param range : the distance to the theoretical obstacle
  * @return check : is the structure full (boolean value)
  */
-bool ObstacleController::sonarVector(std::vector<float> &buffer, float range) {
+bool ObstacleController::sonarStruct(std::vector<float> &buffer, float range) {
     bool check = false;
     buffer.push_back(range);
     if (buffer.size() >= VECTOR_MAX) {
-
+        check = true;
     }
     return check;
 

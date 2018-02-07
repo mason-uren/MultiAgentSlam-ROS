@@ -41,7 +41,16 @@ typedef enum {
     OBS_LEFT_CENTER,
     OBS_RIGHT_CENTER,
     HOME
-};
+} OBS_TYPE;
+
+/*
+ * Detections Object
+ */
+typedef struct {
+    double last_detection;
+    bool good_detection;
+} OBJ_DETECTION;
+
 extern void logMessage(long int currentTime, string component, string message);
 
 class ObstacleController : virtual Controller
@@ -70,8 +79,8 @@ public:
 protected:
 
   void ProcessData();
-    bool sonarVector(std::vector<float> &buffer, float range);
-    double sonarAnalysis(std::vector<float> &buffer);
+    bool sonarStruct(std::vector<float> &buffer, float range);
+    OBJ_DETECTION sonarAnalysis(std::vector<float> &buffer);
 
 private:
 
