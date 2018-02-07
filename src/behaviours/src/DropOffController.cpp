@@ -29,8 +29,7 @@ DropOffController::~DropOffController() {
 
 }
 
-Result DropOffController::DoWork() 
-{
+Result DropOffController::DoWork() {
 
   //cout << "8 I am currently in DropOff mode" << endl;
 
