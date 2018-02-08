@@ -47,7 +47,7 @@ public:
   void SetCenterLocationOdom(Point centerLocationOdom);
   void SetCenterLocationMap(Point centerLocationMap);
 
-  extern void logMessage(long int current_time, string ClassName, string message);
+ 
 
   
   // Passthrough for providing new waypoints to the
