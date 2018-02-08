@@ -6,7 +6,7 @@
 // defined as a circle, square, or rectangle. 
 // The center and dimensions of the allowed foraging range
 // are specified by the user.
-
+ 
 #include "Controller.h"
 #include <exception> // For exception handling
 #include <string> // For dynamic exception messages
@@ -16,18 +16,19 @@
 // Define an exception to be thrown if the user tries to create
 // a RangeShape using invalid dimensions
 class RangeShapeInvalidParameterException : public std::exception {
-public:
-    RangeShapeInvalidParameterException(std::string msg) {
-        this->msg = msg;
-    }
+ public:
+  RangeShapeInvalidParameterException(std::string msg) {
+    this->msg = msg;
+  }
 
-    virtual const char *what() const throw() {
-        std::string message = "Invalid parameter used to define a class derived from RangeShape: " + msg;
-        return message.c_str();
-    }
+  virtual const char* what() const throw()
+  {
+    std::string message = "Invalid parameter used to define a class derived from RangeShape: " + msg;
+    return message.c_str();
+  }
 
-private:
-    std::string msg;
+ private:
+  std::string msg;
 };
 
 // RangeShape is the base class for all shapes
@@ -40,16 +41,15 @@ private:
 // shape.
 
 class RangeShape {
-public:
-    RangeShape();
+ public: 
+  RangeShape();
+  
+  virtual bool isInside( Point coords ) = 0;
+  Point getCenter();
 
-    virtual bool isInside(Point coords) = 0;
-
-    Point getCenter();
-
-protected:
-    // All shapes have a center
-    Point center;
+ protected:
+  // All shapes have a center
+  Point center;
 };
 
 // RangeCircle is a derived type that can calculate
@@ -57,13 +57,13 @@ protected:
 // circle defining the foraging range for a robot.
 class RangeCircle : public RangeShape {
 
-public:
-    RangeCircle(Point center, float radius);
+ public:
+  RangeCircle( Point center, float radius ); 
+  
+  bool isInside( Point coords ) override;
 
-    bool isInside(Point coords) override;
-
-private:
-    float radius = 0.0;
+ private: 
+  float radius = 0.0;
 };
 
 // RangeRectangle is a derived type that can calculate
@@ -71,31 +71,32 @@ private:
 // rectangle defining the foraging range for a robot.
 class RangeRectangle : public RangeShape {
 
-public:
-    RangeRectangle(); // Default constructor
-    RangeRectangle(Point center, float width, float height);
+ public:
+  RangeRectangle(); // Default constructor
+  RangeRectangle( Point center, float width, float height ); 
+  
+  bool isInside( Point coords ) override;
 
-    bool isInside(Point coords) override;
-
-protected:
-    float width = 0.0;
-    float height = 0.0;
+ protected: 
+  float width = 0.0;
+  float height = 0.0;
 };
 
 // Define exceptions for RangeController
 class RangeControllerInvalidParameterException : public std::exception {
-public:
-    RangeControllerInvalidParameterException(std::string msg) {
-        this->msg = msg;
-    }
+ public:
+  RangeControllerInvalidParameterException(std::string msg) {
+    this->msg = msg;
+  }
 
-    virtual const char *what() const throw() {
-        std::string message = "Invalid parameter used in RangeController: " + msg;
-        return message.c_str();
-    }
+  virtual const char* what() const throw()
+  {
+    std::string message = "Invalid parameter used in RangeController: " + msg;
+    return message.c_str();
+  }
 
-private:
-    std::string msg;
+ private:
+  std::string msg;
 };
 
 // ****************************************
@@ -108,54 +109,46 @@ private:
 // *****************************************
 class RangeController : virtual Controller {
 
-public:
-    // Constructors
-    RangeController();
+ public:
+  // Constructors
+  RangeController();
+  RangeController( float backtrack_distance );
+  RangeController(float backtrack_distance, RangeShape* range);
+    
+  // Required interface for controllers
+  void Reset() override;
+  Result DoWork() override;
+  bool ShouldInterrupt() override;
+  bool HasWork() override;
 
-    RangeController(float backtrack_distance);
+  // Setters
+  void setRangeShape( RangeShape* range );
+  void setBacktrackDistance( float backtrack_distance );
+  void setCurrentLocation( Point current );
+  void setEnabled( bool enabled );  
+  
+  // Destructor
+  ~RangeController();
 
-    RangeController(float backtrack_distance, RangeShape *range);
+ private:
 
-    // Required interface for controllers
-    void Reset() override;
+  // Required by controller interface
+  void ProcessData();
 
-    Result DoWork() override;
+  Point distAlongLineSegment(Point start, Point end, float dist);
 
-    bool ShouldInterrupt() override;
+  RangeShape* range = NULL;
+  
+  // Distance in meters to move towards the center
+  // when a rover leaves the allowed range.
+  float backtrack_distance = 1.0; // Defeult to 1.0m 
+  Point current_location;
+  
+  // Whether the range restriction is enabled or not
+  bool enabled;
 
-    bool HasWork() override;
-
-    // Setters
-    void setRangeShape(RangeShape *range);
-
-    void setBacktrackDistance(float backtrack_distance);
-
-    void setCurrentLocation(Point current);
-
-    void setEnabled(bool enabled);
-
-    // Destructor
-    ~RangeController();
-
-private:
-
-    // Required by controller interface
-    void ProcessData();
-
-    Point distAlongLineSegment(Point start, Point end, float dist);
-
-    RangeShape *range = NULL;
-
-    // Distance in meters to move towards the center
-    // when a rover leaves the allowed range.
-    float backtrack_distance = 1.0; // Defeult to 1.0m
-    Point current_location;
-
-    // Whether the range restriction is enabled or not
-    bool enabled;
-
-    // Remember whether we are already returning to the allowed forage range
-    bool requested_return_to_valid_range = false;
+  // Remember whether we are already returning to the allowed forage range
+  bool requested_return_to_valid_range = false;
 
 };
 
