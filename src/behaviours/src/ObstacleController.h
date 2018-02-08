@@ -31,6 +31,8 @@
  */
 #define DELTA 0.60894
 
+#define
+
 /*
  * Detections Object
  */
@@ -83,9 +85,9 @@ protected:
 
     void ProcessData();
 
-    bool sonarStruct(std::vector<float> &buffer, float range);
+    void sonarMonitor(ObstacleAssistant assistant, float range);
 
-    void sonarAnalysis(std::vector<float> &buffer);
+    void sonarAnalysis(ObstacleAssistant assistant);
 
     void correctionAngle();
 
@@ -146,12 +148,6 @@ private:
 
     // Print only one log message once obstacle has been encountered
     bool logInit = false;
-    OBJ_DETECTION detection;
-
-    // Sonar Structures
-    std::vector<float> sonar_left;
-    std::vector<float> sonar_center;
-    std::vector<float> sonar_right;
 };
 
 #endif // OBSTACLECONTOLLER_H

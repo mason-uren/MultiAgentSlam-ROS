@@ -5,8 +5,16 @@ ObstacleController::ObstacleController() {
     obstacleDetected = false;
     obstacleInterrupt = false;
     result.PIDMode = CONST_PID; //use the const PID to turn at a constant speed
-    ObstacleAssistant obstacle_assistant = ObstacleAssistant::ObstacleAssistant();
-    obstacle_assistant.
+
+    /*
+     * Create Obstacle Assistant map which contains:
+     * -> type, detections, monitor
+     */
+    std::map<SONAR, ObstacleAssistant> sonar_map = {
+            {LEFT, ObstacleAssistant()},
+            {CENTER, ObstacleAssistant()},
+            {RIGHT, ObstacleAssistant()}
+    };
 }
 
 
@@ -156,23 +164,33 @@ void ObstacleController::ProcessData() {
     }
 
 
-    // TODO: CURRENT WORK
-    bool sonar_left_flag;
-    bool sonar_center_flag;
-    bool sonar_right_flag;
-
+    // TODO: CURRENT WORk
     /*
      * Monitor the detection values that fall below our 'MAX_THRESH'
      */
     if (left <= MAX_THRESH) {
-        sonar_left_flag = sonarStruct(sonar_left, left);
+        sonarMonitor(sonar_map[LEFT], left);
     }
     if (center <= MAX_THRESH) {
-        sonar_center_flag = sonarStruct(sonar_center, center);
+        sonarMonitor(sonar_map[CENTER], center);
     }
     if (right <= MAX_THRESH) {
-        sonar_right_flag = sonarStruct(sonar_right, right);
+        sonarMonitor(sonar_map[RIGHT], right);
     }
+
+    /*
+     * Check if any of the monitors are at capacity
+     */
+    for (auto assistant : sonar_map) {
+        if (assistant.second.init_detections) {
+            sonarAnalysis(assistant.second);
+        }
+    }
+
+    /*
+     * If any of the monitors are valid, check if they have cross the 'MIN_THRESH'
+     */
+    
 
 
 
@@ -301,28 +319,32 @@ void ObstacleController::setTargetHeldClear() {
 }
 
 //TODO: implement correction angle calculator based on acceptable values
-void ObstacleController::correctionAngle() {
-    /*
-     *
-     */
+//Need to make sure to only pass good sonar detections
+void ObstacleController::correctionAngle(std::map<SONAR, ObstacleAssistant> accepted_sonar) {
+    double x;
+    double y;
+    double alpha;
+
+    if (accepted_sonar.size() < 2) {
+
+    }
+
 }
 
 
 /**
  * Iterates of the passed structure and verifies detection are of acceptable range.
  * Note: Acceptable values are messured against 'DELTA' (calculated max dist. the rover can cover in 1 sec.)
- *
- * @param buffer : referenced structure (vector)
+ * @param assistant : the passed obstacle assistant (type, detections, monitor)
  * @return detection : a d
  */
-void ObstacleController::sonarAnalysis(std::vector<float> &buffer) {
+void ObstacleController::sonarAnalysis(ObstacleAssistant assistant) {
     float prev;
     float curr;
     bool has_begun = false;
-    bool bad_detection = false;
     // check to make sure the passed structure has been populated
     if (!buffer.empty()) {
-        for (auto detectionRange : buffer) {
+        for (auto detectionRange : assistant.monitor) {
             if (!has_begun) {
                 curr = detectionRange;
                 has_begun = true;
@@ -331,8 +353,8 @@ void ObstacleController::sonarAnalysis(std::vector<float> &buffer) {
                 curr = detectionRange;
                 double diff = std::fabs(prev - curr);
                 if (diff < DELTA) {
-                    detection.last_detection = curr;
-                    detection.good_detection = true;
+                    assistant.detections.good_detection = true;
+                    assistant.detections.smallest_detection = curr;
     //                    last_detect = curr;
                     // TESTING: noticed false detections
     //                    if (curr > 0.06) {
@@ -342,7 +364,8 @@ void ObstacleController::sonarAnalysis(std::vector<float> &buffer) {
     //                        bad_detection = true;
     //                        last_detect = -1;
     //                    }
-                } else { // Throw out bad vector
+                }
+                else { // Throw out bad vector
                     detection.good_detection = false;
                     break;
                 }
@@ -354,16 +377,12 @@ void ObstacleController::sonarAnalysis(std::vector<float> &buffer) {
 /**
  * Adds passed values of sonar detections to respective structures, then checks
  * to make sure structure doesn't exceed specified size 'VECTOR_MAX'
- * @param buffer : reference vector
+ * @param assistant : the passed obstacle assistant (type, detections, monitor)
  * @param range : the distance to the theoretical obstacle
- * @return check : is the structure full (boolean value)
  */
-bool ObstacleController::sonarStruct(std::vector<float> &buffer, float range) {
-    bool check = false;
-    buffer.push_back(range);
-    if (buffer.size() >= VECTOR_MAX) {
-        check = true;
+void ObstacleController::sonarMonitor(ObstacleAssistant assistant, float range) {
+    assistant.monitor.pushback(range);
+    if (assistant.monitor.size() >= VECTOR_MAX) {
+        assistant.detections.init_detection = true;
     }
-    return check;
-
 }
