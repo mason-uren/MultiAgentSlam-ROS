@@ -166,6 +166,13 @@ void ObstacleController::ProcessData() {
 
     // TODO: CURRENT WORk
     /*
+     * METHODOLODY
+     * 1) Is below 'MAX_THRESH'?
+     * 2) Is valid detection? Is below 'MIN_THRESH'
+     */
+
+
+    /*
      * Monitor the detection values that fall below our 'MAX_THRESH'
      */
     if (left <= MAX_THRESH) {
@@ -188,9 +195,21 @@ void ObstacleController::ProcessData() {
     }
 
     /*
-     * If any of the monitors are valid, check if they have cross the 'MIN_THRESH'
+     * If any of the monitors are valid, check if they have cross the 'MIN_THRESH'.
+     * Populate temporary map with acceptable detections.
      */
-    
+    std::map<SONAR, ObstacleAssistant> temp_sonar_map = new std::map<SONAR, ObstacleAssistant>();
+    for (auto assistant : sonar_map) {
+        if (assistant.second.good_detection) {
+            SONAR type = assistant.first;
+            temp_sonar_map[type] = assistant;
+        }
+    }
+
+    /*
+     * Iterate through 'temp_sonar_map' and determine correct avoidance type and measures
+     */
+
 
 
 
