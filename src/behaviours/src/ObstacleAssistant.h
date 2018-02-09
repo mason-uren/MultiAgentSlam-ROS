@@ -23,7 +23,7 @@ typedef enum {
 } SONAR;
 
 class ObstacleAssistant {
-public:
+private:
     typedef struct {
         bool init_detection;
         bool good_detection;
@@ -31,6 +31,7 @@ public:
         double crct_agl;
     } DETECTIONS;
 
+public:
     SONAR type;
     DETECTIONS detections;
     std::vector<float> *monitor;
