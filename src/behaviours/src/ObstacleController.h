@@ -4,6 +4,7 @@
 #include "Controller.h"
 #include "Tag.h"
 #include "ObstacleAssistant.h"
+#include <map>
 
 /*
  * Sonar has the most accurate readings at a range less than 2 meters
@@ -30,8 +31,6 @@
  * Calculated max dist. lost when collision imminent between two rover, plus variance observed at 1.5m range
  */
 #define DELTA 0.60894
-
-#define
 
 /*
  * Detections Object
@@ -89,7 +88,7 @@ protected:
 
     void sonarAnalysis(ObstacleAssistant assistant);
 
-    void correctionAngle();
+    void obsInitDir(std::map<SONAR, ObstacleAssistant>);
 
 private:
 
@@ -148,6 +147,11 @@ private:
 
     // Print only one log message once obstacle has been encountered
     bool logInit = false;
+
+
+    // Sonar Map
+    std::map<SONAR, ObstacleAssistant> sonar_map;
+    OBS_TYPE type;
 };
 
 #endif // OBSTACLECONTOLLER_H

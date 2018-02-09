@@ -10,10 +10,11 @@ ObstacleController::ObstacleController() {
      * Create Obstacle Assistant map which contains:
      * -> type, detections, monitor
      */
-    std::map<SONAR, ObstacleAssistant> sonar_map = {
-            {LEFT, ObstacleAssistant()},
-            {CENTER, ObstacleAssistant()},
-            {RIGHT, ObstacleAssistant()}
+    type = NO_OBSTACLE;
+    sonar_map = {
+            {LEFT, ObstacleAssistant(LEFT)},
+            {CENTER, ObstacleAssistant(CENTER)},
+            {RIGHT, ObstacleAssistant(RIGHT)}
     };
 }
 
@@ -169,6 +170,7 @@ void ObstacleController::ProcessData() {
      * METHODOLODY
      * 1) Is below 'MAX_THRESH'?
      * 2) Is valid detection? Is below 'MIN_THRESH'
+     * 3) Determine avoidance type and measures
      */
 
 
@@ -176,20 +178,20 @@ void ObstacleController::ProcessData() {
      * Monitor the detection values that fall below our 'MAX_THRESH'
      */
     if (left <= MAX_THRESH) {
-        sonarMonitor(sonar_map[LEFT], left);
+        sonarMonitor(sonar_map.at(LEFT), left);
     }
     if (center <= MAX_THRESH) {
-        sonarMonitor(sonar_map[CENTER], center);
+        sonarMonitor(sonar_map.at(CENTER), center);
     }
     if (right <= MAX_THRESH) {
-        sonarMonitor(sonar_map[RIGHT], right);
+        sonarMonitor(sonar_map.at(RIGHT), right);
     }
 
     /*
      * Check if any of the monitors are at capacity
      */
     for (auto assistant : sonar_map) {
-        if (assistant.second.init_detections) {
+        if (assistant.second.detections.init_detection) {
             sonarAnalysis(assistant.second);
         }
     }
@@ -198,38 +200,51 @@ void ObstacleController::ProcessData() {
      * If any of the monitors are valid, check if they have cross the 'MIN_THRESH'.
      * Populate temporary map with acceptable detections.
      */
-    std::map<SONAR, ObstacleAssistant> temp_sonar_map = new std::map<SONAR, ObstacleAssistant>();
+    std::map<SONAR, ObstacleAssistant> *temp_sonar_map = new std::map<SONAR, ObstacleAssistant>();
     for (auto assistant : sonar_map) {
-        if (assistant.second.good_detection) {
+        if (assistant.second.detections.good_detection) {
             SONAR type = assistant.first;
-            temp_sonar_map[type] = assistant;
+            temp_sonar_map->insert(std::pair<SONAR, ObstacleAssistant>(type, assistant.second));
         }
     }
 
     /*
      * Iterate through 'temp_sonar_map' and determine correct avoidance type and measures
      */
+    if (!temp_sonar_map->empty()) {
+        obsInitDir(*temp_sonar_map);
+    }
+    if (type != NO_OBSTACLE) {
+        phys = true;
+        timeSinceTags = current_time;
 
+        obstacleDetected = true;
+        obstacleAvoided = false;
+        can_set_waypoint = false;
+    }
+    else {
+        obstacleAvoided = true;
+    }
 
 
 
     // TODO: adjust 'triggerDistance' to the current max tag idenfication range (~0.6m)
     // TODO: better evaluate sonar data that is passed
     //if any sonar is below the trigger distance set physical obstacle true
-    if (left < triggerDistance || right < triggerDistance || center < triggerDistance) {
-        phys = true;
-        timeSinceTags = current_time;
-    }
+//    if (left < triggerDistance || right < triggerDistance || center < triggerDistance) {
+//        phys = true;
+//        timeSinceTags = current_time;
+//    }
 
     //if physical obstacle or collection zone visible
     // TODO: this is where a detection is flagged and passed to either 'avoidCollectionZone' or 'avoidObstacle'
-    if (collection_zone_seen || phys) {
-        obstacleDetected = true;
-        obstacleAvoided = false;
-        can_set_waypoint = false;
-    } else {
-        obstacleAvoided = true;
-    }
+//    if (collection_zone_seen || phys) {
+//        obstacleDetected = true;
+//        obstacleAvoided = false;
+//        can_set_waypoint = false;
+//    } else {
+//        obstacleAvoided = true;
+//    }
 }
 
 // Report April tags seen by the rovers camera so it can avoid
@@ -338,16 +353,69 @@ void ObstacleController::setTargetHeldClear() {
 }
 
 //TODO: implement correction angle calculator based on acceptable values
+//TODO: May
 //Need to make sure to only pass good sonar detections
-void ObstacleController::correctionAngle(std::map<SONAR, ObstacleAssistant> accepted_sonar) {
+void ObstacleController::obsInitDir(std::map<SONAR, ObstacleAssistant> accepted_sonar) {
     double x;
     double y;
     double alpha;
 
-    if (accepted_sonar.size() < 2) {
-
+    /*
+     * Grab the accepted detection from the map and verify they
+     * are below our 'MIN_THRESH'.
+     */
+    ObstacleAssistant *left = NULL;
+    ObstacleAssistant *center = NULL;
+    ObstacleAssistant *right= NULL;
+    for (auto assistant : accepted_sonar) {
+        if (assistant.second.detections.smallest_detection < MIN_THRESH) {
+            switch (assistant.first) {
+                case LEFT:
+                    left = &assistant.second;
+                    break;
+                case CENTER:
+                    center = &assistant.second;
+                    break;
+                case RIGHT:
+                    right = &assistant.second;
+                    break;
+                default:
+                    std::cout << "OBSTACLE_CONTROLLER: hit default in 'ObstacleController::obsInitDir()" << std::endl;
+                    break;
+            }
+        }
+        // Remove sonar that has not passed below our 'MIN_THRESH'
+        accepted_sonar.erase(assistant.first);
+        // Restart respective sonar monitor
+        sonar_map.at(assistant.first).monitor->clear();
     }
 
+    /*
+     * There is only one good detection; determine which it is and set
+     * avoidance propperly
+     */
+    if (!accepted_sonar.empty()) {
+        if (accepted_sonar.size() < 2) {
+            if (left) {
+                std::cout << "OBS_LEFT" << std::endl;
+                type = OBS_LEFT;
+            } else if (center) {
+                std::cout << "OBS_CENTER" << std::endl;
+                type = OBS_CENTER;
+            } else if (right) {
+                std::cout << "OBS_RIGHT" << std::endl;
+                type = OBS_RIGHT;
+            } else {
+                std::cout << "OBSTACLE_CONTROLLER: bad value ' ObstacleController::obsInitDir()" << std::endl;
+            }
+        } else if (left && center) {
+            std::cout << "OBS_LEFT_CENTER" << std::endl;
+            type = OBS_LEFT_CENTER;
+        } else if (right && center) {
+            std::cout << "OBS_RIGHT_CENTER" << std::endl;
+            type = OBS_RIGHT_CENTER;
+        }
+    }
 }
 
 
@@ -361,9 +429,10 @@ void ObstacleController::sonarAnalysis(ObstacleAssistant assistant) {
     float prev;
     float curr;
     bool has_begun = false;
+    SONAR sonar = assistant.type;
     // check to make sure the passed structure has been populated
-    if (!buffer.empty()) {
-        for (auto detectionRange : assistant.monitor) {
+    if (!assistant.monitor->empty()) {
+        for (auto detectionRange : *assistant.monitor) {
             if (!has_begun) {
                 curr = detectionRange;
                 has_begun = true;
@@ -372,8 +441,8 @@ void ObstacleController::sonarAnalysis(ObstacleAssistant assistant) {
                 curr = detectionRange;
                 double diff = std::fabs(prev - curr);
                 if (diff < DELTA) {
-                    assistant.detections.good_detection = true;
-                    assistant.detections.smallest_detection = curr;
+                    sonar_map.at(sonar).detections.good_detection = true;
+                    sonar_map.at(sonar).detections.smallest_detection = curr;
     //                    last_detect = curr;
                     // TESTING: noticed false detections
     //                    if (curr > 0.06) {
@@ -385,7 +454,8 @@ void ObstacleController::sonarAnalysis(ObstacleAssistant assistant) {
     //                    }
                 }
                 else { // Throw out bad vector
-                    detection.good_detection = false;
+                    sonar_map.at(sonar).detections.good_detection = false;
+                    sonar_map.at(sonar).monitor->clear(); // Remove bad vector
                     break;
                 }
             }
@@ -400,8 +470,9 @@ void ObstacleController::sonarAnalysis(ObstacleAssistant assistant) {
  * @param range : the distance to the theoretical obstacle
  */
 void ObstacleController::sonarMonitor(ObstacleAssistant assistant, float range) {
-    assistant.monitor.pushback(range);
-    if (assistant.monitor.size() >= VECTOR_MAX) {
-        assistant.detections.init_detection = true;
+    assistant.monitor->push_back(range);
+    if (assistant.monitor->size() >= VECTOR_MAX) {
+        SONAR sonar = assistant.type;
+        sonar_map.at(sonar).detections.init_detection = true;
     }
 }
