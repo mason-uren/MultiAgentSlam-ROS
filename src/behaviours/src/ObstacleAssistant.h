@@ -5,7 +5,9 @@
 #ifndef PROJECT_OBSTACLEASSISTANT_H
 #define PROJECT_OBSTACLEASSISTANT_H
 
-
+/*
+ * Type of declared obstacle
+ */
 typedef enum {
     NO_OBSTACLE = 0,
     OBS_LEFT,
@@ -16,6 +18,9 @@ typedef enum {
     HOME
 } OBS_TYPE;
 
+/*
+ * Sonar keys to be referenced in the 'sonar_map'
+ */
 typedef enum {
     LEFT = 0,
     CENTER,

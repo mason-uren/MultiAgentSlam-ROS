@@ -32,6 +32,9 @@
  */
 #define DELTA 0.60894
 
+/*
+ * Obstacle structure
+ */
 typedef struct {
     OBS_TYPE type;
     std::map<SONAR, ObstacleAssistant> sonar_map;
@@ -83,7 +86,9 @@ protected:
 
     void sonarAnalysis(ObstacleAssistant assistant);
 
-    void obsInitDir(std::map<SONAR, ObstacleAssistant>);
+    void obstacleContactDir(std::map<SONAR, ObstacleAssistant>);
+
+    void resetObstacle();
 
 private:
 
