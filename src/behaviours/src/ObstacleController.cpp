@@ -10,8 +10,8 @@ ObstacleController::ObstacleController() {
      * Create Obstacle Assistant map which contains:
      * -> type, detections, monitor
      */
-    type = NO_OBSTACLE;
-    sonar_map = {
+    obstacle.type = NO_OBSTACLE;
+    obstacle.sonar_map = {
             {LEFT, ObstacleAssistant(LEFT)},
             {CENTER, ObstacleAssistant(CENTER)},
             {RIGHT, ObstacleAssistant(RIGHT)}

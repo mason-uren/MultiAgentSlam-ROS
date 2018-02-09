@@ -32,15 +32,10 @@
  */
 #define DELTA 0.60894
 
-/*
- * Detections Object
- */
 typedef struct {
-    bool good_detection;
-    double last_detection;
-    double corr_angle;
     OBS_TYPE type;
-} OBJ_DETECTION;
+    std::map<SONAR, ObstacleAssistant> sonar_map;
+} OBSTACLE;
 
 extern void logMessage(long int currentTime, string component, string message);
 
@@ -148,10 +143,8 @@ private:
     // Print only one log message once obstacle has been encountered
     bool logInit = false;
 
+    OBSTACLE obstacle;
 
-    // Sonar Map
-    std::map<SONAR, ObstacleAssistant> sonar_map;
-    OBS_TYPE type;
 };
 
 #endif // OBSTACLECONTOLLER_H
