@@ -13,8 +13,8 @@ ObstacleController::ObstacleController() {
      * -> 'sonar_map' of feedback from each sensor
      */
     std::cout << "OBSTALCE INTI: start" << std::endl;
-    obstacle.type = NO_OBSTACLE;
-    obstacle.sonar_map = {
+    this->obstacle.type = NO_OBSTACLE;
+    this->obstacle.sonar_map = {
             {LEFT, ObstacleAssistant(LEFT)},
             {CENTER, ObstacleAssistant(CENTER)},
             {RIGHT, ObstacleAssistant(RIGHT)}
@@ -136,7 +136,7 @@ void ObstacleController::setCurrentLocation(Point currentLocation) {
 
 void ObstacleController::ProcessData() {
 //    std::cout << "OBSTACLE_CONTROLLER: ProcessData" << std::endl;
-    std::cout << "Obstacle Type --->> " << obstacle.type << std::endl;
+    this->obstacle.type = NO_OBSTACLE;
 
     //timeout timer for no tag messages
     //this is used to set collection zone seen to false beacuse
@@ -185,19 +185,19 @@ void ObstacleController::ProcessData() {
      * Monitor the detection values that fall below our 'MAX_THRESH'
      */
     if (left <= MAX_THRESH) {
-        sonarMonitor(obstacle.sonar_map.at(LEFT), left);
+        sonarMonitor(this->obstacle.sonar_map.at(LEFT), left);
     }
     if (center <= MAX_THRESH) {
-        sonarMonitor(obstacle.sonar_map.at(CENTER), center);
+        sonarMonitor(this->obstacle.sonar_map.at(CENTER), center);
     }
     if (right <= MAX_THRESH) {
-        sonarMonitor(obstacle.sonar_map.at(RIGHT), right);
+        sonarMonitor(this->obstacle.sonar_map.at(RIGHT), right);
     }
 
     /*
      * Check if any of the monitors are at capacity
      */
-    for (auto assistant : obstacle.sonar_map) {
+    for (auto assistant : this->obstacle.sonar_map) {
         if (assistant.second.detections.init_detection) {
             sonarAnalysis(assistant.second);
         }
@@ -208,7 +208,7 @@ void ObstacleController::ProcessData() {
      * Populate temporary map with acceptable detections.
      */
     std::map<SONAR, ObstacleAssistant> *temp_sonar_map = new std::map<SONAR, ObstacleAssistant>();
-    for (auto assistant : obstacle.sonar_map) {
+    for (auto assistant : this->obstacle.sonar_map) {
         if (assistant.second.detections.good_detection) {
             SONAR type = assistant.first;
             temp_sonar_map->insert(std::pair<SONAR, ObstacleAssistant>(type, assistant.second));
@@ -219,11 +219,13 @@ void ObstacleController::ProcessData() {
      * Iterate through 'temp_sonar_map' and determine correct avoidance type and measures
      */
     if (!temp_sonar_map->empty()) {
+//        std::cout << "Temp map not empty" << std::endl;
         obstacleContactDir(*temp_sonar_map);
         // Drop temp sonar mapping
         temp_sonar_map->clear();
     }
-    if (obstacle.type != NO_OBSTACLE) {
+    if (this->obstacle.type != NO_OBSTACLE) {
+//        std::cout << "We see an obstacle: " << obstacle.type << std::endl;
         phys = true;
         timeSinceTags = current_time;
 
@@ -234,6 +236,7 @@ void ObstacleController::ProcessData() {
     else {
         obstacleAvoided = true;
     }
+    std::cout << "Obstacle Type --->> " << this->obstacle.type << std::endl;
 
 
 
@@ -365,11 +368,10 @@ void ObstacleController::setTargetHeldClear() {
 //TODO: May
 //Need to make sure to only pass good sonar detections
 void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> accepted_sonar) {
-//    std::cout << "OBSTACLE_CONTROLLER: obstacleContactDir" << std::endl;
     double x;
     double y;
     double alpha;
-
+    this->obstacle.type = NO_OBSTACLE;
     /*
      * Grab the accepted detection from the map and verify they
      * are below our 'MIN_THRESH'.
@@ -379,18 +381,14 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
     ObstacleAssistant *right= NULL;
     for (auto assistant : accepted_sonar) {
         if (assistant.second.detections.smallest_detection < MIN_THRESH) {
-//            std::cout << "OBSTACLE_CONTROLLER: obstacleContactDir -> below MIN_THRESH" << std::endl;
             switch (assistant.first) {
                 case LEFT:
-//                    std::cout << "Assign Left" << std::endl;
                     left = &assistant.second;
                     break;
                 case CENTER:
-//                    std::cout << "Assign Center" << std::endl;
                     center = &assistant.second;
                     break;
                 case RIGHT:
-//                    std::cout << "Assign Right" << std::endl;
                     right = &assistant.second;
                     break;
                 default:
@@ -402,37 +400,33 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
             // Remove sonar that has not passed below our 'MIN_THRESH'
             accepted_sonar.erase(assistant.first);
             // Restart respective sonar monitor
-            obstacle.sonar_map.at(assistant.first).monitor->clear();
+            this->obstacle.sonar_map.at(assistant.first).monitor->clear();
         }
     }
 
     /*
-     * There is only one good detection; determine which it is and set
-     * avoidance propperly
+     * Check if there are any good detections
      */
     if (!accepted_sonar.empty()) {
-        if (accepted_sonar.size() < 2) {
-            if (left) {
-                obstacle.type = OBS_LEFT;
-            } else if (center) {
-                obstacle.type = OBS_CENTER;
-            } else if (right) {
-                obstacle.type = OBS_RIGHT;
-            } else {
-                std::cout << "OBSTACLE_CONTROLLER: bad value ' ObstacleController::obstacleContactDir()" << std::endl;
-            }
+        if (left && center && right) {
+            this->obstacle.type = OBS_CENTER;
         }
-        // Must check if all three are good first, other wise it will just check for two
-        else if (left && center && right) {
-            obstacle.type = OBS_CENTER;
-        } else if (right && center) {
-            obstacle.type = OBS_RIGHT_CENTER;
+        else if (center && left) {
+            this->obstacle.type = OBS_LEFT_CENTER;
         }
-        else if (left && center) {
-            obstacle.type = OBS_LEFT_CENTER;
+        else if (center && right) {
+            this->obstacle.type = OBS_RIGHT_CENTER;
         }
-        // Clear all results
-        accepted_sonar.clear();
+        else if (center) {
+            this->obstacle.type = OBS_CENTER;
+        }
+        else if (left) {
+            this->obstacle.type = OBS_LEFT;
+        }
+        else if (right) {
+            this->obstacle.type = OBS_RIGHT;
+
+        }
     }
     // Reset 'obstacle' monitors and detections
     else {
@@ -463,8 +457,8 @@ void ObstacleController::sonarAnalysis(ObstacleAssistant assistant) {
                 curr = detectionRange;
                 double diff = std::fabs(prev - curr);
                 if (diff < DELTA) {
-                    obstacle.sonar_map.at(sonar).detections.good_detection = true;
-                    obstacle.sonar_map.at(sonar).detections.smallest_detection = curr;
+                    this->obstacle.sonar_map.at(sonar).detections.good_detection = true;
+                    this->obstacle.sonar_map.at(sonar).detections.smallest_detection = curr;
     //                    last_detect = curr;
                     // TESTING: noticed false detections
     //                    if (curr > 0.06) {
@@ -476,8 +470,8 @@ void ObstacleController::sonarAnalysis(ObstacleAssistant assistant) {
     //                    }
                 }
                 else { // Throw out bad vector
-                    obstacle.sonar_map.at(sonar).detections.good_detection = false;
-                    obstacle.sonar_map.at(sonar).monitor->clear(); // Remove bad vector
+                    this->obstacle.sonar_map.at(sonar).detections.good_detection = false;
+                    this->obstacle.sonar_map.at(sonar).monitor->clear(); // Remove bad vector
                     break;
                 }
             }
@@ -495,18 +489,17 @@ void ObstacleController::sonarMonitor(ObstacleAssistant assistant, float range) 
     assistant.monitor->push_back(range);
     if (assistant.monitor->size() >= VECTOR_MAX) {
         SONAR sonar = assistant.type;
-        obstacle.sonar_map.at(sonar).detections.init_detection = true;
+        this->obstacle.sonar_map.at(sonar).detections.init_detection = true;
     }
 }
 
 void ObstacleController::resetObstacle() {
-    obstacle.type = NO_OBSTACLE;
-    obstacle.sonar_map = {
+    this->obstacle.type = NO_OBSTACLE;
+    this->obstacle.sonar_map = {
             {LEFT, ObstacleAssistant(LEFT)},
             {CENTER, ObstacleAssistant(CENTER)},
             {RIGHT, ObstacleAssistant(RIGHT)}
     };
-
 }
 
 
