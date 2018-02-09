@@ -414,6 +414,6 @@ void DriveController::outputValidation(float velOut, float yawOut) {
     //prevent combine output from going over tihs value
     int sat = 180;
     
-    this->left = Utilities::saturation_check_left(left,sat);
-    this->right = Utilities::saturation_check_right(right,sat);
+    this->left = Utilities::saturation_check(left,sat);
+    this->right = Utilities::saturation_check(right,sat);
 }

@@ -17,15 +17,10 @@ float Utilities::difference_between_angles(Point waypoint, Point currentLocation
     return angles::shortest_angular_distance(waypoint.theta, currentLocation.theta);
 }
 
-int Utilities::saturation_check_left(int left, int sat) {
-    if (left > sat) { left = sat; }
-    if (left < -sat) { left = -sat; }
-    return left;
-}
+int Utilities::saturation_check(int direction, int sat) {
+    if (direction > sat) { direction = sat; }
+    if (direction < -sat) { direction = -sat; }
+    return direction;
+} //needs to be changed with claudia's function! SWAR-17
 
-int Utilities::saturation_check_right(int right, int sat) {
-    if (right > sat) { right = sat; }
-    if (right < -sat) { right = -sat; }
-    return right;
-}
 
