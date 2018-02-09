@@ -9,6 +9,12 @@ PickUpController::PickUpController()
   nTargetsSeen = 0;
   blockYawError = 0;
   blockDistance = 0;
+  targetHeld = false;
+  millTimer = 0;
+  target_timer = 0;
+  blockDistanceFromCamera = 0;
+  blockBlock = false;
+  current_time = 0;
 
   targetFound = false;
 
