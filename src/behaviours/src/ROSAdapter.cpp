@@ -306,6 +306,16 @@ void behaviourStateMachine(const ros::TimerEvent&)
       centerLocationOdom.y = centerOdom.y;
       
       startTime = getROSTimeInMilliSecs();
+      /*
+       * Update "/logger" publisher -> Initialization
+       */
+      string loggerMessage;
+      loggerMessage = "currentLocation(x,y,theta) = (" + std::to_string(currentLocation.x)
+                      + ", " + std::to_string(currentLocation.y) + ", " + std::to_string(currentLocation.theta) + ")\n" +
+      "currentLocationMap(x,y,theta) = (" + std::to_string(currentLocationMap.x)
+                      + ", " + std::to_string(currentLocationMap.y) + ", " + std::to_string(currentLocationMap.theta) + ")";
+      logMessage(startTime,"ROSAdapter",loggerMessage);
+
     }
 
     else

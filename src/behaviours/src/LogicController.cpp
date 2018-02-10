@@ -11,6 +11,8 @@ LogicController::LogicController() {
 
 }
 
+
+
 LogicController::~LogicController() {}
 
 void LogicController::Reset() {
@@ -41,11 +43,22 @@ Result LogicController::DoWork() {
       }
   }
 
+// string message will print out the 3 logic state: waiting, interrupt, and precision
+  string message;
+  
   //logic state switch
   switch(logicState) {
 
   //when an interrupt has been thorwn or there are no pending control_queue.top().actions logic controller is in this state.
   case LOGIC_STATE_INTERRUPT: {
+
+
+    // The previous state will be the previous line in the logger
+    message = "Logic State: Interupt ";
+
+    logMessage(current_time, ClassName, message);
+    
+
     //Reset the control queue
     control_queue = priority_queue<PrioritizedController>();
 
@@ -136,6 +149,14 @@ Result LogicController::DoWork() {
 
     //this case is primarly when logic controller is waiting for drive controller to reach its last waypoint
   case LOGIC_STATE_WAITING: {
+
+
+
+    // The previous state will be the previous line in the logger
+    message = "Logic State: Waiting ";
+  
+    logMessage(current_time, ClassName, message);
+
     //ask drive controller how to drive
     //commands to be passed the ROS Adapter as left and right wheel PWM values in the result struct are returned
     result = driveController.DoWork();
@@ -152,6 +173,13 @@ Result LogicController::DoWork() {
 
     //used for precision driving pass through
   case LOGIC_STATE_PRECISION_COMMAND: {
+
+
+
+    // The previous state will be the previous line in the logger
+    message = "Logic State: Precision Command";
+    
+    logMessage(current_time, ClassName, message);
 
     //unlike waypoints precision commands change every update tick so we ask the
     //controller for new commands on every update tick.
@@ -388,3 +416,4 @@ void LogicController::SetModeManual()
     driveController.Reset();
   }
 }
+
