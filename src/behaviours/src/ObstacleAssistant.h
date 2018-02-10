@@ -5,6 +5,8 @@
 #ifndef PROJECT_OBSTACLEASSISTANT_H
 #define PROJECT_OBSTACLEASSISTANT_H
 
+#define START_STAG 2
+
 /*
  * Type of declared obstacle
  */
@@ -17,6 +19,14 @@ typedef enum {
     OBS_RIGHT_CENTER,
     HOME
 } OBS_TYPE;
+
+/*
+ * The two type of monitors
+ */
+typedef enum {
+    INIT = 0,
+    STAG
+} MONITORS;
 
 /*
  * Sonar keys to be referenced in the 'sonar_map'
@@ -44,6 +54,7 @@ public:
     explicit ObstacleAssistant(SONAR sonar) : type(sonar),
                           monitor(new std::vector<float>),
                           detections({false, false, 10, 0}) {};
+
 };
 
 
