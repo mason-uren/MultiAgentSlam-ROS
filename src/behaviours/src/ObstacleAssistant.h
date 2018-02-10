@@ -26,7 +26,7 @@ typedef enum {
 typedef enum {
     INIT = 0,
     STAG
-} MONITORS;
+} DELAY_TYPE;
 
 /*
  * Sonar keys to be referenced in the 'sonar_map'
@@ -47,13 +47,14 @@ private:
     } DETECTIONS;
 
 public:
-    SONAR type;
+    SONAR sonar;
     DETECTIONS detections;
     std::vector<float> *monitor;
 
-    explicit ObstacleAssistant(SONAR sonar) : type(sonar),
-                          monitor(new std::vector<float>),
-                          detections({false, false, 10, 0}) {};
+    explicit ObstacleAssistant(SONAR s) :
+            sonar(s),
+            monitor(new std::vector<float>),
+            detections({false, false, 10, 0}) {};
 
 };
 

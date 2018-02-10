@@ -36,8 +36,9 @@
  * Obstacle structure
  */
 typedef struct {
-    bool stag_started;
+    bool allowed;
     OBS_TYPE type;
+    DELAY_TYPE delay;
     std::map<SONAR, ObstacleAssistant> sonar_map;
 } OBSTACLE;
 
@@ -83,15 +84,13 @@ protected:
 
     void ProcessData();
 
-    void sonarMonitor(ObstacleAssistant assistant, float range, MONITORS);
+    void sonarMonitor(OBSTACLE, float, SONAR);
 
-    void sonarAnalysis(ObstacleAssistant assistant, MONITORS);
+    void sonarAnalysis(ObstacleAssistant, DELAY_TYPE);
 
-    void obstacleContactDir(std::map<SONAR, ObstacleAssistant>, MONITORS);
+    void obstacleContactDir(std::map<SONAR, ObstacleAssistant>, DELAY_TYPE);
 
-    void resetObstacleInit();
-
-    void resetObstacleStag();
+    void resetObstacle(DELAY_TYPE);
 
 private:
 
@@ -151,10 +150,14 @@ private:
     // Print only one log message once obstacle has been encountered
     bool logInit = false;
 
-    OBSTACLE obstacle_init;
-    OBSTACLE obstacle_stag;
+    /*
+     * Obstacle detection structure
+     * (Can add more MONITORS if need be)
+     */
     int stag = 0;
     OBS_TYPE detection_declaration;
+    OBSTACLE obstacle_init;
+    OBSTACLE obstacle_stag;
 
 };
 
