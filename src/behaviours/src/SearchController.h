@@ -27,6 +27,9 @@ public:
   void SetCenterLocation(Point centerLocation);
   void SetSuccesfullPickup();
 
+
+  float GetNewHeading(float beta, bool search_mode);
+
 protected:
 
   void ProcessData();

@@ -106,4 +106,16 @@ void SearchController::SetSuccesfullPickup() {
   succesfullPickup = true;
 }
 
+float GetNewHeading(float beta, bool search_mode) {
+  std::default_random_engine generator;
+  std::uniform_real_distribution<float> distribution(0.0,M_PI);
+  float theta = 0;
+  if(search_mode == false) {
+    theta = beta - M_PI/2 + (distribution(generator));
+  }
+  else {
+    theta = beta - M_PI/2 - (distribution(generator));
+  }
+  return theta;
+}
 
