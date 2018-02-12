@@ -1,5 +1,6 @@
 #include "SearchController.h"
 #include <angles/angles.h>
+#include "Utilities.h"
 
 SearchController::SearchController() {
     rng = new random_numbers::RandomNumberGenerator();
@@ -30,11 +31,9 @@ void SearchController::SetCurrentTimeInMilliSecs(long int time) {
  */
 Result SearchController::DoWork() {
 
-    if (!result.wpts.waypoints.empty()) {
-        if (hypot(result.wpts.waypoints[0].x - currentLocation.x, result.wpts.waypoints[0].y - currentLocation.y) <
-            0.15) {
-            attemptCount = 0;
-        }
+  if (!result.wpts.waypoints.empty()) {
+    if (Utilities::distance_between_points(result.wpts.waypoints[0],currentLocation) < 0.15) {
+      attemptCount = 0;
     }
 
     if (attemptCount > 0 && attemptCount < 5) {

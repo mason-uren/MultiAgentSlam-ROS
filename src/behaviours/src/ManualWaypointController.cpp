@@ -2,6 +2,7 @@
 
 #include "ManualWaypointController.h"
 #include <angles/angles.h> // for hypot()
+#include "Utilities.h"
 
 ManualWaypointController::ManualWaypointController() {}
 
@@ -46,9 +47,7 @@ void ManualWaypointController::SetCurrentLocation(Point currentLocation)
   this->currentLocation = currentLocation;
   if(!waypoints.empty()) {
     std::map<int, Point>::iterator first = waypoints.begin();
-    if(hypot(first->second.x-currentLocation.x,
-             first->second.y-currentLocation.y)
-       < waypoint_tolerance) {
+    if(Utilities::distance_between_points(first->second,currentLocation) < waypoint_tolerance) {
       cleared_waypoints.push_back(first->first);
       waypoints.erase(first);
     }
