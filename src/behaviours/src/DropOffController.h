@@ -126,7 +126,8 @@ private:
 
     Result result;
 
-    long int current_time;
+  //current ROS time from the RosAdapter
+  long int current_time;
 
     bool interrupt = false;
     bool precisionInterrupt = false;

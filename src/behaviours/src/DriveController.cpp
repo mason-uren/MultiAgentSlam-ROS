@@ -16,15 +16,29 @@ DriveController::DriveController() {
 
 DriveController::~DriveController() {}
 
-void DriveController::Reset() {
-    waypoints.clear();
+
+
+void DriveController::SetCurrentTimeInMilliSecs( long int time )
+{
+  current_time = time;
+}
+
+
+void DriveController::Reset()
+{
+  waypoints.clear();
 
     if (stateMachineState == STATE_MACHINE_ROTATE || stateMachineState == STATE_MACHINE_SKID_STEER) {
         stateMachineState = STATE_MACHINE_WAYPOINTS;
     }
 }
 
-Result DriveController::DoWork() {
+
+
+Result DriveController::DoWork()
+{
+  
+  ///WARNING waypoint input must use FAST_PID at this point in time failure to set fast pid will result in no movment
 
     ///WARNING waypoint input must use FAST_PID at this point in time failure to set fast pid will result in no movment
 

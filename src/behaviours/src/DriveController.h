@@ -24,6 +24,10 @@ public:
     void SetVelocityData(float linearVelocity, float angularVelocity);
 
     void SetCurrentLocation(Point currentLocation) { this->currentLocation = currentLocation; }
+    void SetCurrentTimeInMilliSecs( long int time );
+
+protected:
+   void ProcessData() override;
 
 private:
 
@@ -81,29 +85,30 @@ private:
     PID fastVelPID;
     PID fastYawPID;
 
-    PID slowVelPID;
-    PID slowYawPID;
+    PID slowVelPID; 
+    PID slowYawPID; 
 
-    PID constVelPID;
-    PID constYawPID;
+    PID constVelPID; 
+    PID constYawPID; 
 
-    // state machine states
-    enum StateMachineStates {
+  enum StateMachineStates { 
+ 
+    //WAITING should not be handled- goes to default (it's a placeholder name) 
+    STATE_MACHINE_WAITING = 0, 
+    STATE_MACHINE_PRECISION_DRIVING, 
+    STATE_MACHINE_WAYPOINTS, 
+    STATE_MACHINE_ROTATE, 
+    STATE_MACHINE_SKID_STEER, 
+  }; 
+  StateMachineStates stateMachineState = STATE_MACHINE_WAITING; 
 
-        //WAITING should not be handled- goes to default (it's a placeholder name)
-                STATE_MACHINE_WAITING = 0,
-        STATE_MACHINE_PRECISION_DRIVING,
-        STATE_MACHINE_WAYPOINTS,
-        STATE_MACHINE_ROTATE,
-        STATE_MACHINE_SKID_STEER,
-    };
-
-
-    StateMachineStates stateMachineState = STATE_MACHINE_WAITING;
-
-    void ProcessData();
 
     void outputValidation(float velOut, float yawOut);
+
+  //current ROS time from the RosAdapter
+  long int current_time;
+
+
 };
 
 #endif // DRIVECONTROLLER_H

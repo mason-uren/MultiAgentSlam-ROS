@@ -7,6 +7,12 @@ ManualWaypointController::ManualWaypointController() {}
 
 ManualWaypointController::~ManualWaypointController() {}
 
+void ManualWaypointController::SetCurrentTimeInMilliSecs( long int time )
+{
+  current_time = time;
+}
+
+
 void ManualWaypointController::Reset() {
   waypoints.clear();
   num_waypoints = 0;
