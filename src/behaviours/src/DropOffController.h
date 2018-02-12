@@ -44,6 +44,8 @@ public:
 
     void SetCurrentTimeInMilliSecs(long int time);
 
+    Point closestAnchor(Point current);
+
 private:
 
     void ProcessData();
