@@ -31,6 +31,7 @@ ObstacleController::ObstacleController() {
             {CENTER, ObstacleAssistant(CENTER)},
             {RIGHT, ObstacleAssistant(RIGHT)}
     };
+    this->stag = 0;
 
 
 }
@@ -187,11 +188,13 @@ void ObstacleController::ProcessData() {
     this->obstacle_init.type = NO_OBSTACLE;
     this->obstacle_stag.type = NO_OBSTACLE;
     // Delay the start of the second set of monitors
-    if (this->obstacle_stag.allowed) {
-        this->obstacle_stag.allowed = true;
-    }
-    else {
-        this->stag++;
+    if (!this->obstacle_stag.allowed) {
+        if (this->stag < 2) {
+            this->stag++;
+        } else {
+            std::cout << "STAG started" << std::endl;
+            this->obstacle_stag.allowed = true;
+        }
     }
 
     /*
@@ -230,7 +233,8 @@ void ObstacleController::ProcessData() {
             sonarAnalysis(assistant.second, INIT);
         }
     }
-    if (this->obstacle_stag.stag_started) { // STAG
+    if (this->obstacle_stag.allowed) { // STAG
+//        std::cout << "STAG: before sonar analysis" << std::endl;
         for (auto assistant: this->obstacle_stag.sonar_map) {
             if (assistant.second.detections.init_detection) {
                 sonarAnalysis(assistant.second, STAG);
@@ -267,6 +271,7 @@ void ObstacleController::ProcessData() {
     }
     if (!STAG_sonar_map->empty()) { // STAG
         obstacleContactDir(*STAG_sonar_map, STAG);
+        // Drop temp sonar mapping
         STAG_sonar_map->clear();
     }
 
@@ -291,7 +296,7 @@ void ObstacleController::ProcessData() {
     else {
         obstacleAvoided = true;
     }
-
+//
     std::cout << "Obstacle Type Init --->> " << this->obstacle_init.type << std::endl;
     std::cout << "Obstacle Type Stag --->> " << this->obstacle_stag.type << std::endl;
 
@@ -432,8 +437,7 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
     double x;
     double y;
     double alpha;
-    this->obstacle_init.type = NO_OBSTACLE;
-    this->obstacle_stag.type = NO_OBSTACLE;
+
     /*
      * Grab the accepted detection from the map and verify they
      * are below our 'MIN_THRESH'.
@@ -473,7 +477,6 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
                     std::cout << "OBSTACLE_CONTROLLER: hit default in INIT STAG differentiation" << std::endl;
                     break;
             }
-
         }
     }
 
@@ -500,7 +503,6 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
                 }
                 else if (right) {
                     this->obstacle_init.type = OBS_RIGHT;
-
                 }
             }
                 // Reset 'obstacle' monitors and detections
@@ -510,6 +512,7 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
             break;
         case STAG:
             if (!accepted_sonar.empty()) {
+//                std::cout << "STAG: declaring obs" << std::endl;
                 if (left && center && right) {
                     this->obstacle_stag.type = OBS_CENTER;
                 }
@@ -540,7 +543,6 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
             break;
 
     }
-
 }
 
 /**
@@ -553,7 +555,7 @@ void ObstacleController::sonarAnalysis(ObstacleAssistant assistant, DELAY_TYPE d
     float prev;
     float curr;
     bool has_begun = false;
-    SONAR sonar = assistant.type;
+    SONAR sonar = assistant.sonar;
     // check to make sure the passed structure has been populated
     if (!assistant.monitor->empty()) {
         for (auto detectionRange : *assistant.monitor) {
@@ -612,8 +614,8 @@ void ObstacleController::sonarAnalysis(ObstacleAssistant assistant, DELAY_TYPE d
 void ObstacleController::sonarMonitor(OBSTACLE obstacle, float range, SONAR sonar) {
     if (obstacle.allowed) {
         obstacle.sonar_map.at(sonar).monitor->push_back(range);
-        if (obstacle.sonar_map.at(sonar)->size() >= VECTOR_MAX) {
-            switch (which) {
+        if (obstacle.sonar_map.at(sonar).monitor->size() >= VECTOR_MAX) {
+            switch (obstacle.delay) {
                 case INIT:
                     this->obstacle_init.sonar_map.at(sonar).detections.init_detection = true;
                     break;

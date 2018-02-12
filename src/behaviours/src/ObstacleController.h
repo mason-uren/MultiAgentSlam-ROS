@@ -154,7 +154,7 @@ private:
      * Obstacle detection structure
      * (Can add more MONITORS if need be)
      */
-    int stag = 0;
+    int stag;
     OBS_TYPE detection_declaration;
     OBSTACLE obstacle_init;
     OBSTACLE obstacle_stag;
