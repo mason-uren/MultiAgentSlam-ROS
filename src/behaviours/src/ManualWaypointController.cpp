@@ -7,7 +7,7 @@ ManualWaypointController::ManualWaypointController() {}
 
 ManualWaypointController::~ManualWaypointController() {}
 
-void ManualWaypointController::setCurrentTimeInMilliSecs( long int time )
+void ManualWaypointController::SetCurrentTimeInMilliSecs( long int time )
 {
   current_time = time;
 }

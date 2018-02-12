@@ -56,6 +56,8 @@ public:
    
    // This should be called regularly to prevent memory leaks.
    std::vector<int> ReachedWaypoints();
+
+   void SetCurrentTimeInMilliSecs( long int time );
    
 protected:
    void ProcessData() override;

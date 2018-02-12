@@ -132,6 +132,7 @@ ros::Publisher heartbeatPublisher;
 // Publishes swarmie_msgs::Waypoint messages on "/<robot>/waypooints"
 // to indicate when waypoints have been reached.
 ros::Publisher waypointFeedbackPublisher;
+
 // All logs should be published here. See WIKI for how to view the logs.
 ros::Publisher loggerPublish;
 ros::Publisher loggerPublisher;
@@ -226,6 +227,9 @@ int main(int argc, char **argv) {
   heartbeatPublisher = mNH.advertise<std_msgs::String>((publishedName + "/behaviour/heartbeat"), 1, true);
   waypointFeedbackPublisher = mNH.advertise<swarmie_msgs::Waypoint>((publishedName + "/waypoints"), 1, true);
 
+    // Added a publisher for logging capabilities through ROSTopics.
+  loggerPublish = mNH.advertise<std_msgs::String>((publishedName + "/logger"), 1, true);
+
   publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
   stateMachineTimer = mNH.createTimer(ros::Duration(behaviourLoopTimeStep), behaviourStateMachine);
   
@@ -302,6 +306,16 @@ void behaviourStateMachine(const ros::TimerEvent&)
       centerLocationOdom.y = centerOdom.y;
       
       startTime = getROSTimeInMilliSecs();
+      /*
+       * Update "/logger" publisher -> Initialization
+       */
+      string loggerMessage;
+      loggerMessage = "currentLocation(x,y,theta) = (" + std::to_string(currentLocation.x)
+                      + ", " + std::to_string(currentLocation.y) + ", " + std::to_string(currentLocation.theta) + ")\n" +
+      "currentLocationMap(x,y,theta) = (" + std::to_string(currentLocationMap.x)
+                      + ", " + std::to_string(currentLocationMap.y) + ", " + std::to_string(currentLocationMap.theta) + ")";
+      logMessage(startTime,"ROSAdapter",loggerMessage);
+
     }
 
     else

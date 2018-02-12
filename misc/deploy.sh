@@ -1,11 +1,11 @@
 #!/bin/bash
 #This script has been added to aid in rapid development and deployment of multiple robots!
-
+#This is the script that is relevant to ticket SWAR-28 Automate pushing code to robots
 
 #-------------------------READ THIS----------------------------#
 #If you have changed your rovers password you MUST edit this variable with the correct password to 
 #allow the reboot feature to work correctly!!
-roverPass="KSC-2018"
+roverPass="swarmies"
 #--------------------------------------------------------------#
 
 OPTION=$1
@@ -87,7 +87,7 @@ Pack()
 Transfer()
 {
 	echo "Copying compressed repository to swarmie at $roverIP"
-	scp $dirName.tgz swarmie@$roverIP:~
+	scp $dirName.tgz swarmies@$roverIP:~
 }
 
 Unpack_Run()
@@ -95,7 +95,7 @@ Unpack_Run()
 	echo "Unpacking repository $dirName on swarmie at $roverIP"
 
 	gnome-terminal --tab -x bash -c "echo -n -e '\033]0;$roverIP\007'
-		ssh -t swarmie@$roverIP 'echo 'Unpacking $dirName.tgz ...';
+		ssh -t swarmies@$roverIP 'echo 'Unpacking $dirName.tgz ...';
 		tar xzf $dirName.tgz;
 		sleep 2;			
 		echo 'Starting ROS nodes on swarmie at $roverIP with master at $hostName';
@@ -112,8 +112,9 @@ Unpack_Run()
 Run()
 {
 	#ssh and run script from rover --WORKS
+	#CI: changed swarmie to swarmies to reflect username change
 	gnome-terminal --tab -x bash -c "echo -n -e '\033]0;$roverIP\007';
-		ssh -t swarmie@$roverIP 'echo 'Running $roverIP';
+		ssh -t swarmies@$roverIP 'echo 'Running $roverIP';
     cd $dirName/misc;
 		./rover_onboard_node_launch.sh $hostName;
 		exit 1;
@@ -167,7 +168,7 @@ Reboot()
 {
 	info="Rebooting $roverIP and Reconnecting..."
 	echo "$info"
-	ssh -t swarmie@$roverIP "echo $roverPass | sudo -S reboot now; exit 1;"
+	ssh -t swarmies@$roverIP "echo $roverPass | sudo -S reboot now; exit 1;"
 	sleep 5
 	{
 		while(true); do

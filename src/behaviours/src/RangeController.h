@@ -126,7 +126,7 @@ class RangeController : virtual Controller {
   void setBacktrackDistance( float backtrack_distance );
   void setCurrentLocation( Point current );
   void setEnabled( bool enabled );  
-  
+  void SetCurrentTimeInMilliSecs(long int time);
   // Destructor
   ~RangeController();
 

@@ -20,7 +20,7 @@ void SearchController::Reset() {
     result.reset = false;
 }
 
-void SearchController::setCurrentTimeInMilliSecs(long int time) {
+void SearchController::SetCurrentTimeInMilliSecs(long int time) {
     current_time = time;
 }
 

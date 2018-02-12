@@ -11,6 +11,8 @@ LogicController::LogicController() {
 
 }
 
+
+
 LogicController::~LogicController() {}
 
 void LogicController::Reset() {
@@ -40,13 +42,24 @@ Result LogicController::DoWork() {
         }
     }
 
-    //logic state switch
-    switch (logicState) {
+// string message will print out the 3 logic state: waiting, interrupt, and precision
+  string message;
+  
+  //logic state switch
+  switch(logicState) {
 
-        //when an interrupt has been thorwn or there are no pending control_queue.top().actions logic controller is in this state.
-        case LOGIC_STATE_INTERRUPT: {
-            //Reset the control queue
-            control_queue = priority_queue<PrioritizedController>();
+  //when an interrupt has been thorwn or there are no pending control_queue.top().actions logic controller is in this state.
+  case LOGIC_STATE_INTERRUPT: {
+
+
+    // The previous state will be the previous line in the logger
+    message = "Logic State: Interupt ";
+
+    logMessage(current_time, ClassName, message);
+    
+
+    //Reset the control queue
+    control_queue = priority_queue<PrioritizedController>();
 
             //check what controllers have work to do all that say yes will be added to the priority queue.
             for (PrioritizedController cntrlr : prioritizedControllers) {
@@ -129,11 +142,19 @@ Result LogicController::DoWork() {
 
         } //end of interupt case***************************************************************************************
 
-            //this case is primarly when logic controller is waiting for drive controller to reach its last waypoint
-        case LOGIC_STATE_WAITING: {
-            //ask drive controller how to drive
-            //commands to be passed the ROS Adapter as left and right wheel PWM values in the result struct are returned
-            result = driveController.DoWork();
+    //this case is primarly when logic controller is waiting for drive controller to reach its last waypoint
+  case LOGIC_STATE_WAITING: {
+
+
+
+    // The previous state will be the previous line in the logger
+    message = "Logic State: Waiting ";
+  
+    logMessage(current_time, ClassName, message);
+
+    //ask drive controller how to drive
+    //commands to be passed the ROS Adapter as left and right wheel PWM values in the result struct are returned
+    result = driveController.DoWork();
 
             //when out of waypoints drive controller will through an interrupt however unlike other controllers
             //drive controller is not on the priority queue so it must be checked here
@@ -148,9 +169,16 @@ Result LogicController::DoWork() {
             //used for precision driving pass through
         case LOGIC_STATE_PRECISION_COMMAND: {
 
-            //unlike waypoints precision commands change every update tick so we ask the
-            //controller for new commands on every update tick.
-            result = control_queue.top().controller->DoWork();
+
+
+    // The previous state will be the previous line in the logger
+    message = "Logic State: Precision Command";
+    
+    logMessage(current_time, ClassName, message);
+
+    //unlike waypoints precision commands change every update tick so we ask the
+    //controller for new commands on every update tick.
+    result = control_queue.top().controller->DoWork();
 
             //pass the driving commands to the drive controller so it can interpret them
             driveController.SetResultData(result);
@@ -335,17 +363,16 @@ void LogicController::SetCurrentTimeInMilliSecs(long int time) {
     current_time = time;
     dropOffController.SetCurrentTimeInMilliSecs(time);
     pickUpController.SetCurrentTimeInMilliSecs(time);
-    obstacleController.setCurrentTimeInMilliSecs(time);
+    obstacleController.SetCurrentTimeInMilliSecs(time);
 
 
     // Added SetCurrentTimeInMilliSecs() to the Behavior Controllers
-    driveController.setCurrentTimeInMilliSecs(time);
-    dropOffController.setCurrentTimeInMilliSecs(time);
-    manualWaypointController.setCurrentTimeInMilliSecs(time);
-    obstacleController.setCurrentTimeInMilliSecs(time);
-    pickUpController.setCurrentTimeInMilliSecs(time);
-    range_controller.setCurrentTimeInMilliSecs(time);
-    searchController.setCurrentTimeInMilliSecs(time);
+    driveController.SetCurrentTimeInMilliSecs(time);
+    dropOffController.SetCurrentTimeInMilliSecs(time);
+    manualWaypointController.SetCurrentTimeInMilliSecs(time);
+    pickUpController.SetCurrentTimeInMilliSecs(time);
+    range_controller.SetCurrentTimeInMilliSecs(time);
+    searchController.SetCurrentTimeInMilliSecs(time);
 
 
 }
@@ -367,3 +394,4 @@ void LogicController::SetModeManual() {
         driveController.Reset();
     }
 }
+

@@ -5,7 +5,7 @@
 RangeShape::RangeShape() {
 }
 
-void RangeController::setCurrentTimeInMilliSecs(long int time) {
+void RangeController::SetCurrentTimeInMilliSecs(long int time) {
     current_time = time;
 }
 
