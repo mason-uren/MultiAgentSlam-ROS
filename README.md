@@ -1,5 +1,9 @@
 # SwarmBaseCode-ROS
 
+**Note:** Please use the UNM GitHub README for your setups. It is formatted in a more user friendly way.
+
+https://github.com/BCLab-UNM/SwarmBaseCode-ROS
+
 This repository is a ROS (Robot Operating System) controller framework for the Swarmie robots used in the [NASA Swarmathon](http://www.nasaswarmathon.com), a national swarm robotics competition. 
 
 This repository contains:

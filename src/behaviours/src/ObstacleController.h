@@ -4,6 +4,8 @@
 #include "Controller.h"
 #include "Tag.h"
 
+extern void logMessage(long int currentTime, string component, string message);
+
 class ObstacleController : virtual Controller
 {
 public:
@@ -19,7 +21,7 @@ public:
   bool ShouldInterrupt() override;
   bool HasWork() override;
   void setIgnoreCenterSonar();
-  void setCurrentTimeInMilliSecs( long int time );
+  void SetCurrentTimeInMilliSecs( long int time );
   void setTargetHeld ();
 
   // Checks if a target is held and if so resets the state of the obestacle controller otherwise does nothing
@@ -50,8 +52,8 @@ private:
   const float triggerDistance = 0.8;
 
   /*
-     * Member variables
-     */
+   * Member variables
+   */
 
 
   bool obstacleInterrupt; //records if obstacle has interupted
@@ -71,7 +73,9 @@ private:
 
   Point currentLocation;
 
+  //current ROS time from the RosAdapter
   long int current_time;
+
   long int timeSinceTags;
   long int delay;
 
@@ -85,6 +89,9 @@ private:
   bool can_set_waypoint = false;
 
   float camera_offset_correction = 0.020; //meters;
+
+  // Print only one log message once obstacle has been encountered
+  bool logInit = false;
 };
 
 #endif // OBSTACLECONTOLLER_H

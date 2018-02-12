@@ -3,6 +3,11 @@
 
 #include "Controller.h"
 #include "Tag.h"
+#include <std_msgs/String.h>
+#include <ros/ros.h>
+
+
+extern void logMessage(long int currentTime, string component, string message);
 
 class PickUpController : virtual Controller
 {
@@ -10,13 +15,16 @@ public:
   PickUpController();
   ~PickUpController();
 
+
   void Reset() override;
   Result DoWork() override;
   void SetTagData(vector<Tag> tags);
   bool ShouldInterrupt() override;
   bool HasWork() override;
 
+
   bool SetSonarData(float rangeCenter);
+
 
   float getDistance() {return blockDistance;}
   bool GetLockTarget() {return lockTarget;}
@@ -76,6 +84,7 @@ private:
 
   //this controller has control~
   bool has_control = false;
+
 };
 
 #endif // end header define
