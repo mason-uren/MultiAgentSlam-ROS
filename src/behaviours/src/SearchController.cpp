@@ -29,13 +29,14 @@ void SearchController::SetCurrentTimeInMilliSecs(long int time) {
 /**
  * This code implements a basic random walk search.
  */
+
 Result SearchController::DoWork() {
 
   if (!result.wpts.waypoints.empty()) {
-    if (Utilities::distance_between_points(result.wpts.waypoints[0],currentLocation) < 0.15) {
-      attemptCount = 0;
-    }
-
+      if (Utilities::distance_between_points(result.wpts.waypoints[0], currentLocation) < 0.15) {
+          attemptCount = 0;
+      }
+  }
     if (attemptCount > 0 && attemptCount < 5) {
         attemptCount++;
         if (succesfullPickup) {
