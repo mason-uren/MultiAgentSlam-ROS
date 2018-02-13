@@ -34,6 +34,8 @@ Result DropOffController::DoWork() {
 
 
   //cout << "8 I am currently in DropOff mode" << endl;
+
+    logicMessage(current_time, ClassName, __func__);
     int count = countLeft + countRight;
 
     if (timerTimeElapsed > -1) {

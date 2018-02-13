@@ -20,6 +20,8 @@ void ObstacleController::Reset() {
 // Avoid crashing into objects detected by the ultraound
 void ObstacleController::avoidObstacle() {
 
+    logicMessage(current_time, ClassName, __func__);
+
     //always turn left to avoid obstacles
     if (right < 0.8 || center < 0.8 || left < 0.8) {
         result.type = precisionDriving;
@@ -35,6 +37,8 @@ void ObstacleController::avoidObstacle() {
 // A collection zone was seen in front of the rover and we are not carrying a target
 // so avoid running over the collection zone and possibly pushing cubes out.
 void ObstacleController::avoidCollectionZone() {
+
+    logicMessage(current_time, ClassName, __func__);
 
     result.type = precisionDriving;
 
@@ -56,39 +60,40 @@ void ObstacleController::avoidCollectionZone() {
 
 Result ObstacleController::DoWork() {
 
-  clearWaypoints = true;
-  set_waypoint = true;
-  result.PIDMode = CONST_PID;
-  string msg;
+    logicMessage(current_time, ClassName, __func__);
 
-  if (obstacleDetected) {
-    /*
-     * Update "/logger" publisher -> Starting avoidance
-     */
-    if (!logInit) {
-      msg = "Starting obstacle avoidance routine.";
-      logMessage(current_time, "ObstacleController", msg);
-      logInit = true;
+    clearWaypoints = true;
+    set_waypoint = true;
+    result.PIDMode = CONST_PID;
+    string msg;
+
+    if (obstacleDetected) {
+        /*
+         * Update "/logger" publisher -> Starting avoidance
+         */
+        if (!logInit) {
+            msg = "Starting obstacle avoidance routine.";
+            logMessage(current_time, "ObstacleController", msg);
+            logInit = true;
+        }
+
+        // The obstacle is an april tag marking the collection zone
+        if (collection_zone_seen) {
+            avoidCollectionZone();
+        } else {
+            avoidObstacle();
+        }
     }
 
-    // The obstacle is an april tag marking the collection zone
-    if(collection_zone_seen){
-      avoidCollectionZone();
-    }
-    else {
-      avoidObstacle();
-    }
-  }
 
-
-  //if an obstacle has been avoided
-  if (can_set_waypoint) {
-    /*
-     * Update "/logger" publisher -> Exiting avoidance
-     */
-    msg = "Exiting obstacle avoidance.";
-    logMessage(current_time, "ObstacleController", msg);
-    logInit = false;
+    //if an obstacle has been avoided
+    if (can_set_waypoint) {
+        /*
+         * Update "/logger" publisher -> Exiting avoidance
+         */
+        msg = "Exiting obstacle avoidance.";
+        logMessage(current_time, "ObstacleController", msg);
+        logInit = false;
 
         can_set_waypoint = false; //only one waypoint is set
         set_waypoint = false;
