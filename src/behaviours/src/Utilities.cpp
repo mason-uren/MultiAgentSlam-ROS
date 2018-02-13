@@ -24,3 +24,6 @@ int Utilities::saturation_check(int direction, int sat) {
 } //needs to be changed with claudia's function! SWAR-17
 
 
+float Utilities::infinity_norm(Point input) {
+	return fmax(std::abs(input.x), std::abs(input.y));
+}
