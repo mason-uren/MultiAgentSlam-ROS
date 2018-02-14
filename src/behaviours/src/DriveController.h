@@ -5,6 +5,8 @@
 #include "Controller.h"
 #include <angles/angles.h>
 
+extern void logicMessage(long int currentTime, string component, string message);
+
 class DriveController : virtual Controller {
 public:
     DriveController();
@@ -24,10 +26,11 @@ public:
     void SetVelocityData(float linearVelocity, float angularVelocity);
 
     void SetCurrentLocation(Point currentLocation) { this->currentLocation = currentLocation; }
-    void SetCurrentTimeInMilliSecs( long int time );
+
+    void SetCurrentTimeInMilliSecs(long int time);
 
 protected:
-   void ProcessData() override;
+    void ProcessData() override;
 
 private:
 
@@ -85,28 +88,29 @@ private:
     PID fastVelPID;
     PID fastYawPID;
 
-    PID slowVelPID; 
-    PID slowYawPID; 
+    PID slowVelPID;
+    PID slowYawPID;
 
-    PID constVelPID; 
-    PID constYawPID; 
+    PID constVelPID;
+    PID constYawPID;
 
-  enum StateMachineStates { 
- 
-    //WAITING should not be handled- goes to default (it's a placeholder name) 
-    STATE_MACHINE_WAITING = 0, 
-    STATE_MACHINE_PRECISION_DRIVING, 
-    STATE_MACHINE_WAYPOINTS, 
-    STATE_MACHINE_ROTATE, 
-    STATE_MACHINE_SKID_STEER, 
-  }; 
-  StateMachineStates stateMachineState = STATE_MACHINE_WAITING; 
+    enum StateMachineStates {
+
+        //WAITING should not be handled- goes to default (it's a placeholder name)
+                STATE_MACHINE_WAITING = 0,
+        STATE_MACHINE_PRECISION_DRIVING,
+        STATE_MACHINE_WAYPOINTS,
+        STATE_MACHINE_ROTATE,
+        STATE_MACHINE_SKID_STEER,
+    };
+    StateMachineStates stateMachineState = STATE_MACHINE_WAITING;
 
 
     void outputValidation(float velOut, float yawOut);
 
-  //current ROS time from the RosAdapter
-  long int current_time;
+    //current ROS time from the RosAdapter
+    long int current_time;
+    string ClassName = "Drive Controller";
 
 
 };

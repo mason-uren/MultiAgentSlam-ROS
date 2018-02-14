@@ -9,6 +9,7 @@
 #include <std_msgs/String.h>
 
 extern void logMessage(long int currentTime, string component, string message);
+extern void logicMessage(long int currentTime, string component, string message);
 
 class DropOffController : virtual Controller {
 public:
@@ -133,6 +134,8 @@ private:
     bool precisionInterrupt = false;
     bool finalInterrupt = false;
     bool first_center = true;
+
+    string ClassName = "DropOff Controller";
 
 };
 

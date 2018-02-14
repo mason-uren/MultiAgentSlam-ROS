@@ -58,6 +58,7 @@ Result DriveController::DoWork()
 
         //interpret input result as a precision driving command
         stateMachineState = STATE_MACHINE_PRECISION_DRIVING;
+        logicMessage(current_time, ClassName, "Precision Driving");
 
     } else if (result.type == waypoint) {
         //interpret input result as new waypoints to add into the queue
@@ -71,6 +72,7 @@ Result DriveController::DoWork()
         //This should be d one as little as possible. I suggest using timeouts to set control bools to false.
         //Then only call INTERUPT if bool switches to true.
         case STATE_MACHINE_PRECISION_DRIVING: {
+            logicMessage(current_time, ClassName, "Precision Driving");
 
             ProcessData();
             break;
@@ -78,6 +80,7 @@ Result DriveController::DoWork()
 
 
         case STATE_MACHINE_WAYPOINTS: {
+            logicMessage(current_time, ClassName, "Waypoint Driving");
 
             //Handles route planning and navigation as well as making sure all waypoints are valid.
 

@@ -2,19 +2,18 @@
 #include <limits> // For numeric limits
 #include <cmath> // For hypot
 
-PickUpController::PickUpController()
-{
-  lockTarget = false;
-  timeOut = false;
-  nTargetsSeen = 0;
-  blockYawError = 0;
-  blockDistance = 0;
-  targetHeld = false;
-  millTimer = 0;
-  target_timer = 0;
-  blockDistanceFromCamera = 0;
-  blockBlock = false;
-  current_time = 0;
+PickUpController::PickUpController() {
+    lockTarget = false;
+    timeOut = false;
+    nTargetsSeen = 0;
+    blockYawError = 0;
+    blockDistance = 0;
+    targetHeld = false;
+    millTimer = 0;
+    target_timer = 0;
+    blockDistanceFromCamera = 0;
+    blockBlock = false;
+    current_time = 0;
 
     targetFound = false;
 
@@ -132,17 +131,16 @@ void PickUpController::ProcessData() {
         result.reset = true;
         targetHeld = true;
 
-      // Publish to the log.
-      string message = "Successful PickUp of resource.";
-      logMessage(current_time, "PICKUP", message);
-  }
-  //Lower wrist and open fingures if no locked targt
-  else if (!lockTarget)
-  {
-    //set gripper;
-    result.fingerAngle = M_PI_2;
-    result.wristAngle = 1.25;
-  }
+        // Publish to the log.
+        string message = "Successful PickUp of resource.";
+        logMessage(current_time, "PICKUP", message);
+    }
+        //Lower wrist and open fingures if no locked targt
+    else if (!lockTarget) {
+        //set gripper;
+        result.fingerAngle = M_PI_2;
+        result.wristAngle = 1.25;
+    }
 }
 
 
@@ -170,15 +168,15 @@ bool PickUpController::ShouldInterrupt() {
 }
 
 Result PickUpController::DoWork() {
+    logicMessage(current_time, ClassName, __func__);
     has_control = true;
 
-  string message = "Starting PickUp Routine.";
-  logMessage(current_time, "PICKUP", message);
+    string message = "Starting PickUp Routine.";
+    logMessage(current_time, "PICKUP", message);
 
-  if (!targetHeld)
-  {
-    //threshold distance to be from the target block before attempting pickup
-    float targetDistance = 0.15; //meters
+    if (!targetHeld) {
+        //threshold distance to be from the target block before attempting pickup
+        float targetDistance = 0.15; //meters
 
         // -----------------------------------------------------------
         // millisecond time = current time if not in a counting state
@@ -245,8 +243,8 @@ Result PickUpController::DoWork() {
                 result.pd.cmdAngularError = 0.0;
                 result.wristAngle = 1.25;
                 // result.fingerAngle does not need to be set here
-        string message = "Attempting to PickUp resource";
-        logMessage(current_time, "PICKUP", message);
+                string message = "Attempting to PickUp resource";
+                logMessage(current_time, "PICKUP", message);
 
                 // We are getting ready to start the pre-programmed pickup routine now! Maybe? <(^_^)/"
                 // This is a guard against being stuck permanently trying to pick up something that doesn't exist.
@@ -295,7 +293,7 @@ Result PickUpController::DoWork() {
             return result;
         }
 
-      
+
 
         // the magic numbers compared to Td must be in order from greater(top) to smaller(bottom) numbers
         if (Td > target_reaquire_begin && timeOut) {
@@ -310,8 +308,8 @@ Result PickUpController::DoWork() {
             //set gripper to open and down
             result.fingerAngle = M_PI_2;
             result.wristAngle = 0;
-	    string message = "Re-Attempting to PickUp resource";
-      	    logMessage(current_time, "PICKUP", message);
+            string message = "Re-Attempting to PickUp resource";
+            logMessage(current_time, "PICKUP", message);
         }
 
         //if no targets are found after too long a period go back to search pattern
@@ -321,10 +319,10 @@ Result PickUpController::DoWork() {
             result.pd.cmdVel = 0.0;
             result.pd.cmdAngularError = 0.0;
             ignoreCenterSonar = true;
-	    string message = "Exiting PickUp. Returning to Search.";
-	    logMessage(current_time, "PICKUP", message);
+            string message = "Exiting PickUp. Returning to Search.";
+            logMessage(current_time, "PICKUP", message);
         }
-	
+
     }
 
     return result;

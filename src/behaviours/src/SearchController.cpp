@@ -32,11 +32,13 @@ void SearchController::SetCurrentTimeInMilliSecs(long int time) {
 
 Result SearchController::DoWork() {
 
-  if (!result.wpts.waypoints.empty()) {
-      if (Utilities::distance_between_points(result.wpts.waypoints[0], currentLocation) < 0.15) {
-          attemptCount = 0;
-      }
-  }
+    extern void logicMessage(long int currentTime, string component, string message);
+
+    if (!result.wpts.waypoints.empty()) {
+        if (Utilities::distance_between_points(result.wpts.waypoints[0], currentLocation) < 0.15) {
+            attemptCount = 0;
+        }
+    }
     if (attemptCount > 0 && attemptCount < 5) {
         attemptCount++;
         if (succesfullPickup) {
