@@ -187,6 +187,8 @@ void ObstacleController::ProcessData() {
     // Each iteration through should have to recalc detection
     this->obstacle_init.type = NO_OBSTACLE;
     this->obstacle_stag.type = NO_OBSTACLE;
+    this->detection_declaration = NO_OBSTACLE;
+
     // Delay the start of the second set of monitors
     if (!this->obstacle_stag.allowed) {
         if (this->stag < 2) {
@@ -292,17 +294,25 @@ void ObstacleController::ProcessData() {
         obstacleAvoided = false;
         can_set_waypoint = false;
 
+        std::cout << "Obstacle Type Init --->> " << this->obstacle_init.type << std::endl;
+        std::cout << "Obstacle Type Stag --->> " << this->obstacle_stag.type << std::endl;
+
+        resetObstacle(INIT);
+        resetObstacle(STAG);
+
     }
     else {
         obstacleAvoided = true;
     }
 
-    string msg;
-    msg = "Detection: " + to_string(this->detection_declaration);
-    detectionMessage(current_time, "ObstacleController", msg);
+    if (detection_declaration != NO_OBSTACLE) {
+        detect_msg = "Detection: " + to_string(this->detection_declaration);
+        detectionMessage(current_time, "ObstacleController", detect_msg);
+    }
 
-    std::cout << "Obstacle Type Init --->> " << this->obstacle_init.type << std::endl;
-    std::cout << "Obstacle Type Stag --->> " << this->obstacle_stag.type << std::endl;
+
+
+
 
 
 

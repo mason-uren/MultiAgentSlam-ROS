@@ -161,6 +161,8 @@ private:
     OBSTACLE obstacle_init;
     OBSTACLE obstacle_stag;
 
+    string detect_msg;
+
 };
 
 #endif // OBSTACLECONTOLLER_H
