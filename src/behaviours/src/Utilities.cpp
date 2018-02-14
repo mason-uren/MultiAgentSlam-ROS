@@ -25,5 +25,5 @@ int Utilities::saturation_check(int direction, int sat) {
 
 
 float Utilities::infinity_norm(Point input) {
-	return fmax(std::abs(input.x), std::abs(input.y));
+	return fmaxf(std::abs(input.x), std::abs(input.y));
 }
