@@ -44,10 +44,10 @@ Result DriveController::DoWork()
     ///WARNING waypoint input must use FAST_PID at this point in time failure to set fast pid will result in no movment
 
     if (result.type == behavior) {
-        if (result.b == noChange) {
+        if (result.behaviourType == noChange) {
             //if drive controller gets a no change command it is allowed to continue its previous action
             //normally this will be to follow waypoints but it is not specified as such.
-        } else if (result.b == wait) {
+        } else if (result.behaviourType == wait) {
             //do nothing till told otherwise
             left = 0.0;
             right = 0.0;
@@ -219,7 +219,7 @@ void DriveController::ProcessData() {
 
         //sets logic controller into stand by mode while drive controller works
         result.type = behavior;
-        result.b = noChange;
+        result.behaviourType = noChange;
 
         if (result.reset) {
             waypoints.clear();

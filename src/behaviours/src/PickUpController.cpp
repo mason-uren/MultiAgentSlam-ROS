@@ -98,7 +98,7 @@ bool PickUpController::SetSonarData(float rangeCenter) {
 
     if (rangeCenter < 0.12 && targetFound) {
         result.type = behavior;
-        result.b = nextProcess;
+        result.behaviourType = nextProcess;
         result.reset = true;
         targetHeld = true;
         return true;
@@ -127,7 +127,7 @@ void PickUpController::ProcessData() {
 
     if (blockDistanceFromCamera < 0.14 && Td < 3.9) {
         result.type = behavior;
-        result.b = nextProcess;
+        result.behaviourType = nextProcess;
         result.reset = true;
         targetHeld = true;
 
