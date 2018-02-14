@@ -136,6 +136,7 @@ ros::Publisher waypointFeedbackPublisher;
 // All logs should be published here. See WIKI for how to view the logs.
 ros::Publisher loggerPublish;
 ros::Publisher loggerPublisher;
+ros::Publisher logicPublish;
 
 // Subscribers
 ros::Subscriber joySubscriber;
@@ -229,6 +230,7 @@ int main(int argc, char **argv) {
 
     // Added a publisher for logging capabilities through ROSTopics.
   loggerPublish = mNH.advertise<std_msgs::String>((publishedName + "/logger"), 1, true);
+  logicPublish = mNH.advertise<std_msgs::String>((publishedName + "/logic"), 1, true);
 
   publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
   stateMachineTimer = mNH.createTimer(ros::Duration(behaviourLoopTimeStep), behaviourStateMachine);
@@ -306,6 +308,16 @@ void behaviourStateMachine(const ros::TimerEvent&)
       centerLocationOdom.y = centerOdom.y;
       
       startTime = getROSTimeInMilliSecs();
+      /*
+       * Update "/logger" publisher -> Initialization
+       */
+      string loggerMessage;
+      loggerMessage = "currentLocation(x,y,theta) = (" + std::to_string(currentLocation.x)
+                      + ", " + std::to_string(currentLocation.y) + ", " + std::to_string(currentLocation.theta) + ")\n" +
+      "currentLocationMap(x,y,theta) = (" + std::to_string(currentLocationMap.x)
+                      + ", " + std::to_string(currentLocationMap.y) + ", " + std::to_string(currentLocationMap.theta) + ")";
+      logMessage(startTime,"ROSAdapter",loggerMessage);
+
     }
 
     else
@@ -753,4 +765,10 @@ void logMessage(long int currentTime, string component, string message) {
   std_msgs::String messageToPublish;
   messageToPublish.data = "[" + std::to_string(currentTime) + " " + component + "] " + message;
   loggerPublish.publish(messageToPublish);
+}
+
+void logicMessage(long int currentTime, string component, string message) {
+  std_msgs::String messageToPublish;
+  messageToPublish.data = "[" + std::to_string(currentTime) + " " + component + "] " + message;
+  logicPublish.publish(messageToPublish);
 }

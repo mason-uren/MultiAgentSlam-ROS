@@ -9,6 +9,7 @@
 #include <std_msgs/String.h>
 
 extern void logMessage(long int currentTime, string component, string message);
+extern void logicMessage(long int currentTime, string component, string message);
 
 class DropOffController : virtual Controller {
 public:
@@ -126,12 +127,15 @@ private:
 
     Result result;
 
-    long int current_time;
+  //current ROS time from the RosAdapter
+  long int current_time;
 
     bool interrupt = false;
     bool precisionInterrupt = false;
     bool finalInterrupt = false;
     bool first_center = true;
+
+    string ClassName = "DropOff Controller";
 
 };
 

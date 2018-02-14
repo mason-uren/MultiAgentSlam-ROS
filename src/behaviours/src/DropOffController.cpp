@@ -1,11 +1,12 @@
 #include "DropOffController.h"
+#include "Utilities.h"
 
 DropOffController::DropOffController() {
 
     reachedCollectionPoint = false;
 
     result.type = behavior;
-    result.behaviourType = wait;
+    result.b = wait;
     result.wristAngle = 0.7;
     result.reset = false;
     interrupt = false;
@@ -31,12 +32,13 @@ DropOffController::~DropOffController() {
 
 Result DropOffController::DoWork() {
 
-    cout << "8" << endl;
 
+  //cout << "8 I am currently in DropOff mode" << endl;
+
+    logicMessage(current_time, ClassName, __func__);
     int count = countLeft + countRight;
 
     if (timerTimeElapsed > -1) {
-
         long int elapsed = current_time - returnTimer;
         timerTimeElapsed = elapsed / 1e3; // Convert from milliseconds to seconds
     }
@@ -44,11 +46,11 @@ Result DropOffController::DoWork() {
     //if we are in the routine for exiting the circle once we have dropped a block off and reseting all our flags
     //to resart our search.
     if (reachedCollectionPoint) {
-        cout << "2" << endl;
+        //cout << "2 I am at home" << endl;
         if (timerTimeElapsed >= 5) {
             if (finalInterrupt) {
                 result.type = behavior;
-                result.behaviourType = nextProcess;
+                result.b = nextProcess;
                 result.reset = true;
                 string message = "Exiting DropOff";
                 logMessage(current_time, "DROPOFF", message);
@@ -74,8 +76,7 @@ Result DropOffController::DoWork() {
         return result;
     }
 
-    double distanceToCenter = hypot(this->centerLocation.x - this->currentLocation.x,
-                                    this->centerLocation.y - this->currentLocation.y);
+    double distanceToCenter = Utilities::distance_between_points(centerLocation,currentLocation);
 
     //check to see if we are driving to the center location or if we need to drive in a circle and look.
     if (distanceToCenter > collectionPointVisualDistance && !circularCenterSearching && (count == 0)) {
@@ -101,7 +102,7 @@ Result DropOffController::DoWork() {
         //radians counterclockwise from being purly along the x-axis.
         nextSpinPoint.x = centerLocation.x + (initialSpinSize + spinSizeIncrease) * cos(spinner);
         nextSpinPoint.y = centerLocation.y + (initialSpinSize + spinSizeIncrease) * sin(spinner);
-        nextSpinPoint.theta = atan2(nextSpinPoint.y - currentLocation.y, nextSpinPoint.x - currentLocation.x);
+        nextSpinPoint.theta = Utilities::angle_between_points(nextSpinPoint,currentLocation);
 
         result.type = waypoint;
         result.wpts.waypoints.clear();
@@ -128,9 +129,7 @@ Result DropOffController::DoWork() {
 
     //reset lastCenterTagThresholdTime timout timer to current time
     if ((!centerApproach && !seenEnoughCenterTags) || (count > 0 && !seenEnoughCenterTags)) {
-
         lastCenterTagThresholdTime = current_time;
-
     }
 
     if (count > 0 || seenEnoughCenterTags ||
@@ -139,14 +138,14 @@ Result DropOffController::DoWork() {
         string message = "Attempting DropOff";
         logMessage(current_time, "DROPOFF", message);
 
-        cout << "9" << endl;
+        //cout << "9 I have located the center" << endl;
         centerSeen = true;
 
         if (first_center && isPrecisionDriving) {
             first_center = false;
             result.type = behavior;
             result.reset = false;
-            result.behaviourType = nextProcess;
+            result.b = nextProcess;
             return result;
         }
         isPrecisionDriving = true;
@@ -214,7 +213,7 @@ Result DropOffController::DoWork() {
         long int elapsed = current_time - lastCenterTagThresholdTime;
         float timeSinceSeeingEnoughCenterTags = elapsed / 1e3; // Convert from milliseconds to seconds
         if (timeSinceSeeingEnoughCenterTags > lostCenterCutoff) {
-            cout << "4" << endl;
+            //cout << "4 We have lost the center, drop off attempt abandoned" << endl;
             //go back to drive to center base location instead of drop off attempt
             reachedCollectionPoint = false;
             seenEnoughCenterTags = false;
@@ -224,7 +223,7 @@ Result DropOffController::DoWork() {
             result.wpts.waypoints.push_back(this->centerLocation);
             if (isPrecisionDriving) {
                 result.type = behavior;
-                result.behaviourType = prevProcess;
+                result.b = prevProcess;
                 result.reset = false;
             }
             isPrecisionDriving = false;
@@ -252,22 +251,21 @@ Result DropOffController::DoWork() {
 }
 
 void DropOffController::Reset() {
-    result.type = behavior;
-    result.behaviourType = wait;
-    result.pd.cmdVel = 0;
-    result.pd.cmdAngularError = 0;
-    result.fingerAngle = -1;
-    result.wristAngle = 0.7;
-    result.reset = false;
-    result.wpts.waypoints.clear();
-    spinner = 0;
-    spinSizeIncrease = 0;
-    prevCount = 0;
-    timerTimeElapsed = -1;
+  result.type = behavior;
+  result.b = wait;
+  result.pd.cmdVel = 0;
+  result.pd.cmdAngularError = 0;
+  result.fingerAngle = -1;
+  result.wristAngle = 0.7;
+  result.reset = false;
+  result.wpts.waypoints.clear();
+  spinner = 0;
+  spinSizeIncrease = 0;
+  prevCount = 0;
+  timerTimeElapsed = -1;
 
-    countLeft = 0;
-    countRight = 0;
-
+  countLeft = 0;
+  countRight = 0;
 
     //reset flags
     reachedCollectionPoint = false;
@@ -279,7 +277,7 @@ void DropOffController::Reset() {
     targetHeld = false;
     startWaypoint = false;
     first_center = true;
-    cout << "6" << endl;
+        //cout << "6 Reset has occurred" << endl;
 
 }
 
