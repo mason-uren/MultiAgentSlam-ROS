@@ -284,7 +284,7 @@ void ObstacleController::ProcessData() {
      */
     if (this->obstacle_init.type != NO_OBSTACLE && (this->obstacle_init.type == this->obstacle_stag.type)) { // <--- TODO: try this line first
 //    if (this->obstacle_init.type != NO_OBSTACLE && this->obstacle_stag.type != NO_OBSTACLE) {
-//        this->detection_declaration = this->obstacle_init.type;
+        this->detection_declaration = this->obstacle_init.type;
         phys = true;
         timeSinceTags = current_time;
 
@@ -296,7 +296,11 @@ void ObstacleController::ProcessData() {
     else {
         obstacleAvoided = true;
     }
-//
+
+    string msg;
+    msg = "Detection: " + to_string(this->detection_declaration);
+    detectionMessage(current_time, "ObstacleController", msg);
+
     std::cout << "Obstacle Type Init --->> " << this->obstacle_init.type << std::endl;
     std::cout << "Obstacle Type Stag --->> " << this->obstacle_stag.type << std::endl;
 

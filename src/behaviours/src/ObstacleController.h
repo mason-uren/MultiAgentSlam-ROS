@@ -44,6 +44,8 @@ typedef struct {
 
 extern void logMessage(long int currentTime, string component, string message);
 
+extern void detectionMessage(long int currentTime, string component, string message);
+
 class ObstacleController : virtual Controller {
 public:
     ObstacleController();
