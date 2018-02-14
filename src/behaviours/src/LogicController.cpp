@@ -43,23 +43,25 @@ Result LogicController::DoWork() {
     }
 
 // string message will print out the 3 logic state: waiting, interrupt, and precision
-  string message;
-  
-  //logic state switch
-  switch(logicState) {
+    string message;
 
-  //when an interrupt has been thorwn or there are no pending control_queue.top().actions logic controller is in this state.
-  case LOGIC_STATE_INTERRUPT: {
+    //logic state switch
+    switch (logicState) {
+
+        //when an interrupt has been thorwn or there are no pending control_queue.top().actions logic controller is in this state.
+        case LOGIC_STATE_INTERRUPT: {
 
 
-    // The previous state will be the previous line in the logger
-    message = "Logic State: Interupt ";
+            if(loggerSwitch) {
+                // The previous state will be the previous line in the logger
+                message = "Logic State: Interupt ";
 
-    logMessage(current_time, ClassName, message);
-    
+                logMessage(current_time, ClassName, message);
+            }
 
-    //Reset the control queue
-    control_queue = priority_queue<PrioritizedController>();
+
+            //Reset the control queue
+            control_queue = priority_queue<PrioritizedController>();
 
             //check what controllers have work to do all that say yes will be added to the priority queue.
             for (PrioritizedController cntrlr : prioritizedControllers) {
@@ -142,19 +144,20 @@ Result LogicController::DoWork() {
 
         } //end of interupt case***************************************************************************************
 
-    //this case is primarly when logic controller is waiting for drive controller to reach its last waypoint
-  case LOGIC_STATE_WAITING: {
+            //this case is primarly when logic controller is waiting for drive controller to reach its last waypoint
+        case LOGIC_STATE_WAITING: {
 
 
+            if(loggerSwitch) {
+                // The previous state will be the previous line in the logger
+                message = "Logic State: Waiting ";
 
-    // The previous state will be the previous line in the logger
-    message = "Logic State: Waiting ";
-  
-    logMessage(current_time, ClassName, message);
+                logMessage(current_time, ClassName, message);
+            }
 
-    //ask drive controller how to drive
-    //commands to be passed the ROS Adapter as left and right wheel PWM values in the result struct are returned
-    result = driveController.DoWork();
+            //ask drive controller how to drive
+            //commands to be passed the ROS Adapter as left and right wheel PWM values in the result struct are returned
+            result = driveController.DoWork();
 
             //when out of waypoints drive controller will through an interrupt however unlike other controllers
             //drive controller is not on the priority queue so it must be checked here
@@ -170,15 +173,16 @@ Result LogicController::DoWork() {
         case LOGIC_STATE_PRECISION_COMMAND: {
 
 
+            if(loggerSwitch) {
+                // The previous state will be the previous line in the logger
+                message = "Logic State: Precision Command";
 
-    // The previous state will be the previous line in the logger
-    message = "Logic State: Precision Command";
-    
-    logMessage(current_time, ClassName, message);
+                logMessage(current_time, ClassName, message);
+            }
 
-    //unlike waypoints precision commands change every update tick so we ask the
-    //controller for new commands on every update tick.
-    result = control_queue.top().controller->DoWork();
+            //unlike waypoints precision commands change every update tick so we ask the
+            //controller for new commands on every update tick.
+            result = control_queue.top().controller->DoWork();
 
             //pass the driving commands to the drive controller so it can interpret them
             driveController.SetResultData(result);
