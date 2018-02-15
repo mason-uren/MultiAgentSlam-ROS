@@ -135,7 +135,7 @@ private:
     void controllerInterconnect();
 
     long int current_time = 0;
-    bool loggerSwitch = true; //When true, logger messages for Logic Controller are active
+    bool loggerSwitch = false; //When true, logger messages for Logic Controller are active
 
     string ClassName = "LogicController";
 };
