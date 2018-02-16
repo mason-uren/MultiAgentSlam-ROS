@@ -2,6 +2,11 @@
 #include "ObstacleAssistant.h"
 
 ObstacleController::ObstacleController() {
+    /*
+     * Turn sonar On/Off
+     */
+    this->acceptDetections = true;
+
     obstacleAvoided = true;
     obstacleDetected = false;
     obstacleInterrupt = false;
@@ -48,16 +53,28 @@ void ObstacleController::Reset() {
 
 // Avoid crashing into objects detected by the ultraound
 void ObstacleController::avoidObstacle() {
+    // Always turn right to avoid obstacle
+    switch (this->detection_declaration) {
+        case OBS_LEFT:
+//            break;
+        case OBS_CENTER:
+//            break;
+        case OBS_RIGHT:
+//            break;
+        case OBS_LEFT_CENTER:
+//            break;
+        case OBS_RIGHT_CENTER:
+            result.type = precisionDriving;
 
-    //always turn left to avoid obstacles
-    if (right < 0.8 || center < 0.8 || left < 0.8) {
-        result.type = precisionDriving;
+            result.pd.cmdAngular = K_angular;
 
-        result.pd.cmdAngular = -K_angular;
+            result.pd.setPointVel = 0.0;
+            result.pd.cmdVel = 0.0;
+            result.pd.setPointYaw = 0;
+            break;
+        default:
+            std::cout << "OBSTACLE_CONTROLLER: avoidObstacle(), hit default" << std::endl;
 
-        result.pd.setPointVel = 0.0;
-        result.pd.cmdVel = 0.0;
-        result.pd.setPointYaw = 0;
     }
 }
 
@@ -285,17 +302,22 @@ void ObstacleController::ProcessData() {
      * the initialization of 'obstacle_stag'
      */
     if (this->obstacle_init.type != NO_OBSTACLE && (this->obstacle_init.type == this->obstacle_stag.type)) { // <--- TODO: try this line first
-//    if (this->obstacle_init.type != NO_OBSTACLE && this->obstacle_stag.type != NO_OBSTACLE) {
-        this->detection_declaration = this->obstacle_init.type;
-        phys = true;
-        timeSinceTags = current_time;
+        /*
+         * Choose to ignore sonar detections
+         */
+        if (acceptDetections) {
+            this->detection_declaration = this->obstacle_init.type;
+            phys = true;
+            timeSinceTags = current_time;
 
-        obstacleDetected = true;
-        obstacleAvoided = false;
-        can_set_waypoint = false;
+            obstacleDetected = true;
+            obstacleAvoided = false;
+            can_set_waypoint = false;
 
-        std::cout << "Obstacle Type Init --->> " << this->obstacle_init.type << std::endl;
-        std::cout << "Obstacle Type Stag --->> " << this->obstacle_stag.type << std::endl;
+            std::cout << "Obstacle Type Init --->> " << this->obstacle_init.type << std::endl;
+            std::cout << "Obstacle Type Stag --->> " << this->obstacle_stag.type << std::endl;
+        }
+
 
         resetObstacle(INIT);
         resetObstacle(STAG);
@@ -309,30 +331,6 @@ void ObstacleController::ProcessData() {
         detect_msg = "Detection: " + to_string(this->detection_declaration);
         detectionMessage(current_time, "ObstacleController", detect_msg);
     }
-
-
-
-
-
-
-
-    // TODO: adjust 'triggerDistance' to the current max tag idenfication range (~0.6m)
-    // TODO: better evaluate sonar data that is passed
-    //if any sonar is below the trigger distance set physical obstacle true
-//    if (left < triggerDistance || right < triggerDistance || center < triggerDistance) {
-//        phys = true;
-//        timeSinceTags = current_time;
-//    }
-
-    //if physical obstacle or collection zone visible
-    // TODO: this is where a detection is flagged and passed to either 'avoidCollectionZone' or 'avoidObstacle'
-//    if (collection_zone_seen || phys) {
-//        obstacleDetected = true;
-//        obstacleAvoided = false;
-//        can_set_waypoint = false;
-//    } else {
-//        obstacleAvoided = true;
-//    }
 }
 
 // Report April tags seen by the rovers camera so it can avoid

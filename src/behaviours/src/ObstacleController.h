@@ -163,6 +163,12 @@ private:
 
     string detect_msg;
 
+    /*
+     * Turn On/Off detections
+     * Default: True
+     */
+    bool acceptDetections;
+
 };
 
 #endif // OBSTACLECONTOLLER_H
