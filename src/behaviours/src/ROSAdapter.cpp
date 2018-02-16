@@ -347,7 +347,7 @@ void behaviourStateMachine(const ros::TimerEvent&)
     //if a wait behaviour is thrown sit and do nothing untill logicController is ready
     if (result.type == behavior)
     {
-      if (result.b == wait)
+      if (result.behaviourType == wait)
       {
         wait = true;
       }
@@ -421,7 +421,7 @@ void behaviourStateMachine(const ros::TimerEvent&)
       waypointFeedbackPublisher.publish(wpt);
     }
     result = logicController.DoWork();
-    if(result.type != behavior || result.b != wait)
+    if(result.type != behavior || result.behaviourType != wait)
     {
       // if the logic controller requested that the robot drive, then
       // drive. Otherwise there are no manual waypoints and the robot

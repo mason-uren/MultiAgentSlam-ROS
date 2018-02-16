@@ -77,11 +77,11 @@ Result LogicController::DoWork() {
             //if no controlers have work report this to ROS Adapter and do nothing.
             if (control_queue.empty()) {
                 result.type = behavior;
-                result.b = wait;
+                result.behaviourType = wait;
                 break;
             } else {
                 //default result state if someone has work this safe gaurds against faulty result types
-                result.b = noChange;
+                result.behaviourType = noChange;
             }
 
             //take the top member of the priority queue and run their do work function.
@@ -99,7 +99,7 @@ Result LogicController::DoWork() {
                 }
 
                 //ask for the procces state to change to the next state or loop around to the begining
-                if (result.b == nextProcess) {
+                if (result.behaviourType == nextProcess) {
                     if (processState == _LAST - 1) {
                         processState = _FIRST;
                     } else {
@@ -107,7 +107,7 @@ Result LogicController::DoWork() {
                     }
                 }
                     //ask for the procces state to change to the previouse state or loop around to the end
-                else if (result.b == prevProcess) {
+                else if (result.behaviourType == prevProcess) {
                     if (processState == _FIRST) {
                         processState = (ProcessState) ((int) _LAST - 1);
                     } else {
@@ -116,9 +116,9 @@ Result LogicController::DoWork() {
                 }
 
                 //update the priorites of the controllers based upon the new process state.
-                if (result.b == nextProcess || result.b == prevProcess) {
+                if (result.behaviourType == nextProcess || result.behaviourType == prevProcess) {
                     ProcessData();
-                    result.b = wait;
+                    result.behaviourType = wait;
                     driveController.Reset(); //it is assumed that the drive controller may be in a bad state if interrupted so reset it
                 }
                 break;
