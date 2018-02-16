@@ -369,3 +369,65 @@ void DropOffController::SetBlockBlockingUltrasound(bool blockBlock) {
 void DropOffController::SetCurrentTimeInMilliSecs(long int time) {
     current_time = time;
 }
+
+Point closestAnchor(Point current){
+    int x = current.x;
+    int y = current.y;
+    Point nearestAnchor;
+    if(x > 0 && y > 0) //if true in quadrant I
+    {
+        if(y > x)//upper triangle of quadrant I
+        {
+            nearestAnchor.x = 0;
+            nearestAnchor.y = 1;//rover goes to (0,1)
+        }
+        else
+        {
+            nearestAnchor.x = 1;
+            nearestAnchor.y = 0;//rover goes to (1, 0)
+        }
+
+    }
+    else if(x > 0 && y < 0) //if true in quadrant II
+    {
+        if(abs(y) > x)//lower triangle of quadrant II
+        {
+            nearestAnchor.x = 0;
+            nearestAnchor.y = -1;//rover goes to (0,-1)
+        }
+        else //upper triangle of quadrant II
+        {
+            nearestAnchor.x = 1;
+            nearestAnchor.y = 0;//rover goes to (1, 0)
+        }
+    }
+    else if(x < 0 && y > 0)//if true in quadrant IV
+    {
+        if(y > x)//upper triangle of quadrant IV
+        {
+            nearestAnchor.x = 0;
+            nearestAnchor.y = 1;//rover goes to (0,1)
+        }
+        else
+        {
+            nearestAnchor.x = -1;
+            nearestAnchor.y = 0;//rover goes to (-1, 0)
+        }
+
+    }
+    else if(x < 0 && y < 0) //if true in quadrant III
+    {
+        if(abs(y) > x)//upper triangle of quadrant III
+        {
+            nearestAnchor.x = 0;
+            nearestAnchor.y = -1;//rover goes to (0,-1)
+        }
+        else
+        {
+            nearestAnchor.x = -1;
+            nearestAnchor.y = 0;//rover goes to (-1, 0)
+        }
+
+    }
+    return nearestAnchor;
+}
