@@ -138,7 +138,7 @@ Result DriveController::DoWork()
             if (abs_error > rotateOnlyAngleTolerance) {
                 // rotate but dont drive.
                 if (result.PIDMode == FAST_PID) {
-                    fastPID(0.0, errorYaw, result.pd.setPointVel, result.pd.setPointYaw);
+                    universalPID(0.0, errorYaw, result.pd.setPointVel, result.pd.setPointYaw, 0);
                 }
 
                 break;
@@ -171,7 +171,7 @@ Result DriveController::DoWork()
                 result.pd.setPointVel = searchVelocity;
                 if (result.PIDMode == FAST_PID) {
                     //cout << "linear velocity:  " << linearVelocity << endl; //DEBUGGING CODE
-                    fastPID((searchVelocity - linearVelocity), errorYaw, result.pd.setPointVel, result.pd.setPointYaw);
+                    universalPID((searchVelocity - linearVelocity), errorYaw, result.pd.setPointVel, result.pd.setPointYaw, 0);
                 }
             } else {
                 // stopno change
@@ -236,12 +236,12 @@ void DriveController::ProcessData() {
         if (result.PIDMode == FAST_PID) {
             float vel = result.pd.cmdVel - linearVelocity;
             float setVel = result.pd.cmdVel;
-            fastPID(vel, result.pd.cmdAngularError, setVel, result.pd.setPointYaw);
+            universalPID(vel, result.pd.cmdAngularError, setVel, result.pd.setPointYaw, 0);
         } else if (result.PIDMode == SLOW_PID) {
             //will take longer to reach the setPoint but has less chanse of an overshoot especially with slow feedback
             float vel = result.pd.cmdVel - linearVelocity;
             float setVel = result.pd.cmdVel;
-            slowPID(vel, result.pd.cmdAngularError, setVel, result.pd.setPointYaw);
+            universalPID(vel, result.pd.cmdAngularError, setVel, result.pd.setPointYaw, 0);
         } else if (result.PIDMode == CONST_PID) {
             //vel is the same as fast PID however
             //this setup takes a target angular velocity to constantly turn at instead of a target heading
@@ -250,38 +250,30 @@ void DriveController::ProcessData() {
 
             //cout << "Ang. Vel.  " << angularVelocity << "  Ang. Error" << angular << endl; //DEBUGGING CODE
 
-            constPID(vel, angular, result.pd.setPointVel, result.pd.setPointYaw);
+            universalPID(vel, 0, result.pd.setPointVel, result.pd.setPointYaw, angular);
         }
     }
 }
 
 
-void DriveController::fastPID(float errorVel, float errorYaw, float setPointVel, float setPointYaw) {
-
-    // cout << "PID FAST" << endl; //DEBUGGING CODE
-
-    float velOut = fastVelPID.PIDOut(errorVel, setPointVel); //returns PWM target to try and get error vel to 0
-    float yawOut = fastYawPID.PIDOut(errorYaw, setPointYaw); //returns PWM target to try and get yaw error to 0
-
-    outputValidation(velOut, yawOut);
-}
-
-void DriveController::slowPID(float errorVel, float errorYaw, float setPointVel, float setPointYaw) {
-    //cout << "PID SLOW" << endl; //DEBUGGING CODE
-
-    float velOut = slowVelPID.PIDOut(errorVel, setPointVel);
-    float yawOut = slowYawPID.PIDOut(errorYaw, setPointYaw);
-
-    outputValidation(velOut, yawOut);
-}
-
-void DriveController::constPID(float erroVel, float constAngularError, float setPointVel, float setPointYaw) {
-
-    //cout << "PID CONST" << endl; //DEBUGGING CODE
-
-    float velOut = constVelPID.PIDOut(erroVel, setPointVel);
-    float yawOut = constYawPID.PIDOut(constAngularError, setPointYaw);
-
+void DriveController::universalPID(float errorVel, float errorYaw, float setPointVel, float setPointYaw, float constAngularError) {
+    float velOut = 0;
+    float yawOut = 0;
+    if (result.PIDMode == FAST_PID) {
+        cout << "PID FAST" << endl;
+        velOut = fastVelPID.PIDOut(errorVel, setPointVel);
+        yawOut = fastYawPID.PIDOut(errorYaw, setPointYaw);
+    }
+    else if (result.PIDMode == SLOW_PID) {
+        cout << "PID SLOW" << endl;
+        velOut = slowVelPID.PIDOut(errorVel, setPointVel);
+        yawOut = slowYawPID.PIDOut(errorYaw, setPointYaw);
+    }
+    else if(result.PIDMode == CONST_PID) {
+        cout << "PID CONST" << endl;
+        velOut = constVelPID.PIDOut(errorVel, setPointVel);
+        yawOut = constYawPID.PIDOut(constAngularError, setPointYaw);
+    }
     outputValidation(velOut, yawOut);
 }
 

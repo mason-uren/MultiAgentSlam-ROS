@@ -77,11 +77,7 @@ private:
 
     PIDConfig constYawConfig();
 
-    void fastPID(float errorVel, float errorYaw, float setPointVel, float setPointYaw);
-
-    void slowPID(float errorVel, float errorYaw, float setPointVel, float setPointYaw);
-
-    void constPID(float erroVel, float constAngularError, float setPointVel, float setPointYaw);
+    void universalPID(float errorVel, float errorYaw, float setPointVel, float setPointYaw, float constAngularError);
 
     //each PID movement paradigm needs at minimum two PIDs to acheive good robot motion.
     //one PID is for linear movement and the second for rotational movements
