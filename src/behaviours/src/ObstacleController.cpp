@@ -371,7 +371,7 @@ bool ObstacleController::checkForCollectionZoneTags(vector<Tag> tags) {
             }
         }
     }
-    
+
     // Did any tags indicate that the robot is inside the collection zone?
     return count_left_collection_zone_tags + count_right_collection_zone_tags > 0;
 
