@@ -137,6 +137,7 @@ ros::Publisher waypointFeedbackPublisher;
 ros::Publisher loggerPublish;
 ros::Publisher loggerPublisher;
 ros::Publisher sonarPublisher;
+ros::Publisher logicPublish;
 
 // Subscribers
 ros::Subscriber joySubscriber;
@@ -231,6 +232,7 @@ int main(int argc, char **argv) {
     // Added a publisher for logging capabilities through ROSTopics.
   loggerPublish = mNH.advertise<std_msgs::String>((publishedName + "/logger"), 1, true);
   sonarPublisher = mNH.advertise<std_msgs::String>((publishedName + "/detections"), 1, true);
+  logicPublish = mNH.advertise<std_msgs::String>((publishedName + "/logic"), 1, true);
 
   publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
   stateMachineTimer = mNH.createTimer(ros::Duration(behaviourLoopTimeStep), behaviourStateMachine);
@@ -308,6 +310,16 @@ void behaviourStateMachine(const ros::TimerEvent&)
       centerLocationOdom.y = centerOdom.y;
       
       startTime = getROSTimeInMilliSecs();
+      /*
+       * Update "/logger" publisher -> Initialization
+       */
+      string loggerMessage;
+      loggerMessage = "currentLocation(x,y,theta) = (" + std::to_string(currentLocation.x)
+                      + ", " + std::to_string(currentLocation.y) + ", " + std::to_string(currentLocation.theta) + ")\n" +
+      "currentLocationMap(x,y,theta) = (" + std::to_string(currentLocationMap.x)
+                      + ", " + std::to_string(currentLocationMap.y) + ", " + std::to_string(currentLocationMap.theta) + ")";
+      logMessage(startTime,"ROSAdapter",loggerMessage);
+
     }
 
     else
@@ -337,7 +349,7 @@ void behaviourStateMachine(const ros::TimerEvent&)
     //if a wait behaviour is thrown sit and do nothing untill logicController is ready
     if (result.type == behavior)
     {
-      if (result.b == wait)
+      if (result.behaviourType == wait)
       {
         wait = true;
       }
@@ -411,7 +423,7 @@ void behaviourStateMachine(const ros::TimerEvent&)
       waypointFeedbackPublisher.publish(wpt);
     }
     result = logicController.DoWork();
-    if(result.type != behavior || result.b != wait)
+    if(result.type != behavior || result.behaviourType != wait)
     {
       // if the logic controller requested that the robot drive, then
       // drive. Otherwise there are no manual waypoints and the robot
@@ -761,4 +773,9 @@ void detectionMessage(long int currentTime, string component, string message) {
   std_msgs::String messageToPublish;
   messageToPublish.data = "[" + std::to_string(currentTime) + " " + component + "] " + message;
   sonarPublisher.publish(messageToPublish);
+}
+void logicMessage(long int currentTime, string component, string message) {
+  std_msgs::String messageToPublish;
+  messageToPublish.data = "[" + std::to_string(currentTime) + " " + component + "] " + message;
+  logicPublish.publish(messageToPublish);
 }

@@ -45,6 +45,7 @@ typedef struct {
 extern void logMessage(long int currentTime, string component, string message);
 
 extern void detectionMessage(long int currentTime, string component, string message);
+extern void logicMessage(long int currentTime, string component, string message);
 
 class ObstacleController : virtual Controller {
 public:
@@ -68,7 +69,7 @@ public:
 
     void setIgnoreCenterSonar();
 
-    void setCurrentTimeInMilliSecs(long int time);
+    void SetCurrentTimeInMilliSecs(long int time);
 
     void setTargetHeld();
 
@@ -104,7 +105,7 @@ private:
 
     // Are there AprilTags in the camera view that mark the collection zone
     // and are those AprilTags oriented towards or away from the camera.
-    bool checkForCollectionZoneTags(vector<Tag>);
+    bool checkForCollectionZoneTags(vector <Tag>);
 
     const float K_angular = 1.0; //radians a second turn rate to avoid obstacles
     const float reactivate_center_sonar_threshold = 0.8; //reactive center sonar if it goes back above this distance, assuming it is deactivated
@@ -115,8 +116,6 @@ private:
     /*
      * Member variables
      */
-
-
     bool obstacleInterrupt; //records if obstacle has interupted
     bool obstacleDetected;  //records if an obstacle has been detected
     bool obstacleAvoided; //record if an obstacke has been avoided
@@ -149,6 +148,8 @@ private:
 
     float camera_offset_correction = 0.020; //meters;
 
+    string ClassName = "Obstacle Controller";
+
     // Print only one log message once obstacle has been encountered
     bool logInit = false;
 
@@ -168,7 +169,6 @@ private:
      * Default: True
      */
     bool acceptDetections;
-
 };
 
 #endif // OBSTACLECONTOLLER_H

@@ -23,22 +23,20 @@ ObstacleController::ObstacleController() {
     this->obstacle_init.delay = INIT;
     this->obstacle_init.allowed = true;
     this->obstacle_init.sonar_map = {
-            {LEFT, ObstacleAssistant(LEFT)},
+            {LEFT,   ObstacleAssistant(LEFT)},
             {CENTER, ObstacleAssistant(CENTER)},
-            {RIGHT, ObstacleAssistant(RIGHT)}
+            {RIGHT,  ObstacleAssistant(RIGHT)}
     };
     // STAG obstacle detection
     this->obstacle_stag.type = NO_OBSTACLE;
     this->obstacle_stag.delay = STAG;
     this->obstacle_stag.allowed = false;
     this->obstacle_stag.sonar_map = {
-            {LEFT, ObstacleAssistant(LEFT)},
+            {LEFT,   ObstacleAssistant(LEFT)},
             {CENTER, ObstacleAssistant(CENTER)},
-            {RIGHT, ObstacleAssistant(RIGHT)}
+            {RIGHT,  ObstacleAssistant(RIGHT)}
     };
     this->stag = 0;
-
-
 }
 
 
@@ -53,6 +51,7 @@ void ObstacleController::Reset() {
 
 // Avoid crashing into objects detected by the ultraound
 void ObstacleController::avoidObstacle() {
+    logicMessage(current_time, ClassName, __func__);
     switch (this->detection_declaration) {
         case OBS_LEFT:
 //            break;
@@ -73,13 +72,13 @@ void ObstacleController::avoidObstacle() {
             break;
         default:
             std::cout << "OBSTACLE_CONTROLLER: avoidObstacle(), hit default" << std::endl;
-
     }
 }
 
 // A collection zone was seen in front of the rover and we are not carrying a target
 // so avoid running over the collection zone and possibly pushing cubes out.
 void ObstacleController::avoidCollectionZone() {
+    logicMessage(current_time, ClassName, __func__);
 
     result.type = precisionDriving;
 
@@ -100,7 +99,8 @@ void ObstacleController::avoidCollectionZone() {
 
 
 Result ObstacleController::DoWork() {
-    std::cout << "ObstacleController -> DoWork" << std::endl;
+//    std::cout << "ObstacleController -> DoWork" << std::endl;
+    logicMessage(current_time, ClassName, __func__);
 
     clearWaypoints = true;
     set_waypoint = true;
@@ -208,7 +208,7 @@ void ObstacleController::ProcessData() {
         if (this->stag < 2) {
             this->stag++;
         } else {
-            std::cout << "STAG started" << std::endl;
+//            std::cout << "STAG started" << std::endl;
             this->obstacle_stag.allowed = true;
         }
     }
@@ -313,8 +313,8 @@ void ObstacleController::ProcessData() {
             obstacleAvoided = false;
             can_set_waypoint = false;
 
-            std::cout << "Obstacle Type Init --->> " << this->obstacle_init.type << std::endl;
-            std::cout << "Obstacle Type Stag --->> " << this->obstacle_stag.type << std::endl;
+//            std::cout << "Obstacle Type Init --->> " << this->obstacle_init.type << std::endl;
+//            std::cout << "Obstacle Type Stag --->> " << this->obstacle_stag.type << std::endl;
         }
 
 
@@ -336,8 +336,8 @@ void ObstacleController::ProcessData() {
 // the collection zone
 // Added relative pose information so we know whether the
 // top of the AprilTag is pointing towards the rover or away.
-// If the top of the tags are away from the rover then treat them as obstacles. 
-void ObstacleController::setTagData(vector<Tag> tags) {
+// If the top of the tags are away from the rover then treat them as obstacles.
+void ObstacleController::setTagData(vector <Tag> tags) {
     collection_zone_seen = false;
     count_left_collection_zone_tags = 0;
     count_right_collection_zone_tags = 0;
@@ -365,7 +365,6 @@ bool ObstacleController::checkForCollectionZoneTags(vector<Tag> tags) {
             // checks if tag is on the right or left side of the image
             if (tag.getPositionX() + camera_offset_correction > 0) {
                 count_right_collection_zone_tags++;
-
             } else {
                 count_left_collection_zone_tags++;
             }
@@ -409,7 +408,7 @@ void ObstacleController::setIgnoreCenterSonar() {
     ignore_center_sonar = true;
 }
 
-void ObstacleController::setCurrentTimeInMilliSecs(long int time) {
+void ObstacleController::SetCurrentTimeInMilliSecs(long int time) {
     current_time = time;
 }
 
@@ -495,24 +494,19 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
             if (!accepted_sonar.empty()) {
                 if (left && center && right) {
                     this->obstacle_init.type = OBS_CENTER;
-                }
-                else if (center && left) {
+                } else if (center && left) {
                     this->obstacle_init.type = OBS_LEFT_CENTER;
-                }
-                else if (center && right) {
+                } else if (center && right) {
                     this->obstacle_init.type = OBS_RIGHT_CENTER;
-                }
-                else if (center) {
+                } else if (center) {
                     this->obstacle_init.type = OBS_CENTER;
-                }
-                else if (left) {
+                } else if (left) {
                     this->obstacle_init.type = OBS_LEFT;
-                }
-                else if (right) {
+                } else if (right) {
                     this->obstacle_init.type = OBS_RIGHT;
                 }
             }
-            // Reset 'obstacle' monitors and detections
+                // Reset 'obstacle' monitors and detections
             else {
                 resetObstacle(INIT);
             }
@@ -521,25 +515,20 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
             if (!accepted_sonar.empty()) {
                 if (left && center && right) {
                     this->obstacle_stag.type = OBS_CENTER;
-                }
-                else if (center && left) {
+                } else if (center && left) {
                     this->obstacle_stag.type = OBS_LEFT_CENTER;
-                }
-                else if (center && right) {
+                } else if (center && right) {
                     this->obstacle_stag.type = OBS_RIGHT_CENTER;
-                }
-                else if (center) {
+                } else if (center) {
                     this->obstacle_stag.type = OBS_CENTER;
-                }
-                else if (left) {
+                } else if (left) {
                     this->obstacle_stag.type = OBS_LEFT;
-                }
-                else if (right) {
+                } else if (right) {
                     this->obstacle_stag.type = OBS_RIGHT;
 
                 }
             }
-            // Reset 'obstacle' monitors and detections
+                // Reset 'obstacle' monitors and detections
             else {
                 resetObstacle(STAG);
             }
@@ -547,9 +536,10 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
         default:
             std::cout << "OBSTACLE_CONTROLLER: hit default" << std::endl;
             break;
-
     }
 }
+
+
 
 /**
  * Iterates of the passed structure and verifies detection are of acceptable range.
