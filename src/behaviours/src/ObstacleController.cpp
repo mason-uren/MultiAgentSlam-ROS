@@ -104,8 +104,8 @@ Result ObstacleController::DoWork() {
         Point forward;            //waypoint is directly ahead of current heading
         forward.x = currentLocation.x + (0.5 * cos(currentLocation.theta));
         forward.y = currentLocation.y + (0.5 * sin(currentLocation.theta));
-        result.wpts.waypoints.clear();
-        result.wpts.waypoints.push_back(forward);
+        result.waypoints.clear();
+        result.waypoints.push_back(forward);
     }
 
     return result;

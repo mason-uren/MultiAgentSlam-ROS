@@ -78,8 +78,8 @@ Result RangeController::DoWork() {
     Point point_in_range = distAlongLineSegment(current_location, range->getCenter(), backtrack_distance);
 
     result.type = waypoint;
-    result.wpts.waypoints.clear();
-    result.wpts.waypoints.push_back(point_in_range);
+    result.waypoints.clear();
+    result.waypoints.push_back(point_in_range);
     result.PIDMode = FAST_PID;
 
     cout << "Range controller doing work: moving to (" << point_in_range.x << ", " << point_in_range.y << ")" << endl;
