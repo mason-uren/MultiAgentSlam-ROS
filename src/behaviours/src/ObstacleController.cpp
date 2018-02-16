@@ -53,7 +53,6 @@ void ObstacleController::Reset() {
 
 // Avoid crashing into objects detected by the ultraound
 void ObstacleController::avoidObstacle() {
-    // Always turn right to avoid obstacle
     switch (this->detection_declaration) {
         case OBS_LEFT:
 //            break;
@@ -66,7 +65,7 @@ void ObstacleController::avoidObstacle() {
         case OBS_RIGHT_CENTER:
             result.type = precisionDriving;
 
-            result.pd.cmdAngular = K_angular;
+            result.pd.cmdAngular = -K_angular; // Left
 
             result.pd.setPointVel = 0.0;
             result.pd.cmdVel = 0.0;
@@ -199,8 +198,6 @@ void ObstacleController::ProcessData() {
         }
     }
 
-
-    // TODO: CURRENT WORk
     // Each iteration through should have to recalc detection
     this->obstacle_init.type = NO_OBSTACLE;
     this->obstacle_stag.type = NO_OBSTACLE;
@@ -217,7 +214,7 @@ void ObstacleController::ProcessData() {
     }
 
     /*
-     * METHODOLODY
+     * DETECTION METHODOLOGY
      * 1) Is below 'MAX_THRESH'?
      * 2) Check is any of the monitors are at capacity
      * 3) Is valid detection? Is below 'MIN_THRESH'
@@ -253,7 +250,6 @@ void ObstacleController::ProcessData() {
         }
     }
     if (this->obstacle_stag.allowed) { // STAG
-//        std::cout << "STAG: before sonar analysis" << std::endl;
         for (auto assistant: this->obstacle_stag.sonar_map) {
             if (assistant.second.detections.init_detection) {
                 sonarAnalysis(assistant.second, STAG);
@@ -301,15 +297,18 @@ void ObstacleController::ProcessData() {
      * turned on, so this statement should be caught by 'obstacle_init' and skipped before
      * the initialization of 'obstacle_stag'
      */
-    if (this->obstacle_init.type != NO_OBSTACLE && (this->obstacle_init.type == this->obstacle_stag.type)) { // <--- TODO: try this line first
+    if (this->obstacle_init.type != NO_OBSTACLE && (this->obstacle_init.type == this->obstacle_stag.type)) {
         /*
          * Choose to ignore sonar detections
          */
         if (acceptDetections) {
-            this->detection_declaration = this->obstacle_init.type;
+            this->detection_declaration = this->obstacle_init.type; // Final Detection
+
+            /*
+             * Next 5 lines from base code
+             */
             phys = true;
             timeSinceTags = current_time;
-
             obstacleDetected = true;
             obstacleAvoided = false;
             can_set_waypoint = false;
@@ -371,10 +370,8 @@ bool ObstacleController::checkForCollectionZoneTags(vector<Tag> tags) {
                 count_left_collection_zone_tags++;
             }
         }
-
     }
-
-
+    
     // Did any tags indicate that the robot is inside the collection zone?
     return count_left_collection_zone_tags + count_right_collection_zone_tags > 0;
 
@@ -438,8 +435,6 @@ void ObstacleController::setTargetHeldClear() {
     }
 }
 
-//TODO: implement correction angle calculator based on acceptable values
-//Need to make sure to only pass good sonar detections
 /**
  * If acceptedable detections cross 'MIN_THRESH' mark the direction of the obstacle
  * @param accepted_sonar : temporary map of accepted sonar vectors
@@ -517,14 +512,13 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
                     this->obstacle_init.type = OBS_RIGHT;
                 }
             }
-                // Reset 'obstacle' monitors and detections
+            // Reset 'obstacle' monitors and detections
             else {
                 resetObstacle(INIT);
             }
             break;
         case STAG:
             if (!accepted_sonar.empty()) {
-//                std::cout << "STAG: declaring obs" << std::endl;
                 if (left && center && right) {
                     this->obstacle_stag.type = OBS_CENTER;
                 }
@@ -545,7 +539,7 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
 
                 }
             }
-                // Reset 'obstacle' monitors and detections
+            // Reset 'obstacle' monitors and detections
             else {
                 resetObstacle(STAG);
             }
@@ -588,6 +582,10 @@ void ObstacleController::sonarAnalysis(ObstacleAssistant assistant, DELAY_TYPE d
                             this->obstacle_stag.sonar_map.at(sonar).detections.good_detection = true;
                             this->obstacle_stag.sonar_map.at(sonar).detections.smallest_detection = curr;
                     }
+                    /*
+                     * DO NOT REMOVE COMMENTED CODE
+                     * IF DETECTION ERRORS OCCUR SEE MASON U'REN FOR DEBUGGING
+                     */
     //                    last_detect = curr;
                     // TESTING: noticed false detections
     //                    if (curr > 0.06) {
