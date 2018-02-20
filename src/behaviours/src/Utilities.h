@@ -15,6 +15,8 @@ public:
     static float difference_between_angles(Point, Point);
 
     static int saturation_check(int, int);
+    
+    static float infinity_norm(Point);
 };
 
 #endif
