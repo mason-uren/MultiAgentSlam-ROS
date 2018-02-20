@@ -37,7 +37,7 @@ bool ManualWaypointController::ShouldInterrupt() {
 Result ManualWaypointController::DoWork() {
   Result result;
   result.type = waypoint;
-  result.wpts.waypoints.push_back(waypoints.begin()->second);
+  result.waypoints.push_back(waypoints.begin()->second);
   result.PIDMode = FAST_PID;
   return result;
 }

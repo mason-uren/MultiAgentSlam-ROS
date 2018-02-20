@@ -82,8 +82,8 @@ Result DropOffController::DoWork() {
     if (distanceToCenter > collectionPointVisualDistance && !circularCenterSearching && (count == 0)) {
 
         result.type = waypoint;
-        result.wpts.waypoints.clear();
-        result.wpts.waypoints.push_back(this->centerLocation);
+        result.waypoints.clear();
+        result.waypoints.push_back(this->centerLocation);
         startWaypoint = false;
         isPrecisionDriving = false;
 
@@ -105,8 +105,8 @@ Result DropOffController::DoWork() {
         nextSpinPoint.theta = Utilities::angle_between_points(nextSpinPoint,currentLocation);
 
         result.type = waypoint;
-        result.wpts.waypoints.clear();
-        result.wpts.waypoints.push_back(nextSpinPoint);
+        result.waypoints.clear();
+        result.waypoints.push_back(nextSpinPoint);
 
         spinner += 45 * (M_PI / 180); //add 45 degrees in radians to spinner.
         if (spinner > 2 * M_PI) {
@@ -220,7 +220,7 @@ Result DropOffController::DoWork() {
             centerApproach = false;
 
             result.type = waypoint;
-            result.wpts.waypoints.push_back(this->centerLocation);
+            result.waypoints.push_back(this->centerLocation);
             if (isPrecisionDriving) {
                 result.type = behavior;
                 result.behaviourType = prevProcess;
@@ -258,7 +258,7 @@ void DropOffController::Reset() {
   result.fingerAngle = -1;
   result.wristAngle = 0.7;
   result.reset = false;
-  result.wpts.waypoints.clear();
+  result.waypoints.clear();
   spinner = 0;
   spinSizeIncrease = 0;
   prevCount = 0;

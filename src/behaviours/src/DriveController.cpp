@@ -226,8 +226,8 @@ void DriveController::ProcessData() {
         }
 
         //add waypoints onto stack and change state to start following them
-        if (!result.wpts.waypoints.empty()) {
-            waypoints.insert(waypoints.end(), result.wpts.waypoints.begin(), result.wpts.waypoints.end());
+        if (!result.waypoints.empty()) {
+            waypoints.insert(waypoints.end(), result.waypoints.begin(), result.waypoints.end());
             stateMachineState = STATE_MACHINE_WAYPOINTS;
         }
     } else if (result.type == precisionDriving) {

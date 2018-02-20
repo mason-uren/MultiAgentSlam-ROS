@@ -34,8 +34,8 @@ Result SearchController::DoWork() {
 
     extern void logicMessage(long int currentTime, string component, string message);
 
-    if (!result.wpts.waypoints.empty()) {
-        if (Utilities::distance_between_points(result.wpts.waypoints[0], currentLocation) < 0.15) {
+    if (!result.waypoints.empty()) {
+        if (Utilities::distance_between_points(result.waypoints[0], currentLocation) < 0.15) {
             attemptCount = 0;
         }
     }
@@ -66,8 +66,8 @@ Result SearchController::DoWork() {
             searchLocation.y = currentLocation.y + (0.5 * sin(searchLocation.theta));
         }
 
-        result.wpts.waypoints.clear();
-        result.wpts.waypoints.insert(result.wpts.waypoints.begin(), searchLocation);
+        result.waypoints.clear();
+        result.waypoints.insert(result.waypoints.begin(), searchLocation);
 
         return result;
     }
@@ -80,9 +80,9 @@ void SearchController::SetCenterLocation(Point centerLocation) {
     float diffY = this->centerLocation.y - centerLocation.y;
     this->centerLocation = centerLocation;
 
-    if (!result.wpts.waypoints.empty()) {
-        result.wpts.waypoints.back().x -= diffX;
-        result.wpts.waypoints.back().y -= diffY;
+    if (!result.waypoints.empty()) {
+        result.waypoints.back().x -= diffX;
+        result.waypoints.back().y -= diffY;
     }
 
 }

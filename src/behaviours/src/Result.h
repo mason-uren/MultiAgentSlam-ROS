@@ -64,15 +64,14 @@ struct PrecisionDriving {
     float right = 0.0;
 };
 
-struct Waypoints {
-    vector<Point> waypoints;
-};
+
+
 
 struct Result {
     ResultType type; //stores the type of the result
 
     BehaviorTrigger behaviourType; //hold the behavior type
-    Waypoints wpts; //hold the waypoints
+    vector<Point> waypoints;  //hold the waypoints
     PrecisionDriving pd; //holds precision commands
 
     float fingerAngle = -1; //holds commanded for finger angle, defualt is -1 no movment
