@@ -33,9 +33,9 @@ void SearchController::SetCurrentTimeInMilliSecs(long int time) {
 Result SearchController::DoWork() {
 
     extern void logicMessage(long int currentTime, string component, string message);
-    if (result.type == vectorDriving) {
-        bool search_mode = true;
-        result.desired_heading = GetNewHeading(currentLocation.theta,search_mode); //bool value is search_mode
+    if (vector_search) {
+        result.type = vectorDriving;
+        result.desired_heading = GetNewHeading(currentLocation.theta,true); //bool value is search_mode
     } else {
         if (!result.waypoints.empty()) {
             if (Utilities::distance_between_points(result.waypoints[0], currentLocation) < 0.15) {

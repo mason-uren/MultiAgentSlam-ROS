@@ -62,6 +62,8 @@ private:
     long int current_time;
 
     string ClassName = "Search Controller";
+
+    bool vector_search = true;
 };
 
 #endif /* SEARCH_CONTROLLER */
