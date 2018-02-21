@@ -3,9 +3,48 @@
 
 #include "Controller.h"
 #include "Tag.h"
+#include "ObstacleAssistant.h"
+#include <map>
+
+/*
+ * Sonar has the most accurate readings at a range less than 2 meters
+ * Calculated % Error:
+ * ===================
+ * Range:       Error:
+ * -> 2m        5.31% error
+ * -> 1.5m      0.125% error
+ */
+#define MAX_THRESH 1.5
+
+/*
+ * Web cam has max april tag detection range of 0.6604m
+ * Any theoretical obstacle needs to be verified 'not a resource'
+ */
+#define MIN_THRESH 0.6
+
+/*
+ * With rover speed of 0.3m/s and min head on collisoin separation at 0.35m, structure size cannot exceed the value of 8.
+ */
+#define VECTOR_MAX 8
+
+/*
+ * Calculated max dist. lost when collision imminent between two rover, plus variance observed at 1.5m range
+ */
+#define DELTA 0.60894
+
+/*
+ * Obstacle structure
+ */
+typedef struct {
+    bool allowed;
+    OBS_TYPE type;
+    DELAY_TYPE delay;
+    std::map<SONAR, ObstacleAssistant> sonar_map;
+} OBSTACLE;
 
 extern void logMessage(long int currentTime, string component, string message);
 
+extern void detectionMessage(long int currentTime, string component, string message);
 extern void logicMessage(long int currentTime, string component, string message);
 
 class ObstacleController : virtual Controller {
@@ -22,7 +61,7 @@ public:
 
     void setCurrentLocation(Point currentLocation);
 
-    void setTagData(vector <Tag> tags);
+    void setTagData(vector<Tag> tags);
 
     bool ShouldInterrupt() override;
 
@@ -48,6 +87,14 @@ protected:
 
     void ProcessData();
 
+    void sonarMonitor(OBSTACLE, float, SONAR);
+
+    void sonarAnalysis(ObstacleAssistant, DELAY_TYPE);
+
+    void obstacleContactDir(std::map<SONAR, ObstacleAssistant>, DELAY_TYPE);
+
+    void resetObstacle(DELAY_TYPE);
+
 private:
 
     // Try not to run over the collection zone
@@ -69,8 +116,6 @@ private:
     /*
      * Member variables
      */
-
-
     bool obstacleInterrupt; //records if obstacle has interupted
     bool obstacleDetected;  //records if an obstacle has been detected
     bool obstacleAvoided; //record if an obstacke has been avoided
@@ -88,9 +133,7 @@ private:
 
     Point currentLocation;
 
-    //current ROS time from the RosAdapter
     long int current_time;
-
     long int timeSinceTags;
     long int delay;
 
@@ -105,10 +148,27 @@ private:
 
     float camera_offset_correction = 0.020; //meters;
 
+    string ClassName = "Obstacle Controller";
+
     // Print only one log message once obstacle has been encountered
     bool logInit = false;
 
-    string ClassName = "Obstacle Controller";
+    /*
+     * Obstacle detection structure
+     * (Can add more MONITORS if need be)
+     */
+    int stag;
+    OBS_TYPE detection_declaration;
+    OBSTACLE obstacle_init;
+    OBSTACLE obstacle_stag;
+
+    string detect_msg;
+
+    /*
+     * Turn On/Off detections
+     * Default: True
+     */
+    bool acceptDetections;
 };
 
 #endif // OBSTACLECONTOLLER_H

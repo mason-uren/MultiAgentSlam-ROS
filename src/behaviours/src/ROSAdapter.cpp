@@ -136,6 +136,7 @@ ros::Publisher waypointFeedbackPublisher;
 // All logs should be published here. See WIKI for how to view the logs.
 ros::Publisher loggerPublish;
 ros::Publisher loggerPublisher;
+ros::Publisher sonarPublisher;
 ros::Publisher logicPublish;
 
 // Subscribers
@@ -230,6 +231,7 @@ int main(int argc, char **argv) {
 
     // Added a publisher for logging capabilities through ROSTopics.
   loggerPublish = mNH.advertise<std_msgs::String>((publishedName + "/logger"), 1, true);
+  sonarPublisher = mNH.advertise<std_msgs::String>((publishedName + "/detections"), 1, true);
   logicPublish = mNH.advertise<std_msgs::String>((publishedName + "/logic"), 1, true);
 
   publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
@@ -767,6 +769,11 @@ void logMessage(long int currentTime, string component, string message) {
   loggerPublish.publish(messageToPublish);
 }
 
+void detectionMessage(long int currentTime, string component, string message) {
+  std_msgs::String messageToPublish;
+  messageToPublish.data = "[" + std::to_string(currentTime) + " " + component + "] " + message;
+  sonarPublisher.publish(messageToPublish);
+}
 void logicMessage(long int currentTime, string component, string message) {
   std_msgs::String messageToPublish;
   messageToPublish.data = "[" + std::to_string(currentTime) + " " + component + "] " + message;
