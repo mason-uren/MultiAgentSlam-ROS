@@ -138,7 +138,7 @@ Result DriveController::DoWork()
             if (abs_error > rotateOnlyAngleTolerance) {
                 // rotate but dont drive.
                 if (result.PIDMode == FAST_PID) {
-                    fastPID(0.0, errorYaw, result.pd.setPointVel, result.pd.setPointYaw);
+                    outputValidation(velPID(fastVelPID, 0.0, result.pd.setPointVel), yawPID(fastYawPID, errorYaw, result.pd.setPointYaw));
                 }
 
                 break;
@@ -171,7 +171,7 @@ Result DriveController::DoWork()
                 result.pd.setPointVel = searchVelocity;
                 if (result.PIDMode == FAST_PID) {
                     //cout << "linear velocity:  " << linearVelocity << endl; //DEBUGGING CODE
-                    fastPID((searchVelocity - linearVelocity), errorYaw, result.pd.setPointVel, result.pd.setPointYaw);
+                    outputValidation(velPID(fastVelPID, (searchVelocity - linearVelocity), result.pd.setPointVel), yawPID(fastYawPID, errorYaw, result.pd.setPointYaw));
                 }
             } else {
                 // stopno change
@@ -236,12 +236,12 @@ void DriveController::ProcessData() {
         if (result.PIDMode == FAST_PID) {
             float vel = result.pd.cmdVel - linearVelocity;
             float setVel = result.pd.cmdVel;
-            fastPID(vel, result.pd.cmdAngularError, setVel, result.pd.setPointYaw);
+            outputValidation(velPID(fastVelPID, vel, setVel), yawPID(fastYawPID, result.pd.cmdAngularError, result.pd.setPointYaw));
         } else if (result.PIDMode == SLOW_PID) {
             //will take longer to reach the setPoint but has less chanse of an overshoot especially with slow feedback
             float vel = result.pd.cmdVel - linearVelocity;
             float setVel = result.pd.cmdVel;
-            slowPID(vel, result.pd.cmdAngularError, setVel, result.pd.setPointYaw);
+            outputValidation(velPID(slowVelPID, vel, setVel), yawPID(slowYawPID, result.pd.cmdAngularError, result.pd.setPointYaw));
         } else if (result.PIDMode == CONST_PID) {
             //vel is the same as fast PID however
             //this setup takes a target angular velocity to constantly turn at instead of a target heading
@@ -250,39 +250,21 @@ void DriveController::ProcessData() {
 
             //cout << "Ang. Vel.  " << angularVelocity << "  Ang. Error" << angular << endl; //DEBUGGING CODE
 
-            constPID(vel, angular, result.pd.setPointVel, result.pd.setPointYaw);
+            outputValidation(velPID(constVelPID, vel, result.pd.setPointVel), yawPID(constYawPID, angular, result.pd.setPointYaw));
         }
     }
 }
 
 
-void DriveController::fastPID(float errorVel, float errorYaw, float setPointVel, float setPointYaw) {
-
-    // cout << "PID FAST" << endl; //DEBUGGING CODE
-
-    float velOut = fastVelPID.PIDOut(errorVel, setPointVel); //returns PWM target to try and get error vel to 0
-    float yawOut = fastYawPID.PIDOut(errorYaw, setPointYaw); //returns PWM target to try and get yaw error to 0
-
-    outputValidation(velOut, yawOut);
+float DriveController::velPID(PID &vpid, float errorVel, float setPointVel) {
+    float velOut = vpid.PIDOut(errorVel, setPointVel);
+    return velOut;
 }
 
-void DriveController::slowPID(float errorVel, float errorYaw, float setPointVel, float setPointYaw) {
-    //cout << "PID SLOW" << endl; //DEBUGGING CODE
 
-    float velOut = slowVelPID.PIDOut(errorVel, setPointVel);
-    float yawOut = slowYawPID.PIDOut(errorYaw, setPointYaw);
-
-    outputValidation(velOut, yawOut);
-}
-
-void DriveController::constPID(float erroVel, float constAngularError, float setPointVel, float setPointYaw) {
-
-    //cout << "PID CONST" << endl; //DEBUGGING CODE
-
-    float velOut = constVelPID.PIDOut(erroVel, setPointVel);
-    float yawOut = constYawPID.PIDOut(constAngularError, setPointYaw);
-
-    outputValidation(velOut, yawOut);
+float DriveController::yawPID(PID &ypid, float errorYaw, float setPointYaw) {
+    float yawOut = ypid.PIDOut(errorYaw, setPointYaw);
+    return yawOut;
 }
 
 
