@@ -64,6 +64,9 @@ Result DriveController::DoWork()
         //interpret input result as new waypoints to add into the queue
         ProcessData();
 
+    } else if (result.type == vectorDriving) {
+        logicMessage(current_time, ClassName, "Wector Driving");
+        ProcessData();
     }
 
     switch (stateMachineState) {
@@ -121,7 +124,10 @@ Result DriveController::DoWork()
             // Rotate left or right depending on sign of angle
             // Stay in this state until angle is minimized
 
-            waypoints.back().theta = Utilities::angle_between_points(waypoints.back(),currentLocation);
+            if (result.type == vectorDriving) //?
+                waypoints.back().theta = result.desired_heading;
+            else
+                waypoints.back().theta = Utilities::angle_between_points(waypoints.back(),currentLocation);
 
             // Calculate the diffrence between current and desired heading in radians.
             float errorYaw = Utilities::difference_between_angles(currentLocation,waypoints.back());
@@ -148,6 +154,7 @@ Result DriveController::DoWork()
 
                 //fall through on purpose.
             }
+
         }
 
         case STATE_MACHINE_SKID_STEER: {
@@ -156,33 +163,40 @@ Result DriveController::DoWork()
             // Stay in this state until angle is at least PI/2
 
             // calculate the distance between current and desired heading in radians
-            waypoints.back().theta = Utilities::angle_between_points(waypoints.back(),currentLocation);
-            float errorYaw = Utilities::difference_between_angles(currentLocation,waypoints.back());
-            float distance = Utilities::distance_between_points(waypoints.back(),currentLocation);
-
-            //cout << "Skid steer, Error yaw:  " << errorYaw << " target heading : " << waypoints.back().theta << " current heading : " << currentLocation.theta << " error distance : " << distance << endl; //DEBUGGING CODE
-            //cout << "Waypoint x : " << waypoints.back().x << " y : " << waypoints.back().y << " currentLoc x : " << currentLocation.x << " y : " << currentLocation.y << endl; //DEBUGGING CODE
-
-
-
-            // goal not yet reached drive while maintaining proper heading.
-            if (fabs(errorYaw) < M_PI_2 && distance > waypointTolerance) {
-                // drive and turn simultaniously
-                result.pd.setPointVel = searchVelocity;
-                if (result.PIDMode == FAST_PID) {
-                    //cout << "linear velocity:  " << linearVelocity << endl; //DEBUGGING CODE
-                    fastPID((searchVelocity - linearVelocity), errorYaw, result.pd.setPointVel, result.pd.setPointYaw);
-                }
-            } else {
-                // stopno change
-                left = 0.0;
+            if (result.type == vectorDriving) {
+                left = 0.3;
                 right = 0.0;
+                break;
+            } else {
+                waypoints.back().theta = Utilities::angle_between_points(waypoints.back(), currentLocation);
+                float errorYaw = Utilities::difference_between_angles(currentLocation, waypoints.back());
+                float distance = Utilities::distance_between_points(waypoints.back(), currentLocation);
 
-                // move back to transform step
-                stateMachineState = STATE_MACHINE_WAYPOINTS;
+                //cout << "Skid steer, Error yaw:  " << errorYaw << " target heading : " << waypoints.back().theta << " current heading : " << currentLocation.theta << " error distance : " << distance << endl; //DEBUGGING CODE
+                //cout << "Waypoint x : " << waypoints.back().x << " y : " << waypoints.back().y << " currentLoc x : " << currentLocation.x << " y : " << currentLocation.y << endl; //DEBUGGING CODE
+
+
+
+                // goal not yet reached drive while maintaining proper heading.
+                if (fabs(errorYaw) < M_PI_2 && distance > waypointTolerance) {
+                    // drive and turn simultaniously
+                    result.pd.setPointVel = searchVelocity;
+                    if (result.PIDMode == FAST_PID) {
+                        //cout << "linear velocity:  " << linearVelocity << endl; //DEBUGGING CODE
+                        fastPID((searchVelocity - linearVelocity), errorYaw, result.pd.setPointVel,
+                                result.pd.setPointYaw);
+                    }
+                } else {
+                    // stopno change
+                    left = 0.0;
+                    right = 0.0;
+
+                    // move back to transform step
+                    stateMachineState = STATE_MACHINE_WAYPOINTS;
+                }
+
+                break;
             }
-
-            break;
         }
 
         default: {
@@ -252,7 +266,13 @@ void DriveController::ProcessData() {
 
             constPID(vel, angular, result.pd.setPointVel, result.pd.setPointYaw);
         }
+    } else if (result.type == vectorDriving) {
+        result.type = behavior;
+        result.behaviourType = noChange;
+
+        stateMachineState = STATE_MACHINE_ROTATE;
     }
+
 }
 
 
