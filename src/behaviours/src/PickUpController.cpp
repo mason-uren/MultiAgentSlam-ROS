@@ -49,13 +49,17 @@ void PickUpController::SetTagData(vector <Tag> tags) {
                 //absolute distance to block from camera lens
                 double test = hypot(hypot(tags[i].getPositionX(), tags[i].getPositionY()), tags[i].getPositionZ());
 
-                if (closest > test) {
-                    target = i;
-                    closest = test;
-                }
-            } else {
-
-                if (tags[i].getID() == 256) {
+        if (closest > test)
+        {
+          target = i;
+          closest = test;
+        }
+      }
+      else
+      {
+        // If the center is seen, then don't try to pick up the cube.
+        if(tags[i].getID() == 256)
+        {
 
                     Reset();
 
@@ -71,9 +75,13 @@ void PickUpController::SetTagData(vector <Tag> tags) {
 
         float cameraOffsetCorrection = 0.023; //meters;
 
-        ///TODO: Explain the trig going on here- blockDistance is c, 0.195 is b; find a
-        blockDistanceFromCamera = hypot(hypot(tags[target].getPositionX(), tags[target].getPositionY()),
-                                        tags[target].getPositionZ());
+    // using a^2 + b^2 = c^2 to find the distance to the block
+    // 0.195 is the height of the camera lens above the ground in cm.
+    //
+    // a is the linear distance from the robot to the block, c is the
+    // distance from the camera lens, and b is the height of the
+    // camera above the ground.
+    blockDistanceFromCamera = hypot(hypot(tags[target].getPositionX(), tags[target].getPositionY()), tags[target].getPositionZ());
 
         if ((blockDistanceFromCamera * blockDistanceFromCamera - 0.195 * 0.195) > 0) {
             blockDistance = sqrt(blockDistanceFromCamera * blockDistanceFromCamera - 0.195 * 0.195);
@@ -94,15 +102,18 @@ void PickUpController::SetTagData(vector <Tag> tags) {
 }
 
 
-bool PickUpController::SetSonarData(float rangeCenter) {
-
-    if (rangeCenter < 0.12 && targetFound) {
-        result.type = behavior;
-        result.behaviourType = nextProcess;
-        result.reset = true;
-        targetHeld = true;
-        return true;
-    }
+bool PickUpController::SetSonarData(float rangeCenter)
+{
+  // If the center ultrasound sensor is blocked by a very close
+  // object, then a cube has been successfully lifted.
+  if (rangeCenter < 0.12 && targetFound)
+  {
+    result.type = behavior;
+    result.behaviourType = nextProcess;
+    result.reset = true;
+    targetHeld = true;
+    return true;
+  }
 
     return false;
 
@@ -125,22 +136,25 @@ void PickUpController::ProcessData() {
 
     //cout << "distance : " << blockDistanceFromCamera << " time is : " << Td << endl;
 
-    if (blockDistanceFromCamera < 0.14 && Td < 3.9) {
-        result.type = behavior;
-        result.behaviourType = nextProcess;
-        result.reset = true;
-        targetHeld = true;
-
-        // Publish to the log.
-        string message = "Successful PickUp of resource.";
-        logMessage(current_time, "PICKUP", message);
-    }
-        //Lower wrist and open fingures if no locked targt
-    else if (!lockTarget) {
-        //set gripper;
-        result.fingerAngle = M_PI_2;
-        result.wristAngle = 1.25;
-    }
+  // If the block is very close to the camera then the robot has
+  // successfully lifted a target. Enter the target held state to
+  // return to the center.
+  if (blockDistanceFromCamera < 0.14 && Td < 3.9)
+  {
+    result.type = behavior;
+    result.behaviourType = nextProcess;
+    result.reset = true;
+    targetHeld = true;
+  }
+  //Lower wrist and open fingers if no locked target -- this is the
+  //case if the robot lost tracking, or missed the cube when
+  //attempting to pick it up.
+  else if (!lockTarget)
+  {
+    //set gripper;
+    result.fingerAngle = M_PI_2;
+    result.wristAngle = 1.25;
+  }
 }
 
 
@@ -148,23 +162,31 @@ bool PickUpController::ShouldInterrupt() {
 
     ProcessData();
 
-    if (release_control) {
-        release_control = false;
-        has_control = false;
-        return true;
-    }
+  // saw center tags, so don't try to pick up the cube.
+  if (release_control)
+  {
+    release_control = false;
+    has_control = false;
+    return true;
+  }
 
-    if ((targetFound && !interupted) || targetHeld) {
-        interupted = true;
-        has_control = false;
-        return true;
-    } else if (!targetFound && interupted) {
-        interupted = false;
-        has_control = false;
-        return true;
-    } else {
-        return false;
-    }
+  if ((targetFound && !interupted) || targetHeld)
+  {
+    interupted = true;
+    has_control = false;
+    return true;
+  }
+  else if (!targetFound && interupted)
+  {
+    // had a cube in sight but lost it, interrupt again to release control
+    interupted = false;
+    has_control = false;
+    return true;
+  }
+  else
+  {
+    return false;
+  }
 }
 
 Result PickUpController::DoWork() {
