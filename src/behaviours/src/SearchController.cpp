@@ -34,8 +34,11 @@ Result SearchController::DoWork() {
 
     extern void logicMessage(long int currentTime, string component, string message);
     if (vector_search) {
+        printf("search ctrller");
         result.type = vectorDriving;
         result.desired_heading = GetNewHeading(currentLocation.theta,true); //bool value is search_mode
+        printf(" %f\n",result.desired_heading);
+        return result;
     } else {
         if (!result.waypoints.empty()) {
             if (Utilities::distance_between_points(result.waypoints[0], currentLocation) < 0.15) {
@@ -72,8 +75,8 @@ Result SearchController::DoWork() {
             result.waypoints.clear();
             result.waypoints.insert(result.waypoints.begin(), searchLocation);
         }
-    }
     return result;
+    }
 }
 
 void SearchController::SetCenterLocation(Point centerLocation) {
