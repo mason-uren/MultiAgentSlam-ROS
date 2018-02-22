@@ -7,7 +7,8 @@ ObstacleController::ObstacleController() {
      */
     this->acceptDetections = true;
 
-    obstacleAvoided = true;
+//    obstacleAvoided = true;
+    this->detection_declaration = NO_OBSTACLE;
     obstacleDetected = false;
     obstacleInterrupt = false;
     result.PIDMode = CONST_PID; //use the const PID to turn at a constant speed
@@ -49,7 +50,8 @@ ObstacleController::ObstacleController() {
 //note, not a full reset as this could cause a bad state
 //resets the interupt and knowledge of an obstacle or obstacle avoidance only.
 void ObstacleController::Reset() {
-    obstacleAvoided = true;
+//    obstacleAvoided =  true;
+    this->detection_declaration = NO_OBSTACLE;
     obstacleDetected = false;
     obstacleInterrupt = false;
     delay = current_time;
@@ -192,7 +194,8 @@ void ObstacleController::ProcessData() {
     if (Td >= 0.5) {
         collection_zone_seen = false;
         phys = false;
-        if (!obstacleAvoided) {
+//        if (!obstacleAvoided) {
+        if (this->detection_declaration != NO_OBSTACLE) {
             can_set_waypoint = true;
         }
     }
@@ -219,17 +222,14 @@ void ObstacleController::ProcessData() {
 
     /*
      * Each iteration through should have to recalc detection.
-     * 'decection_declaration' has a TRANSITION point that's meant to hold
-     * avoidance until initial rotation has been complete.
      */
     this->obstacle_init.type = NO_OBSTACLE;
     this->obstacle_stag.type = NO_OBSTACLE;
+    // Only reset main detection after previous reflection has finished
     if (this->reflection.can_end) {
         this->detection_declaration = NO_OBSTACLE;
     }
-    else {
-        this->reflect({0, 0}); // <-- dummy values that will be ignored
-    }
+
 
     // Delay the start of the second set of monitors
     if (!this->obstacle_stag.allowed) {
@@ -330,7 +330,14 @@ void ObstacleController::ProcessData() {
          * Choose to ignore sonar detections
          */
         if (acceptDetections) {
-            this->detection_declaration = this->obstacle_init.type; // Final Detection
+            /*
+             * Verify that a new detection is allowed to be made.
+             * This allows the rover to continue to monitor their surroundings,
+             * while not taking  immediate action.
+             */
+            if (this->reflection.can_end) {
+                this->detection_declaration = this->obstacle_init.type; // Final Detection
+            }
 
             /*
              * Next 5 lines from base code
@@ -338,7 +345,7 @@ void ObstacleController::ProcessData() {
             phys = true;
             timeSinceTags = current_time;
             obstacleDetected = true;
-            obstacleAvoided = false;
+//            obstacleAvoided = false;
             can_set_waypoint = false;
 
 //            std::cout << "Obstacle Type Init --->> " << this->obstacle_init.type << std::endl;
@@ -350,15 +357,13 @@ void ObstacleController::ProcessData() {
         resetObstacle(STAG);
 
     }
-    else {
-        /*
-         * Need to check that the intended reflection has been completed
-         */
-        if (this->reflection.can_end) {
-//            obstacleAvoided = true;
-            this->detection_declaration = NO_OBSTACLE;
-        }
-    }
+//    else {
+//        // Verify that we've completed the reflection off the obstacle
+//        if (this->reflection.can_end) {
+////            obstacleAvoided = true;
+//
+//        }
+//    }
 
     if (detection_declaration != NO_OBSTACLE) {
         detect_msg = "Detection: " + to_string(this->detection_declaration);
@@ -419,7 +424,7 @@ bool ObstacleController::ShouldInterrupt() {
         return true;
     } else {
         //if the obstacle has been avoided and we had previously detected one interrupt to change to waypoints
-        if (obstacleAvoided && obstacleDetected) {
+        if ((this->detection_declaration == NO_OBSTACLE) && obstacleDetected) {
             Reset();
             return true;
         } else {
@@ -451,7 +456,8 @@ void ObstacleController::setTargetHeld() {
 
     //adjust current state on transition from no cube held to cube held
     if (previousTargetState == false) {
-        obstacleAvoided = true;
+//        obstacleAvoided = true;
+        this->detection_declaration = NO_OBSTACLE;
         obstacleInterrupt = false;
         obstacleDetected = false;
         previousTargetState = true;
