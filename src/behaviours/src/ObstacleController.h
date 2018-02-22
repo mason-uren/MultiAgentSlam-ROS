@@ -58,6 +58,16 @@ typedef struct {
     std::map<SONAR, ObstacleAssistant> sonar_map;
 } OBSTACLE;
 
+/*
+ * Reflection
+ */
+typedef struct {
+    bool can_start;
+    bool can_end;
+    double reflect_angle;
+    double prev_orient;
+} REFLECTION;
+
 extern void logMessage(long int currentTime, string component, string message);
 
 extern void detectionMessage(long int currentTime, string component, string message);
@@ -179,8 +189,7 @@ private:
     OBS_TYPE detection_declaration;
     OBSTACLE obstacle_init;
     OBSTACLE obstacle_stag;
-    double reflect_angle;
-
+    REFLECTION reflection;
 
     string detect_msg;
 

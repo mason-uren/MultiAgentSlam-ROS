@@ -37,6 +37,12 @@ ObstacleController::ObstacleController() {
             {RIGHT,  ObstacleAssistant(RIGHT)}
     };
     this->stag = 0;
+
+    /*
+     * Create reflection structure
+     */
+    this->reflection.can_start = false;
+    this->reflection.can_end = true;
 }
 
 
@@ -60,6 +66,7 @@ void ObstacleController::avoidObstacle() {
     /*
      * Based on detection location reflect off of obstacle in
      * opposing direction.
+     * NOTE: only initial detection is recorded by 'reflect' function
      */
     switch (this->detection_declaration) {
         case OBS_LEFT:
@@ -119,7 +126,7 @@ Result ObstacleController::DoWork() {
     result.PIDMode = CONST_PID;
     string msg;
 
-    if (obstacleDetected) {
+    if (this->detection_declaration != NO_OBSTACLE) {
         /*
          * Update "/logger" publisher -> Starting avoidance
          */
@@ -210,10 +217,19 @@ void ObstacleController::ProcessData() {
         }
     }
 
-    // Each iteration through should have to recalc detection
+    /*
+     * Each iteration through should have to recalc detection.
+     * 'decection_declaration' has a TRANSITION point that's meant to hold
+     * avoidance until initial rotation has been complete.
+     */
     this->obstacle_init.type = NO_OBSTACLE;
     this->obstacle_stag.type = NO_OBSTACLE;
-    this->detection_declaration = NO_OBSTACLE;
+    if (this->reflection.can_end) {
+        this->detection_declaration = NO_OBSTACLE;
+    }
+    else {
+        this->reflect({0, 0}); // <-- dummy values that will be ignored
+    }
 
     // Delay the start of the second set of monitors
     if (!this->obstacle_stag.allowed) {
@@ -335,7 +351,13 @@ void ObstacleController::ProcessData() {
 
     }
     else {
-        obstacleAvoided = true;
+        /*
+         * Need to check that the intended reflection has been completed
+         */
+        if (this->reflection.can_end) {
+//            obstacleAvoided = true;
+            this->detection_declaration = NO_OBSTACLE;
+        }
     }
 
     if (detection_declaration != NO_OBSTACLE) {
@@ -447,14 +469,21 @@ void ObstacleController::setTargetHeldClear() {
 }
 
 void ObstacleController::reflect(std::vector<float> bounds) {
-
-    if ()
-
-    int rand();
-    reflect_angle = (rand() % bounds.at(1)) + bounds.at(0);
-
-
-
+    if (!this->reflection.can_start) {
+        int rand();
+        this->reflection.reflect_angle = (rand() % bounds.at(1)) + bounds.at(0);
+        this->reflection.prev_orient = currentLocation.theta;
+        this->reflection.can_start = true;
+        this->reflection.can_end = false;
+    }
+    else if (this->reflection.reflect_angle <= 0) {
+        this->reflection.reflect_angle = 0;
+        this->reflection.can_start = false;
+        this->reflection.can_end = true;
+    }
+    else {
+        this->reflection.reflect_angle -= std::abs(currentLocation.theta - this->reflection.prev_orient);
+    }
 }
 
 /**
