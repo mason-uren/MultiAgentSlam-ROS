@@ -33,6 +33,22 @@
 #define DELTA 0.60894
 
 /*
+ * Reflection bounds
+ */
+#define R_LOW 0
+#define R_HIGH -M_PI_2
+
+#define L_LOW 0
+#define L_HIGH M_PI_2
+
+#define RC_LOW -M_PI_2
+#define RC_HIGH -M_PI
+
+#define LC_LOW M_PI_2
+#define LC_HIGH M_PI
+
+
+/*
  * Obstacle structure
  */
 typedef struct {
@@ -92,6 +108,8 @@ protected:
     void sonarAnalysis(ObstacleAssistant, DELAY_TYPE);
 
     void obstacleContactDir(std::map<SONAR, ObstacleAssistant>, DELAY_TYPE);
+
+    void reflect(std::vector<double>);
 
     void resetObstacle(DELAY_TYPE);
 
@@ -161,6 +179,8 @@ private:
     OBS_TYPE detection_declaration;
     OBSTACLE obstacle_init;
     OBSTACLE obstacle_stag;
+    double reflect_angle;
+
 
     string detect_msg;
 

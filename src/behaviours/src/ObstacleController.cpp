@@ -52,23 +52,35 @@ void ObstacleController::Reset() {
 // Avoid crashing into objects detected by the ultraound
 void ObstacleController::avoidObstacle() {
     logicMessage(current_time, ClassName, __func__);
+
+    result.type = precisionDriving;
+    result.pd.setPointVel = 0.0;
+    result.pd.cmdVel = 0.0;
+    result.pd.setPointYaw = 0;
+    /*
+     * Based on detection location reflect off of obstacle in
+     * opposing direction.
+     */
     switch (this->detection_declaration) {
         case OBS_LEFT:
-//            break;
+            this->reflect({L_LOW, L_HIGH});
+            result.pd.cmdAngular = K_angular; // Turn right to avoid obstacle
+            break;
         case OBS_CENTER:
-//            break;
+            this->reflect({LC_LOW, LC_HIGH});
+            result.pd.cmdAngular = K_angular; // Turn right to avoid obstacle
+            break;
         case OBS_RIGHT:
-//            break;
+            this->reflect({R_LOW, R_HIGH});
+            result.pd.cmdAngular = -K_angular; // Turn left to avoid obstacle
+            break;
         case OBS_LEFT_CENTER:
-//            break;
+            this->reflect({LC_LOW, LC_HIGH});
+            result.pd.cmdAngular = K_angular; // Turn right to avoid obstacle
+            break;
         case OBS_RIGHT_CENTER:
-            result.type = precisionDriving;
-
-            result.pd.cmdAngular = -K_angular; // Left
-
-            result.pd.setPointVel = 0.0;
-            result.pd.cmdVel = 0.0;
-            result.pd.setPointYaw = 0;
+            this->reflect({RC_LOW, RC_HIGH});
+            result.pd.cmdAngular = -K_angular; // Turn left to avoid obstacle
             break;
         default:
             std::cout << "OBSTACLE_CONTROLLER: avoidObstacle(), hit default" << std::endl;
@@ -434,8 +446,19 @@ void ObstacleController::setTargetHeldClear() {
     }
 }
 
+void ObstacleController::reflect(std::vector<float> bounds) {
+
+    if ()
+
+    int rand();
+    reflect_angle = (rand() % bounds.at(1)) + bounds.at(0);
+
+
+
+}
+
 /**
- * If acceptedable detections cross 'MIN_THRESH' mark the direction of the obstacle
+ * If accepted detections cross 'MIN_THRESH' mark the direction of the obstacle
  * @param accepted_sonar : temporary map of accepted sonar vectors
  * @param delay : which monitor are we editing
  */

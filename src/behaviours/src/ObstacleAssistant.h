@@ -43,7 +43,6 @@ private:
         bool init_detection;
         bool good_detection;
         double smallest_detection;
-        double crct_agl;
     } DETECTIONS;
 
 public:
