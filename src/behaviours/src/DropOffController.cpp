@@ -288,6 +288,10 @@ void DropOffController::SetTargetData(vector <Tag> tags) {
     float xPos;
     float yPos;
     float zPos;
+    int upRQuad = 0;
+    int lowRQuad = 0;
+    int upLQuad = 0;
+    int lowLQuad = 0;
 
     //if (targetHeld) {
         // if a target is detected and we are looking for center tags
@@ -301,12 +305,29 @@ void DropOffController::SetTargetData(vector <Tag> tags) {
                     zPos = tags[i].getPositionZ();
                     // checks if tag is on the right or left side of the image
                     if (tags[i].getPositionX() + cameraOffsetCorrection > 0) {
+                        if(tags[i].getPositionY() > 0) {
+                            upRQuad++;
+                        }
+                        else{
+                            lowRQuad++;
+                        }
+                    } else {
+                        if(tags[i].getPositionY() > 0) {
+                            upLQuad++;
+                        }
+                        else{
+                            lowLQuad++;
+                        }
+                    }
+
+                    if (tags[i].getPositionX() + cameraOffsetCorrection > 0) {
                         countRight++;
 
                     } else {
                         countLeft++;
                     }
                     tagMessage(xPos, yPos, zPos, tagYaw);
+                    tagQuadMessage(upLQuad, upRQuad, lowLQuad, lowRQuad);
                 }
             }
         }

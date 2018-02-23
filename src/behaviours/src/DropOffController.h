@@ -11,6 +11,7 @@
 extern void logMessage(long int currentTime, string component, string message);
 extern void logicMessage(long int currentTime, string component, string message);
 extern void tagMessage(float xPos, float yPos, float zPos, float yaw);
+extern void tagQuadMessage(int upL, int upR, int lowL, int lowR);
 
 class DropOffController : virtual Controller {
 public:

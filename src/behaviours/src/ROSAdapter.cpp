@@ -111,6 +111,8 @@ float hoursTime = 0;
 
 float drift_tolerance = 0.5; // meters
 
+bool tagTesting = true; //Allows tag detection while in manual mode
+
 Result result;
 
 std_msgs::String msg;
@@ -139,6 +141,7 @@ ros::Publisher loggerPublisher;
 ros::Publisher sonarPublisher;
 ros::Publisher logicPublish;
 ros::Publisher tagDataPublish;
+ros::Publisher tagQuadPublish;
 
 // Subscribers
 ros::Subscriber joySubscriber;
@@ -235,6 +238,7 @@ int main(int argc, char **argv) {
   sonarPublisher = mNH.advertise<std_msgs::String>((publishedName + "/detections"), 1, true);
   logicPublish = mNH.advertise<std_msgs::String>((publishedName + "/logic"), 1, true);
   tagDataPublish = mNH.advertise<std_msgs::String>((publishedName + "/tagData"), 1, true);
+  tagQuadPublish = mNH.advertise<std_msgs::String>((publishedName + "/tagQuad"), 1, true);
 
   publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
   stateMachineTimer = mNH.createTimer(ros::Duration(behaviourLoopTimeStep), behaviourStateMachine);
@@ -460,9 +464,9 @@ void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& messag
 
   // Don't pass April tag data to the logic controller if the robot is not in autonomous mode.
   // This is to make sure autonomous behaviours are not triggered while the rover is in manual mode. 
-  if(currentMode == 0 || currentMode == 1) 
-  { 
-    return; 
+  if(!tagTesting && (currentMode == 0 || currentMode == 1))
+  {
+    return;
   }
 
   if (message->detections.size() > 0) {
@@ -786,5 +790,11 @@ void tagMessage(float xPos, float yPos, float zPos, float yaw) {
   std_msgs::String messageToPublish;
   messageToPublish.data = "X: " + std::to_string(xPos) + " Y: " + std::to_string(xPos) + " Z: " + std::to_string(zPos) + " yaw: " + std::to_string(yaw);
   tagDataPublish.publish(messageToPublish);
+}
+
+void tagQuadMessage(int upL, int upR, int lowL, int lowR) {
+  std_msgs::String messageToPublish;
+  messageToPublish.data = "UpL : " + std::to_string(upL) + " UpR : " + std::to_string(upR) + "LowL: " + std::to_string(lowL) + " lowR: " + std::to_string(lowR);
+  tagQuadPublish.publish(messageToPublish);
 }
 
