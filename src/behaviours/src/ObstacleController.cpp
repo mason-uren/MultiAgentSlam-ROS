@@ -99,7 +99,8 @@ Result ObstacleController::DoWork() {
         set_waypoint = false;
         clearWaypoints = false;
 
-        result.type = waypoint;
+        result.type = vectorDriving;
+        result.desired_heading = currentLocation.theta;
         result.PIDMode = FAST_PID; //use fast pid for waypoints
         Point forward;            //waypoint is directly ahead of current heading
         forward.x = currentLocation.x + (0.5 * cos(currentLocation.theta));

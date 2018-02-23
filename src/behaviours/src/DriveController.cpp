@@ -42,7 +42,7 @@ Result DriveController::DoWork()
   ///WARNING waypoint input must use FAST_PID at this point in time failure to set fast pid will result in no movment
 
     ///WARNING waypoint input must use FAST_PID at this point in time failure to set fast pid will result in no movment
-    printf("DriveCtrl DoWork result type %d", result.type );
+    printf("DriveCtrl DoWork result type %d\n", result.type );
     if (result.type == behavior) {
         if (result.behaviourType == noChange) {
             //if drive controller gets a no change command it is allowed to continue its previous action
@@ -126,20 +126,20 @@ Result DriveController::DoWork()
             if (true) {
                 float errorYaw = angles::shortest_angular_distance(result.desired_heading, currentLocation.theta);
                 result.pd.setPointVel = 0.0;
-                float abs_error = fabs(angles::shortest_angular_distance(result.desired_heading, currentLocation.theta));
-                if (abs_error > rotateOnlyAngleTolerance) {
+                float abs_error = fabs(errorYaw);
+                if (abs_error > .5) {
                     // rotate but dont drive.
-                    if (result.PIDMode == FAST_PID) {
-                        fastPID(0.0, errorYaw, result.pd.setPointVel, result.pd.setPointYaw);
-                    }
-
-                    break;
-                } else {
+                    //if (result.PIDMode == SLOW_PID) {
+                    printf("rotate: desired heading: %f\n", result.desired_heading);
+                    constPID(0.0, errorYaw, result.pd.setPointVel, result.desired_heading);
                     //move to differential drive step
-                    stateMachineState = STATE_MACHINE_SKID_STEER;
-
-                    //fall through on purpose.
+                    break;
                 }
+                    else{
+                        stateMachineState = STATE_MACHINE_SKID_STEER;
+                    }
+                    //fall through on purpose.
+
             } else if (false) {
                 waypoints.back().theta = Utilities::angle_between_points(waypoints.back(),currentLocation);
 
@@ -177,10 +177,11 @@ Result DriveController::DoWork()
             // Stay in this state until angle is at least PI/2
 
             // calculate the distance between current and desired heading in radians
-            printf("skid\n");
+            printf("\nskid %d\n", result.type);
             if (result.type == vectorDriving) {
-                left = 0.3;
-                right = 0.0;
+                //left = 0.3;
+                //right = 0.3;
+                fastPID(5, 0,.3,0);
                 break;
             }
             else{
@@ -262,7 +263,17 @@ void DriveController::ProcessData() {
             stateMachineState = STATE_MACHINE_WAYPOINTS;
         }
     } else if (result.type == vectorDriving) {
-        stateMachineState = STATE_MACHINE_ROTATE;
+
+
+        float errorYaw = angles::shortest_angular_distance(result.desired_heading, currentLocation.theta);
+        //result.pd.setPointVel = 0.0;
+        float abs_error = fabs(errorYaw);
+        printf("abs_error %f\n",abs_error);
+
+        if (abs_error > .5)
+            stateMachineState = STATE_MACHINE_ROTATE;
+        else
+            stateMachineState = STATE_MACHINE_SKID_STEER;
         
     } else if (result.type == precisionDriving) {
 
@@ -465,7 +476,9 @@ void DriveController::outputValidation(float velOut, float yawOut) {
 
     //prevent combine output from going over tihs value
     int sat = 180;
-    
+
     this->left = Utilities::saturation_check(left,sat);
     this->right = Utilities::saturation_check(right,sat);
+    printf("left %f\n", this->left);
+    printf("right %f\n", this->right);
 }
