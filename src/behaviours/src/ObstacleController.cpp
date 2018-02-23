@@ -113,15 +113,17 @@ void ObstacleController::avoidCollectionZone() {
     logicMessage(current_time, ClassName, __func__);
 
     result.type = precisionDriving;
-
     result.pd.cmdVel = 0.0;
 
     // Decide which side of the rover sees the most april tags and turn away
     // from that side
-    if (count_left_collection_zone_tags < count_right_collection_zone_tags) {
-        result.pd.cmdAngular = K_angular;
+//    if (count_left_collection_zone_tags < count_right_collection_zone_tags) {
+    if (count_left_collection_zone_tags > count_right_collection_zone_tags) { // Todo: MYCODE inequality seemed backwards
+        this->reflect({LEFT_LOW, LEFT_HIGH}); // Todo:
+        result.pd.cmdAngular = K_angular; // Home on the left; turn right
     } else {
-        result.pd.cmdAngular = -K_angular;
+        this->reflect({RIGHT_LOW, RIGHT_HIGH}); // Todo:
+        result.pd.cmdAngular = -K_angular; // Home on the right; turn left
     }
 
     result.pd.setPointVel = 0.0;
@@ -215,7 +217,8 @@ void ObstacleController::ProcessData() {
     //If we are ignoring the center sonar
     if (ignore_center_sonar) {
         //If the center distance is longer than the reactivation threshold
-        if (center > reactivate_center_sonar_threshold) {
+//        if (center > reactivate_center_sonar_threshold) {
+        if (center > MIN_THRESH) {
             //currently do not re-enable the center sonar instead ignore it till the block is dropped off
             //ignore_center_sonar = false; //look at sonar again beacuse center ultrasound has gone long
         } else {
@@ -232,18 +235,17 @@ void ObstacleController::ProcessData() {
         }
     }
 
+    // Reset Detections
+    this->resetDetections();
+
     /*
-     * Each iteration through should have to recalc detection.
+     * TODO: Not sure if this is needed
+     * Can't find the trigger that checks whether the rover can see home,
+     * then flags 'obstacleDetected'.
      */
-    this->obstacle_init.type = NO_OBSTACLE;
-    this->obstacle_stag.type = NO_OBSTACLE;
-    // Only reset main detection after previous reflection has finished
-    std::cout << "OBSTACLE CONTROLLER: processData() can start: " << this->reflection.can_start << std::endl;
-    std::cout << "OBSTACLE CONTROLLER: processData() can end: " << this->reflection.can_end << std::endl;
-    if (this->reflection.can_end) {
-        std::cout << "OBSTACLE CONTROLLER: processData() AVOIDED" << std::endl;
-        this->detection_declaration = NO_OBSTACLE;
-        obstacleAvoided = true;
+    if (collection_zone_seen) {
+        obstacleDetected = true;
+        this->detection_declaration = HOME;
     }
 
 
@@ -349,9 +351,11 @@ void ObstacleController::ProcessData() {
             /*
              * Verify that a new detection is allowed to be made.
              * This allows the rover to continue to monitor their surroundings,
-             * while not taking  immediate action.
+             * while not taking  immediate action, while also checking if the collection zone
+             * can be seen.
+             * NOTE: collection zone should hold higher priority than sonar detections.
              */
-            if (this->reflection.can_end) {
+            if (this->reflection.can_end && !collection_zone_seen) {
                 this->detection_declaration = this->obstacle_init.type; // Final Detection
                 /*
                  * Next 5 lines from base code
@@ -362,17 +366,11 @@ void ObstacleController::ProcessData() {
                 obstacleAvoided = false;
                 can_set_waypoint = false;
             }
-
-
-
 //            std::cout << "Obstacle Type Init --->> " << this->obstacle_init.type << std::endl;
 //            std::cout << "Obstacle Type Stag --->> " << this->obstacle_stag.type << std::endl;
         }
-
-
         resetObstacle(INIT);
         resetObstacle(STAG);
-
     }
 //    else {
 //        // Verify that we've completed the reflection off the obstacle
@@ -398,12 +396,12 @@ void ObstacleController::setTagData(vector <Tag> tags) {
     collection_zone_seen = false;
     count_left_collection_zone_tags = 0;
     count_right_collection_zone_tags = 0;
+    x_home_tag_orientation = 0; // Todo:
 
     // this loop is to get the number of center tags
     if (!targetHeld) {
         for (int i = 0; i < tags.size(); i++) { //redundant for loop
             if (tags[i].getID() == 256) {
-
                 collection_zone_seen = checkForCollectionZoneTags(tags);
                 timeSinceTags = current_time;
             }
@@ -421,7 +419,8 @@ bool ObstacleController::checkForCollectionZoneTags(vector<Tag> tags) {
         if (tag.calcYaw() > 0) {
 
             // TODO: this only counts the number of detection on the left or right side
-            // TODO: should factor in dist
+            // TODO: consider checking if we see any tags that have positive yaw
+            // TODO: distance calculations can be made else where
 
             // checks if tag is on the right or left side of the image
             if (tag.getPositionX() + camera_offset_correction > 0) {
@@ -429,6 +428,7 @@ bool ObstacleController::checkForCollectionZoneTags(vector<Tag> tags) {
             } else {
                 count_left_collection_zone_tags++;
             }
+            this->x_home_tag_orientation += tag.getPositionX() + camera_offset_correction;
         }
     }
 
@@ -763,6 +763,23 @@ void ObstacleController::resetObstacle(DELAY_TYPE delay_type) {
         default:
             std::cout << "OBSTACLE_CONTROLLER: hit default in resetObstacle " << std::endl;
             break;
+    }
+}
+
+/**
+ * Each iteration through should have to recalc detection.
+ * Final detection should be checked if it is allowed to end.
+ */
+void ObstacleController::resetDetections() {
+    this->obstacle_init.type = NO_OBSTACLE;
+    this->obstacle_stag.type = NO_OBSTACLE;
+    // Only reset main detection after previous reflection has finished
+    std::cout << "OBSTACLE CONTROLLER: processData() can start: " << this->reflection.can_start << std::endl;
+    std::cout << "OBSTACLE CONTROLLER: processData() can end: " << this->reflection.can_end << std::endl;
+    if (this->reflection.can_end) {
+        std::cout << "OBSTACLE CONTROLLER: processData() AVOIDED" << std::endl;
+        this->detection_declaration = NO_OBSTACLE;
+        obstacleAvoided = true;
     }
 }
 

@@ -131,6 +131,8 @@ protected:
 
     void resetObstacle(DELAY_TYPE);
 
+    void resetDetections();
+
 private:
 
     // Try not to run over the collection zone
@@ -207,6 +209,8 @@ private:
      * Default: True
      */
     bool acceptDetections;
+
+    double x_home_tag_orientation;
 };
 
 #endif // OBSTACLECONTOLLER_H
