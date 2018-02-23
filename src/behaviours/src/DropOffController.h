@@ -10,6 +10,7 @@
 
 extern void logMessage(long int currentTime, string component, string message);
 extern void logicMessage(long int currentTime, string component, string message);
+extern void tagMessage(float xPos, float yPos, float zPos, float yaw);
 
 class DropOffController : virtual Controller {
 public:

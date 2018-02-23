@@ -138,6 +138,7 @@ ros::Publisher loggerPublish;
 ros::Publisher loggerPublisher;
 ros::Publisher sonarPublisher;
 ros::Publisher logicPublish;
+ros::Publisher tagDataPublish;
 
 // Subscribers
 ros::Subscriber joySubscriber;
@@ -233,6 +234,7 @@ int main(int argc, char **argv) {
   loggerPublish = mNH.advertise<std_msgs::String>((publishedName + "/logger"), 1, true);
   sonarPublisher = mNH.advertise<std_msgs::String>((publishedName + "/detections"), 1, true);
   logicPublish = mNH.advertise<std_msgs::String>((publishedName + "/logic"), 1, true);
+  tagDataPublish = mNH.advertise<std_msgs::String>((publishedName + "/tagData"), 1, true);
 
   publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
   stateMachineTimer = mNH.createTimer(ros::Duration(behaviourLoopTimeStep), behaviourStateMachine);
@@ -779,3 +781,10 @@ void logicMessage(long int currentTime, string component, string message) {
   messageToPublish.data = "[" + std::to_string(currentTime) + " " + component + "] " + message;
   logicPublish.publish(messageToPublish);
 }
+
+void tagMessage(float xPos, float yPos, float zPos, float yaw) {
+  std_msgs::String messageToPublish;
+  messageToPublish.data = "X: " + std::to_string(xPos) + " Y: " + std::to_string(xPos) + " Z: " + std::to_string(zPos) + " yaw: " + std::to_string(yaw);
+  tagDataPublish.publish(messageToPublish);
+}
+
