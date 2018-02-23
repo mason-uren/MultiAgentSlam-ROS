@@ -353,16 +353,17 @@ void ObstacleController::ProcessData() {
              */
             if (this->reflection.can_end) {
                 this->detection_declaration = this->obstacle_init.type; // Final Detection
+                /*
+                 * Next 5 lines from base code
+                 */
+                phys = true;
+                timeSinceTags = current_time;
+                obstacleDetected = true;
+                obstacleAvoided = false;
+                can_set_waypoint = false;
             }
 
-            /*
-             * Next 5 lines from base code
-             */
-            phys = true;
-            timeSinceTags = current_time;
-            obstacleDetected = true;
-            obstacleAvoided = false;
-            can_set_waypoint = false;
+
 
 //            std::cout << "Obstacle Type Init --->> " << this->obstacle_init.type << std::endl;
 //            std::cout << "Obstacle Type Stag --->> " << this->obstacle_stag.type << std::endl;
@@ -418,6 +419,10 @@ bool ObstacleController::checkForCollectionZoneTags(vector<Tag> tags) {
         //If the yaw is negative the robot is inside the collection zone and the boundary should not be treated as an obstacle.
         //This allows the robot to leave the collection zone after dropping off a target.
         if (tag.calcYaw() > 0) {
+
+            // TODO: this only counts the number of detection on the left or right side
+            // TODO: should factor in dist
+
             // checks if tag is on the right or left side of the image
             if (tag.getPositionX() + camera_offset_correction > 0) {
                 count_right_collection_zone_tags++;
@@ -476,7 +481,7 @@ void ObstacleController::setTargetHeld() {
     //adjust current state on transition from no cube held to cube held
     if (previousTargetState == false) {
         obstacleAvoided = true;
-        this->detection_declaration = NO_OBSTACLE;
+//        this->detection_declaration = NO_OBSTACLE;
         obstacleInterrupt = false;
         obstacleDetected = false;
         previousTargetState = true;
