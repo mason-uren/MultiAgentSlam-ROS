@@ -5,6 +5,7 @@
 #include "Tag.h"
 #include "ObstacleAssistant.h"
 #include <map>
+#include <cstdlib>
 
 /*
  * Sonar has the most accurate readings at a range less than 2 meters
@@ -35,6 +36,12 @@
 /*
  * Reflection bounds
  */
+#define RIGHT_LOW -M_PI_4
+#define RIGHT_HIGH (-(3 * M_PI) / 4)
+
+#define LEFT_LOW M_PI_4
+#define LEFT_HIGH ((3 * M_PI) / 4)
+
 #define R_LOW 0
 #define R_HIGH -M_PI_2
 
@@ -136,7 +143,8 @@ private:
     // and are those AprilTags oriented towards or away from the camera.
     bool checkForCollectionZoneTags(vector <Tag>);
 
-    const float K_angular = 1.0; //radians a second turn rate to avoid obstacles
+//    const float K_angular = 1.0;
+    const float K_angular = 0.5; //radians a second turn rate to avoid obstacles
     const float reactivate_center_sonar_threshold = 0.8; //reactive center sonar if it goes back above this distance, assuming it is deactivated
     const int targetCountPivot = 6; ///unused variable
     const float obstacleDistancePivot = 0.2526; ///unused variable

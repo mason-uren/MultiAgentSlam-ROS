@@ -53,7 +53,7 @@ public:
     explicit ObstacleAssistant(SONAR s) :
             sonar(s),
             monitor(new std::vector<float>),
-            detections({false, false, 10, 0}) {};
+            detections({false, false, 10}) {};
 
 };
 

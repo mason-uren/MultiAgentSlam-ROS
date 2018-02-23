@@ -7,8 +7,8 @@ ObstacleController::ObstacleController() {
      */
     this->acceptDetections = true;
 
-//    obstacleAvoided = true;
-    this->detection_declaration = NO_OBSTACLE;
+    obstacleAvoided = true;
+//    this->detection_declaration = NO_OBSTACLE;
     obstacleDetected = false;
     obstacleInterrupt = false;
     result.PIDMode = CONST_PID; //use the const PID to turn at a constant speed
@@ -50,8 +50,8 @@ ObstacleController::ObstacleController() {
 //note, not a full reset as this could cause a bad state
 //resets the interupt and knowledge of an obstacle or obstacle avoidance only.
 void ObstacleController::Reset() {
-//    obstacleAvoided =  true;
-    this->detection_declaration = NO_OBSTACLE;
+    obstacleAvoided =  true;
+//    this->detection_declaration = NO_OBSTACLE;
     obstacleDetected = false;
     obstacleInterrupt = false;
     delay = current_time;
@@ -62,33 +62,44 @@ void ObstacleController::avoidObstacle() {
     logicMessage(current_time, ClassName, __func__);
 
     result.type = precisionDriving;
-    result.pd.setPointVel = 0.0;
-    result.pd.cmdVel = 0.0;
+    result.pd.setPointVel = 0.1;
+    result.pd.cmdVel = 0.1;
     result.pd.setPointYaw = 0;
     /*
      * Based on detection location reflect off of obstacle in
      * opposing direction.
      * NOTE: only initial detection is recorded by 'reflect' function
      */
+    std::cout << "OBSTACLE CONTROLLER: avoidObstacle" << std::endl;
     switch (this->detection_declaration) {
         case OBS_LEFT:
-            this->reflect({L_LOW, L_HIGH});
+            std::cout << "Obs left" << std::endl;
+//            this->reflect({L_LOW, L_HIGH});
+            this->reflect({LEFT_LOW, LEFT_HIGH});
             result.pd.cmdAngular = K_angular; // Turn right to avoid obstacle
             break;
         case OBS_CENTER:
-            this->reflect({LC_LOW, LC_HIGH});
+            std::cout << "Obs center" << std::endl;
+//            this->reflect({LC_LOW, LC_HIGH});
+            this->reflect({LEFT_LOW, LEFT_HIGH});
             result.pd.cmdAngular = K_angular; // Turn right to avoid obstacle
             break;
         case OBS_RIGHT:
-            this->reflect({R_LOW, R_HIGH});
+            std::cout << "Obs right" << std::endl;
+//            this->reflect({R_LOW, R_HIGH});
+            this->reflect({RIGHT_LOW, RIGHT_HIGH});
             result.pd.cmdAngular = -K_angular; // Turn left to avoid obstacle
             break;
         case OBS_LEFT_CENTER:
-            this->reflect({LC_LOW, LC_HIGH});
+            std::cout << "Obs left center" << std::endl;
+//            this->reflect({LC_LOW, LC_HIGH});
+            this->reflect({LEFT_LOW, LEFT_HIGH});
             result.pd.cmdAngular = K_angular; // Turn right to avoid obstacle
             break;
         case OBS_RIGHT_CENTER:
-            this->reflect({RC_LOW, RC_HIGH});
+            std::cout << "Obs right center" << std::endl;
+//            this->reflect({RC_LOW, RC_HIGH});
+            this->reflect({RIGHT_LOW, RIGHT_HIGH});
             result.pd.cmdAngular = -K_angular; // Turn left to avoid obstacle
             break;
         default:
@@ -128,7 +139,8 @@ Result ObstacleController::DoWork() {
     result.PIDMode = CONST_PID;
     string msg;
 
-    if (this->detection_declaration != NO_OBSTACLE) {
+//    if (this->detection_declaration != NO_OBSTACLE) {
+    if (obstacleDetected) {
         /*
          * Update "/logger" publisher -> Starting avoidance
          */
@@ -194,8 +206,8 @@ void ObstacleController::ProcessData() {
     if (Td >= 0.5) {
         collection_zone_seen = false;
         phys = false;
-//        if (!obstacleAvoided) {
-        if (this->detection_declaration != NO_OBSTACLE) {
+        if (!obstacleAvoided) {
+//        if (this->detection_declaration != NO_OBSTACLE) {
             can_set_waypoint = true;
         }
     }
@@ -226,8 +238,12 @@ void ObstacleController::ProcessData() {
     this->obstacle_init.type = NO_OBSTACLE;
     this->obstacle_stag.type = NO_OBSTACLE;
     // Only reset main detection after previous reflection has finished
+    std::cout << "OBSTACLE CONTROLLER: processData() can start: " << this->reflection.can_start << std::endl;
+    std::cout << "OBSTACLE CONTROLLER: processData() can end: " << this->reflection.can_end << std::endl;
     if (this->reflection.can_end) {
+        std::cout << "OBSTACLE CONTROLLER: processData() AVOIDED" << std::endl;
         this->detection_declaration = NO_OBSTACLE;
+        obstacleAvoided = true;
     }
 
 
@@ -345,7 +361,7 @@ void ObstacleController::ProcessData() {
             phys = true;
             timeSinceTags = current_time;
             obstacleDetected = true;
-//            obstacleAvoided = false;
+            obstacleAvoided = false;
             can_set_waypoint = false;
 
 //            std::cout << "Obstacle Type Init --->> " << this->obstacle_init.type << std::endl;
@@ -360,7 +376,8 @@ void ObstacleController::ProcessData() {
 //    else {
 //        // Verify that we've completed the reflection off the obstacle
 //        if (this->reflection.can_end) {
-////            obstacleAvoided = true;
+//            std::cout << "processData() obstacle avoided" << std::endl;
+//            obstacleAvoided = true;
 //
 //        }
 //    }
@@ -420,11 +437,13 @@ bool ObstacleController::ShouldInterrupt() {
 
     //if we see and obstacle and havent thrown an interrupt yet
     if (obstacleDetected && !obstacleInterrupt) {
+//    if ((this->detection_declaration != NO_OBSTACLE) && !obstacleInterrupt) {
         obstacleInterrupt = true;
         return true;
     } else {
         //if the obstacle has been avoided and we had previously detected one interrupt to change to waypoints
-        if ((this->detection_declaration == NO_OBSTACLE) && obstacleDetected) {
+        if ((obstacleAvoided) && obstacleDetected) {
+//        if (obstacleAvoided && (this->detection_declaration != NO_OBSTACLE)) {
             Reset();
             return true;
         } else {
@@ -456,7 +475,7 @@ void ObstacleController::setTargetHeld() {
 
     //adjust current state on transition from no cube held to cube held
     if (previousTargetState == false) {
-//        obstacleAvoided = true;
+        obstacleAvoided = true;
         this->detection_declaration = NO_OBSTACLE;
         obstacleInterrupt = false;
         obstacleDetected = false;
@@ -474,21 +493,30 @@ void ObstacleController::setTargetHeldClear() {
     }
 }
 
-void ObstacleController::reflect(std::vector<float> bounds) {
+void ObstacleController::reflect(std::vector<double> bounds) {
+    std::cout << "OBSTACLE CONTROLLER: reflect" << std::endl;
     if (!this->reflection.can_start) {
+        std::cout << "reflect() create angle" << std::endl;
         int rand();
-        this->reflection.reflect_angle = (rand() % bounds.at(1)) + bounds.at(0);
+        double range = bounds.at(1) - bounds.at(0);
+        this->reflection.reflect_angle = fmod(rand(), range) + bounds.at(0);
         this->reflection.prev_orient = currentLocation.theta;
         this->reflection.can_start = true;
         this->reflection.can_end = false;
     }
     else if (this->reflection.reflect_angle <= 0) {
+        std::cout << "reflect() rotation complete" << std::endl;
         this->reflection.reflect_angle = 0;
         this->reflection.can_start = false;
         this->reflection.can_end = true;
     }
     else {
+        std::cout << "reflect() still rotating" << std::endl;
+        std::cout << "reflect() previous angle: " << this->reflection.prev_orient << std::endl;
+        std::cout << "reflect() current angle: " << currentLocation.theta << std::endl;
         this->reflection.reflect_angle -= std::abs(currentLocation.theta - this->reflection.prev_orient);
+        this->reflection.prev_orient = currentLocation.theta;
+        std::cout << "reflect() radians left: " << this->reflection.reflect_angle << std::endl;
     }
 }
 
