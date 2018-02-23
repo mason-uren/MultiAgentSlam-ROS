@@ -62,8 +62,8 @@ void ObstacleController::avoidObstacle() {
     logicMessage(current_time, ClassName, __func__);
 
     result.type = precisionDriving;
-    result.pd.setPointVel = 0.1;
-    result.pd.cmdVel = 0.1;
+    result.pd.setPointVel = 0.0;
+    result.pd.cmdVel = 0.0;
     result.pd.setPointYaw = 0;
     /*
      * Based on detection location reflect off of obstacle in
@@ -579,7 +579,17 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
         case INIT:
             if (!accepted_sonar.empty()) {
                 if (left && center && right) {
-                    this->obstacle_init.type = OBS_CENTER;
+                    // Base Case: if the rover meets a flat object head-on
+                    if (left->detections.smallest_detection == center->detections.smallest_detection &&
+                            center->detections.smallest_detection == right->detections.smallest_detection) {
+                        this->obstacle_init.type = OBS_CENTER;
+                    }
+                    else if (left->detections.smallest_detection <= right->detections.smallest_detection) {
+                        this->obstacle_init.type = OBS_LEFT_CENTER;
+                    }
+                    else {
+                        this->obstacle_init.type = OBS_RIGHT_CENTER;
+                    }
                 } else if (center && left) {
                     this->obstacle_init.type = OBS_LEFT_CENTER;
                 } else if (center && right) {
@@ -600,7 +610,17 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
         case STAG:
             if (!accepted_sonar.empty()) {
                 if (left && center && right) {
-                    this->obstacle_stag.type = OBS_CENTER;
+                    // Base Case: if the rover meets a flat object head-on
+                    if (left->detections.smallest_detection == center->detections.smallest_detection &&
+                            center->detections.smallest_detection == right->detections.smallest_detection) {
+                        this->obstacle_stag.type = OBS_CENTER;
+                    }
+                    else if (left->detections.smallest_detection <= right->detections.smallest_detection) {
+                        this->obstacle_stag.type = OBS_LEFT_CENTER;
+                    }
+                    else {
+                        this->obstacle_stag.type = OBS_RIGHT_CENTER;
+                    }
                 } else if (center && left) {
                     this->obstacle_stag.type = OBS_LEFT_CENTER;
                 } else if (center && right) {
