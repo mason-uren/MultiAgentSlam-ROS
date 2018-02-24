@@ -33,13 +33,10 @@ void SearchController::SetCurrentTimeInMilliSecs(long int time) {
 Result SearchController::DoWork() {
 
     extern void logicMessage(long int currentTime, string component, string message);
-    if (vector_search) { //true
-        printf("search ctrller\n");
-        result.type = vectorDriving;
-        result.desired_heading = GetNewHeading(currentLocation.theta,true); //bool value is search_mode
-        printf(" %f\n",result.desired_heading);
-        return result;
-    }
+    result.type = vectorDriving;
+    result.desired_heading = GetNewHeading(currentLocation.theta,true); //bool value is search_mode
+    printf("search Controller new heading: %f\n",result.desired_heading);
+    return result;
 }
 
 void SearchController::SetCenterLocation(Point centerLocation) {
@@ -81,12 +78,6 @@ float SearchController::GetNewHeading(float beta, bool search_mode) {
   std::uniform_real_distribution<float> distribution(-2.355,-3.928);
   float theta = 0;
     theta = currentLocation.theta + (distribution(generator));
-  /*if(search_mode == false) {
-    theta = beta - M_PI/2 + (distribution(generator));
-  }
-  else {
-    theta = beta - M_PI/2 - (distribution(generator));
-  }*/
   return theta;
 }
 

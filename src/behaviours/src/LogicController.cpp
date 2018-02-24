@@ -136,19 +136,12 @@ Result LogicController::DoWork() {
 
                 //waypoints are also a pass through facilitated command but with a slightly diffrent overhead
                 //they are handled in the LOGIC_STATE_WAITING switch case
-            else if (result.type == waypoint) {
+            else if (result.type == waypoint || result.type == vectorDriving) {
 
                 logicState = LOGIC_STATE_WAITING;
                 driveController.SetResultData(result);
                 //fall through on purpose
             }
-
-            else if (result.type == vectorDriving) {
-                printf("logic cntrl vectorDriving\n");
-                logicState = LOGIC_STATE_WAITING;
-                driveController.SetResultData(result);
-            }
-
         } //end of interupt case***************************************************************************************
 
             //this case is primarly when logic controller is waiting for drive controller to reach its last waypoint
