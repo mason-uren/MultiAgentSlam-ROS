@@ -73,31 +73,31 @@ void ObstacleController::avoidObstacle() {
     std::cout << "OBSTACLE CONTROLLER: avoidObstacle" << std::endl;
     switch (this->detection_declaration) {
         case OBS_LEFT:
-            std::cout << "Obs left" << std::endl;
+            std::cout << "left" << std::endl;
 //            this->reflect({L_LOW, L_HIGH});
             this->reflect({LEFT_LOW, LEFT_HIGH});
             result.pd.cmdAngular = K_angular; // Turn right to avoid obstacle
             break;
         case OBS_CENTER:
-            std::cout << "Obs center" << std::endl;
+        std::cout << "center" << std::endl;
 //            this->reflect({LC_LOW, LC_HIGH});
             this->reflect({LEFT_LOW, LEFT_HIGH});
             result.pd.cmdAngular = K_angular; // Turn right to avoid obstacle
             break;
         case OBS_RIGHT:
-            std::cout << "Obs right" << std::endl;
+        std::cout << "right" << std::endl;
 //            this->reflect({R_LOW, R_HIGH});
             this->reflect({RIGHT_LOW, RIGHT_HIGH});
             result.pd.cmdAngular = -K_angular; // Turn left to avoid obstacle
             break;
         case OBS_LEFT_CENTER:
-            std::cout << "Obs left center" << std::endl;
+        std::cout << "center left" << std::endl;
 //            this->reflect({LC_LOW, LC_HIGH});
             this->reflect({LEFT_LOW, LEFT_HIGH});
             result.pd.cmdAngular = K_angular; // Turn right to avoid obstacle
             break;
         case OBS_RIGHT_CENTER:
-            std::cout << "Obs right center" << std::endl;
+        std::cout << "center right" << std::endl;
 //            this->reflect({RC_LOW, RC_HIGH});
             this->reflect({RIGHT_LOW, RIGHT_HIGH});
             result.pd.cmdAngular = -K_angular; // Turn left to avoid obstacle
@@ -152,7 +152,10 @@ Result ObstacleController::DoWork() {
             logInit = true;
         }
 
-        // The obstacle is an april tag marking the collection zone
+        /*
+         * The obstacle is an april tag marking the collection zone
+         * HOME retains highest priority since it is checked first
+         */
         if (collection_zone_seen) {
             avoidCollectionZone();
         } else {
@@ -244,6 +247,7 @@ void ObstacleController::ProcessData() {
      * then flags 'obstacleDetected'.
      */
     if (collection_zone_seen) {
+        std::cout << "Collection zone seen" << std::endl;
         obstacleDetected = true;
         this->detection_declaration = HOME;
     }
@@ -357,6 +361,7 @@ void ObstacleController::ProcessData() {
              */
             if (this->reflection.can_end && !collection_zone_seen) {
                 this->detection_declaration = this->obstacle_init.type; // Final Detection
+                std::cout << "OBSTACLE CONTROLLER: processData() detection made: " << this->detection_declaration << std::endl;
                 /*
                  * Next 5 lines from base code
                  */
@@ -539,20 +544,20 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
      * Grab the accepted detection from the map and verify they
      * are below our 'MIN_THRESH'.
      */
-    ObstacleAssistant *left = NULL;
-    ObstacleAssistant *center = NULL;
-    ObstacleAssistant *right= NULL;
+    ObstacleAssistant *left_assist = NULL;
+    ObstacleAssistant *center_assist = NULL;
+    ObstacleAssistant *right_assist = NULL;
     for (auto assistant : accepted_sonar) {
         if (assistant.second.detections.smallest_detection < MIN_THRESH) {
             switch (assistant.first) {
                 case LEFT:
-                    left = &assistant.second;
+                    left_assist = &assistant.second;
                     break;
                 case CENTER:
-                    center = &assistant.second;
+                    center_assist = &assistant.second;
                     break;
                 case RIGHT:
-                    right = &assistant.second;
+                    right_assist = &assistant.second;
                     break;
                 default:
                     std::cout << "OBSTACLE_CONTROLLER: hit default in 'ObstacleController::obstacleContactDir()" << std::endl;
@@ -583,27 +588,33 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
     switch (delay) {
         case INIT:
             if (!accepted_sonar.empty()) {
-                if (left && center && right) {
+                if (left_assist && center_assist && right_assist) {
+                    std::cout << "Left range: " << left_assist->detections.smallest_detection << std::endl;
+                    std::cout << "Center range: " << center_assist->detections.smallest_detection << std::endl;
+                    std::cout << "Right range: " << right_assist->detections.smallest_detection << std::endl;
                     // Base Case: if the rover meets a flat object head-on
-                    if (left->detections.smallest_detection == center->detections.smallest_detection &&
-                            center->detections.smallest_detection == right->detections.smallest_detection) {
+                    if (left_assist->detections.smallest_detection == center_assist->detections.smallest_detection &&
+                            center_assist->detections.smallest_detection == right_assist->detections.smallest_detection) {
+                        std::cout << "OBS CENTER" << std::endl;
                         this->obstacle_init.type = OBS_CENTER;
                     }
-                    else if (left->detections.smallest_detection <= right->detections.smallest_detection) {
+                    else if (left_assist->detections.smallest_detection <= right_assist->detections.smallest_detection) {
+                        std::cout << "OBS CENTER LEFT" << std::endl;
                         this->obstacle_init.type = OBS_LEFT_CENTER;
                     }
                     else {
+                        std::cout << "OBS CENTER RIGHT" << std::endl;
                         this->obstacle_init.type = OBS_RIGHT_CENTER;
                     }
-                } else if (center && left) {
+                } else if (center_assist && left_assist) {
                     this->obstacle_init.type = OBS_LEFT_CENTER;
-                } else if (center && right) {
+                } else if (center_assist && right_assist) {
                     this->obstacle_init.type = OBS_RIGHT_CENTER;
-                } else if (center) {
+                } else if (center_assist) {
                     this->obstacle_init.type = OBS_CENTER;
-                } else if (left) {
+                } else if (left_assist) {
                     this->obstacle_init.type = OBS_LEFT;
-                } else if (right) {
+                } else if (right_assist) {
                     this->obstacle_init.type = OBS_RIGHT;
                 }
             }
@@ -614,27 +625,27 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
             break;
         case STAG:
             if (!accepted_sonar.empty()) {
-                if (left && center && right) {
+                if (left_assist && center_assist && right_assist) {
                     // Base Case: if the rover meets a flat object head-on
-                    if (left->detections.smallest_detection == center->detections.smallest_detection &&
-                            center->detections.smallest_detection == right->detections.smallest_detection) {
+                    if (left_assist->detections.smallest_detection == center_assist->detections.smallest_detection &&
+                            center_assist->detections.smallest_detection == right_assist->detections.smallest_detection) {
                         this->obstacle_stag.type = OBS_CENTER;
                     }
-                    else if (left->detections.smallest_detection <= right->detections.smallest_detection) {
+                    else if (left_assist->detections.smallest_detection <= right_assist->detections.smallest_detection) {
                         this->obstacle_stag.type = OBS_LEFT_CENTER;
                     }
                     else {
                         this->obstacle_stag.type = OBS_RIGHT_CENTER;
                     }
-                } else if (center && left) {
+                } else if (center_assist && left_assist) {
                     this->obstacle_stag.type = OBS_LEFT_CENTER;
-                } else if (center && right) {
+                } else if (center_assist && center_assist) {
                     this->obstacle_stag.type = OBS_RIGHT_CENTER;
-                } else if (center) {
+                } else if (center_assist) {
                     this->obstacle_stag.type = OBS_CENTER;
-                } else if (left) {
+                } else if (left_assist) {
                     this->obstacle_stag.type = OBS_LEFT;
-                } else if (right) {
+                } else if (right_assist) {
                     this->obstacle_stag.type = OBS_RIGHT;
 
                 }
