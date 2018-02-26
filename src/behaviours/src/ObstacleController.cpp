@@ -746,6 +746,10 @@ void ObstacleController::sonarMonitor(OBSTACLE obstacle, float range, SONAR sona
                     break;
             }
         }
+        else {
+            this->obstacle_init.sonar_map(sonar).detections.init_detection = false;
+            this->obstacle_stag.sonar_map(sonar).detections.init_detection = false;
+        }
     }
 }
 
