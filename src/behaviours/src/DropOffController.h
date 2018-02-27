@@ -68,7 +68,7 @@ private:
     const float searchVelocity = 0.15; //in meters per second
     const float dropDelay = 0.5; //delay in seconds for dropOff
 
-
+    double tagYaw;
 
     //Instance Variables
 
