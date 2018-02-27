@@ -50,6 +50,7 @@ public:
     DETECTIONS detections;
     std::vector<float> *monitor;
 
+    // TODO: maybe need make not explicit
     explicit ObstacleAssistant(SONAR s) :
             sonar(s),
             monitor(new std::vector<float>),

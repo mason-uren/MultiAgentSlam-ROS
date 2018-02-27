@@ -54,6 +54,8 @@
 #define LC_LOW M_PI_2
 #define LC_HIGH M_PI
 
+#define DELAY_ITERATION 2
+
 
 /*
  * Obstacle structure
@@ -61,7 +63,7 @@
 typedef struct {
     bool allowed;
     OBS_TYPE type;
-    DELAY_TYPE delay;
+//    DELAY_TYPE delay;
     std::map<SONAR, ObstacleAssistant> sonar_map;
 } OBSTACLE;
 
@@ -121,9 +123,10 @@ protected:
 
     void ProcessData();
 
-    void sonarMonitor(OBSTACLE, float, SONAR);
+    void sonarMonitor(DELAY_TYPE, float, SONAR);
 
-    void sonarAnalysis(ObstacleAssistant, DELAY_TYPE);
+//    void sonarAnalysis(ObstacleAssistant, DELAY_TYPE);
+    void sonarAnalysis(DELAY_TYPE);
 
     void obstacleContactDir(std::map<SONAR, ObstacleAssistant>, DELAY_TYPE);
 
@@ -131,7 +134,7 @@ protected:
 
     void resetObstacle(DELAY_TYPE);
 
-    void resetDetections();
+    void resetDetections(DELAY_TYPE);
 
 private:
 
@@ -198,9 +201,11 @@ private:
      */
     int stag;
     OBS_TYPE detection_declaration;
-    OBSTACLE obstacle_init;
-    OBSTACLE obstacle_stag;
+//    OBSTACLE obstacle_init;
+//    OBSTACLE obstacle_stag;
     REFLECTION reflection;
+
+    std::map<DELAY_TYPE, OBSTACLE> monitor_map;
 
     string detect_msg;
 

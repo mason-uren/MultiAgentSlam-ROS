@@ -20,23 +20,47 @@ ObstacleController::ObstacleController() {
      * -> 'sonar_map' of feedback from each sensor
      */
     // INIT obstacle detection
-    this->obstacle_init.type = NO_OBSTACLE;
-    this->obstacle_init.delay = INIT;
-    this->obstacle_init.allowed = true;
-    this->obstacle_init.sonar_map = {
-            {LEFT,   ObstacleAssistant(LEFT)},
+//    this->obstacle_init.type = NO_OBSTACLE;
+//    this->obstacle_init.delay = INIT;
+//    this->obstacle_init.allowed = true;
+//    this->obstacle_init.sonar_map = {
+//            {LEFT,   ObstacleAssistant(LEFT)},
+//            {CENTER, ObstacleAssistant(CENTER)},
+//            {RIGHT,  ObstacleAssistant(RIGHT)}
+//    };
+//    // STAG obstacle detection
+//    this->obstacle_stag.type = NO_OBSTACLE;
+//    this->obstacle_stag.delay = STAG;
+//    this->obstacle_stag.allowed = false;
+//    this->obstacle_stag.sonar_map = {
+//            {LEFT,   ObstacleAssistant(LEFT)},
+//            {CENTER, ObstacleAssistant(CENTER)},
+//            {RIGHT,  ObstacleAssistant(RIGHT)}
+//    };
+
+    std::map<SONAR, ObstacleAssistant> assistant_map = {
+            {LEFT, ObstacleAssistant(LEFT)},
             {CENTER, ObstacleAssistant(CENTER)},
-            {RIGHT,  ObstacleAssistant(RIGHT)}
+            {RIGHT, ObstacleAssistant(RIGHT)}
     };
-    // STAG obstacle detection
-    this->obstacle_stag.type = NO_OBSTACLE;
-    this->obstacle_stag.delay = STAG;
-    this->obstacle_stag.allowed = false;
-    this->obstacle_stag.sonar_map = {
-            {LEFT,   ObstacleAssistant(LEFT)},
-            {CENTER, ObstacleAssistant(CENTER)},
-            {RIGHT,  ObstacleAssistant(RIGHT)}
+
+    this->monitor_map = {
+            {INIT, {
+                    NO_OBSTACLE, // Monitor detection
+                    INIT, // Monitor delay
+                    true, // Can start
+                    assistant_map // Sonar monitor map (Left, Center, Right)
+                   },
+            },
+            {STAG, {
+                    NO_OBSTACLE, // Monitor detection
+                    STAG, // Monitor delay
+                    true, // Can start
+                    assistant_map // Sonar monitor map (Left, Center, Right)
+                   }
+            }
     };
+
     this->stag = 0;
 
     /*
@@ -238,8 +262,14 @@ void ObstacleController::ProcessData() {
         }
     }
 
-    // Reset Detections
-    this->resetDetections();
+    /**
+     * Each iteration through should have to recalc detection.
+     * Final detection should be checked if it is allowed to end.
+     */
+    for (auto monitor : monitor_map) {
+        this->resetDetections(monitor.first);
+    }
+//    this->resetDetections();
 
     /*
      * TODO: Not sure if this is needed
@@ -254,12 +284,21 @@ void ObstacleController::ProcessData() {
 
 
     // Delay the start of the second set of monitors
-    if (!this->obstacle_stag.allowed) {
-        if (this->stag < 2) {
+//    if (!this->obstacle_stag.allowed) {
+//        if (this->stag < 2) {
+//            this->stag++;
+//        } else {
+////            std::cout << "STAG started" << std::endl;
+//            this->obstacle_stag.allowed = true;
+//        }
+//    }
+    for (auto monitor : this->monitor_map) {
+        // Every even iteration will start another monitor if one is available and hasn't been started
+        if (!monitor.second.allowed && this->stag != 0 && this->stag % DELAY_ITERATION == 0) {
+            monitor.second.allowed = true;
+        }
+        else {
             this->stag++;
-        } else {
-//            std::cout << "STAG started" << std::endl;
-            this->obstacle_stag.allowed = true;
         }
     }
 
@@ -278,67 +317,113 @@ void ObstacleController::ProcessData() {
      * INIT: should always be running from the start
      * STAG: needs to wait two iterations before starting, then should always be running
      */
-    if (left <= MAX_THRESH) {
-        sonarMonitor(this->obstacle_init, left, LEFT); // INIT
-        sonarMonitor(this->obstacle_stag, left, LEFT); // STAG
+//    if (left <= MAX_THRESH) {
+//        sonarMonitor(this->obstacle_init, left, LEFT); // INIT
+//        sonarMonitor(this->obstacle_stag, left, LEFT); // STAG
+//    }
+//    if (center <= MAX_THRESH) {
+//        sonarMonitor(this->obstacle_init, center, CENTER); // INIT
+//        sonarMonitor(this->obstacle_stag, center, CENTER); // STAG
+//    }
+//    if (right <= MAX_THRESH) {
+//        sonarMonitor(this->obstacle_init, right, RIGHT); // INIT
+//        sonarMonitor(this->obstacle_stag, right, RIGHT); // STAG
+//    }
+    for (auto monitor : this->monitor_map) {
+        if (left <= MAX_THRESH) {
+            this->sonarMonitor(monitor.first, left, LEFT);
+        }
+        if (center <= MAX_THRESH) {
+            this->sonarMonitor(monitor.first, center, CENTER);
+        }
+        if (right <= MAX_THRESH) {
+            this->sonarMonitor(monitor.first, right, RIGHT);
+        }
     }
-    if (center <= MAX_THRESH) {
-        sonarMonitor(this->obstacle_init, center, CENTER); // INIT
-        sonarMonitor(this->obstacle_stag, center, CENTER); // STAG
-    }
-    if (right <= MAX_THRESH) {
-        sonarMonitor(this->obstacle_init, right, RIGHT); // INIT
-        sonarMonitor(this->obstacle_stag, right, RIGHT); // STAG
-    }
+
+
 
     /* 2)
      * Check if any of the monitors are at capacity
      */
-    for (auto assistant : this->obstacle_init.sonar_map) { // INIT
-        if (assistant.second.detections.init_detection) {
-            sonarAnalysis(assistant.second, INIT);
-        }
-    }
-    if (this->obstacle_stag.allowed) { // STAG
-        for (auto assistant: this->obstacle_stag.sonar_map) {
-            if (assistant.second.detections.init_detection) {
-                sonarAnalysis(assistant.second, STAG);
-            }
+//    for (auto assistant : this->obstacle_init.sonar_map) { // INIT
+//        if (assistant.second.detections.init_detection) {
+//            sonarAnalysis(assistant.second, INIT);
+//        }
+//    }
+//    if (this->obstacle_stag.allowed) { // STAG
+//        for (auto assistant: this->obstacle_stag.sonar_map) {
+//            if (assistant.second.detections.init_detection) {
+//                sonarAnalysis(assistant.second, STAG);
+//            }
+//        }
+//    }
+    for (auto monitor : this->monitor_map) {
+        if (monitor.second.allowed) {
+            this->sonarAnalysis(monitor.first);
         }
     }
 
     /* 3)
      * If any of the monitors are valid, check if they have cross the 'MIN_THRESH'.
-     * Populate temporary map with acceptable detections.
+     * Populate temporary map with acceptable detections. Then clear respective monitor so new detections can be made.
      */
-    auto *INIT_sonar_map = new std::map<SONAR, ObstacleAssistant>(); // INIT
-    for (auto assistant : this->obstacle_init.sonar_map) {
-        if (assistant.second.detections.good_detection) {
-            SONAR type = assistant.first;
-            INIT_sonar_map->insert(std::pair<SONAR, ObstacleAssistant>(type, assistant.second));
+//    auto *INIT_sonar_map = new std::map<SONAR, ObstacleAssistant>(); // INIT
+//    for (auto assistant : this->obstacle_init.sonar_map) {
+//        if (assistant.second.detections.good_detection) {
+//            SONAR type = assistant.first;
+//            INIT_sonar_map->insert(std::pair<SONAR, ObstacleAssistant>(type, assistant.second));
+//            // Reset acceptable monitor after it has been copied over
+//            assistant.second.monitor->clear();
+//        }
+//    }
+//    auto *STAG_sonar_map = new std::map<SONAR, ObstacleAssistant>(); // STAG
+//    for (auto assistant : this->obstacle_stag.sonar_map) {
+//        if (assistant.second.detections.good_detection) {
+//            SONAR type = assistant.first;
+//            STAG_sonar_map->insert(std::pair<SONAR, ObstacleAssistant>(type, assistant.second));
+//            // Reset acceptable monitor after it has been copied over
+//            assistant.second.monitor->clear();
+//        }
+//    }
+    auto *temp_monitor_map = new std::map<DELAY_TYPE, OBSTACLE>();
+    for (auto monitor : this->monitor_map) {
+        if (monitor.second.allowed) {
+            auto *temp_sonar_map = new std::map<SONAR, ObstacleAssistant>();
+            for (auto assistant : monitor.second.sonar_map) {
+                if (assistant.second.detections.good_detection) {
+                    temp_sonar_map->insert(std::pair<SONAR, ObstacleAssistant>(assistant.first, assistant.second));
+                    // Reset acceptable monitor after it has been copied
+                    assistant.second.monitor->clear();
+                }
+            }
+            temp_monitor_map.at(monitor.first).sonar_map.at(assistant.first) = temp_sonar_map;
         }
     }
-    auto *STAG_sonar_map = new std::map<SONAR, ObstacleAssistant>(); // STAG
-    for (auto assistant : this->obstacle_stag.sonar_map) {
-        if (assistant.second.detections.good_detection) {
-            SONAR type = assistant.first;
-            STAG_sonar_map->insert(std::pair<SONAR, ObstacleAssistant>(type, assistant.second));
-        }
-    }
+
+
 
     /* 4)
      * Iterate through temporary sonar maps and determine correct avoidance type and measures
      */
-    if (!INIT_sonar_map->empty()) { // INIT
-        obstacleContactDir(*INIT_sonar_map, INIT);
-        // Drop temp sonar mapping
-        INIT_sonar_map->clear();
+//    if (!INIT_sonar_map->empty()) { // INIT
+//        obstacleContactDir(*INIT_sonar_map, INIT);
+//        // Drop temp sonar mapping
+//        INIT_sonar_map->clear();
+//    }
+//    if (!STAG_sonar_map->empty()) { // STAG
+//        obstacleContactDir(*STAG_sonar_map, STAG);
+//        // Drop temp sonar mapping
+//        STAG_sonar_map->clear();
+//    }
+    for (auto monitor : temp_monitor_map) {
+        if (!monitor.second.sonar_map->empty()) {
+            obstacleContactDir(monitor.second.sonar_map);
+            // Drop temp monitor mapping
+            temp_monitor_map->clear();
+        }
     }
-    if (!STAG_sonar_map->empty()) { // STAG
-        obstacleContactDir(*STAG_sonar_map, STAG);
-        // Drop temp sonar mapping
-        STAG_sonar_map->clear();
-    }
+
 
     /* 5)
      * Only accept a detection if both monitors agree that there is an obstacle. If one flags but not the other
@@ -347,35 +432,70 @@ void ObstacleController::ProcessData() {
      * turned on, so this statement should be caught by 'obstacle_init' and skipped before
      * the initialization of 'obstacle_stag'
      */
-    if (this->obstacle_init.type != NO_OBSTACLE && (this->obstacle_init.type == this->obstacle_stag.type)) {
-        /*
-         * Choose to ignore sonar detections
-         */
-        if (acceptDetections) {
-            /*
-             * Verify that a new detection is allowed to be made.
-             * This allows the rover to continue to monitor their surroundings,
-             * while not taking  immediate action, while also checking if the collection zone
-             * can be seen.
-             * NOTE: collection zone should hold higher priority than sonar detections.
-             */
-            if (this->reflection.can_end && !collection_zone_seen) {
-                this->detection_declaration = this->obstacle_init.type; // Final Detection
-                std::cout << "OBSTACLE CONTROLLER: processData() detection made: " << this->detection_declaration << std::endl;
-                /*
-                 * Next 5 lines from base code
-                 */
-                phys = true;
-                timeSinceTags = current_time;
-                obstacleDetected = true;
-                obstacleAvoided = false;
-                can_set_waypoint = false;
-            }
-//            std::cout << "Obstacle Type Init --->> " << this->obstacle_init.type << std::endl;
-//            std::cout << "Obstacle Type Stag --->> " << this->obstacle_stag.type << std::endl;
+//    if (this->obstacle_init.type != NO_OBSTACLE && (this->obstacle_init.type == this->obstacle_stag.type)) {
+//        /*
+//         * Choose to ignore sonar detections
+//         */
+//        if (acceptDetections) {
+//            /*
+//             * Verify that a new detection is allowed to be made.
+//             * This allows the rover to continue to monitor their surroundings,
+//             * while not taking  immediate action
+//             */
+////            if (this->reflection.can_end && !collection_zone_seen) {
+//            if (this->reflection.can_end) {
+//                this->detection_declaration = this->obstacle_init.type; // Final Detection
+//                std::cout << "OBSTACLE CONTROLLER: processData() detection made: " << this->detection_declaration << std::endl;
+//                /*
+//                 * Next 5 lines from base code
+//                 */
+////                phys = true;
+////                timeSinceTags = current_time;
+////                obstacleDetected = true;
+////                obstacleAvoided = false;
+////                can_set_waypoint = false;
+//            }
+////            std::cout << "Obstacle Type Init --->> " << this->obstacle_init.type << std::endl;
+////            std::cout << "Obstacle Type Stag --->> " << this->obstacle_stag.type << std::endl;
+//        }
+//        resetObstacle(INIT);
+//        resetObstacle(STAG);
+//    }
+    bool can_see_obs = false;
+    for (auto monitor : this->monitor_map) {
+        if (monitor.second.allowed && monitor.second.type != NO_OBSTACLE) {
+            can_see_obs = true;
         }
-        resetObstacle(INIT);
-        resetObstacle(STAG);
+        else {
+            can_see_obs = false;
+            break;
+        }
+    }
+    if (can_see_obs && acceptDetections) {
+        if (this->reflection.can_end) {
+            this->detection_declaration = this->monitor_map.at(INIT).type;
+            std::cout << "OBSTACLE CONTROLLER: processData() detection made: " << this->detection_declaration << std::endl;
+            /*
+             * Next 5 lines from base code
+             */
+            phys = true;
+            timeSinceTags = current_time;
+            obstacleDetected = true;
+            obstacleAvoided = false;
+            can_set_waypoint = false;
+        }
+        for (auto monitor : this->monitor_map) {
+            resetObstacle(monitor.first);
+        }
+    }
+
+
+    if (this->detection_declaration != NO_OBSTACLE || collection_zone_seen) {
+        phys = true;
+        timeSinceTags = current_time;
+        obstacleDetected = true;
+        obstacleAvoided = false;
+        can_set_waypoint = false;
     }
 //    else {
 //        // Verify that we've completed the reflection off the obstacle
@@ -386,6 +506,9 @@ void ObstacleController::ProcessData() {
 //        }
 //    }
 
+    /*
+     * Detection Logger
+     */
     if (detection_declaration != NO_OBSTACLE) {
         detect_msg = "Detection: " + to_string(this->detection_declaration);
         detectionMessage(current_time, "ObstacleController", detect_msg);
@@ -504,13 +627,14 @@ void ObstacleController::setTargetHeldClear() {
 }
 
 void ObstacleController::reflect(std::vector<double> bounds) {
-    std::cout << "OBSTACLE CONTROLLER: reflect" << std::endl;
+    std::cout << "OBSTACLE CONTROLLER: reflect" << std::endl; // Only want to deal with positive values
+    double abs_heading = std::fabs(currentLocation.theta);
     if (!this->reflection.can_start) {
         std::cout << "reflect() create angle" << std::endl;
         int rand();
         double range = bounds.at(1) - bounds.at(0);
         this->reflection.reflect_angle = fmod(rand(), range) + bounds.at(0);
-        this->reflection.prev_orient = currentLocation.theta;
+//        this->reflection.prev_orient = std::fabs(currentLocation.theta); // Only want to deal with positive values
         this->reflection.can_start = true;
         this->reflection.can_end = false;
     }
@@ -524,8 +648,8 @@ void ObstacleController::reflect(std::vector<double> bounds) {
         std::cout << "reflect() still rotating" << std::endl;
         std::cout << "reflect() previous angle: " << this->reflection.prev_orient << std::endl;
         std::cout << "reflect() current angle: " << currentLocation.theta << std::endl;
-        this->reflection.reflect_angle -= std::abs(currentLocation.theta - this->reflection.prev_orient);
-        this->reflection.prev_orient = currentLocation.theta;
+        this->reflection.reflect_angle -= std::fabs(abs_heading - this->reflection.prev_orient);
+        this->reflection.prev_orient = abs_heading;
         std::cout << "reflect() radians left: " << this->reflection.reflect_angle << std::endl;
     }
 }
@@ -535,15 +659,9 @@ void ObstacleController::reflect(std::vector<double> bounds) {
  * @param accepted_sonar : temporary map of accepted sonar vectors
  * @param delay : which monitor are we editing
  */
-void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> accepted_sonar, DELAY_TYPE delay) {
-    double x;
-    double y;
-    double alpha;
+void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> accepted_sonar, DELAY_TYPE delay_type) {
+    OBSTACLE obstacle = this->monitor_map.at(delay_type);
 
-    /*
-     * Grab the accepted detection from the map and verify they
-     * are below our 'MIN_THRESH'.
-     */
     ObstacleAssistant *left_assist = NULL;
     ObstacleAssistant *center_assist = NULL;
     ObstacleAssistant *right_assist = NULL;
@@ -565,100 +683,172 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
             }
         }
         else {
-            // Remove sonar that has not passed below our 'MIN_THRESH'
+            // Remove sonar that has not passed below 'MIN_THRESH'
             accepted_sonar.erase(assistant.first);
             // Restart respective sonar monitor
-            switch (delay) {
-                case INIT:
-                    this->obstacle_init.sonar_map.at(assistant.first).monitor->clear();
-                    break;
-                case STAG:
-                    this->obstacle_stag.sonar_map.at(assistant.first).monitor->clear();
-                    break;
-                default:
-                    std::cout << "OBSTACLE_CONTROLLER: hit default in INIT STAG differentiation" << std::endl;
-                    break;
-            }
+            obstacle.sonar_map.at(assistant.first).monitor->clear();
         }
     }
-
     /*
      * Check if there are any good detections
      */
-    switch (delay) {
-        case INIT:
-            if (!accepted_sonar.empty()) {
-                if (left_assist && center_assist && right_assist) {
-                    std::cout << "Left range: " << left_assist->detections.smallest_detection << std::endl;
-                    std::cout << "Center range: " << center_assist->detections.smallest_detection << std::endl;
-                    std::cout << "Right range: " << right_assist->detections.smallest_detection << std::endl;
-                    // Base Case: if the rover meets a flat object head-on
-                    if (left_assist->detections.smallest_detection == center_assist->detections.smallest_detection &&
-                            center_assist->detections.smallest_detection == right_assist->detections.smallest_detection) {
-                        std::cout << "OBS CENTER" << std::endl;
-                        this->obstacle_init.type = OBS_CENTER;
-                    }
-                    else if (left_assist->detections.smallest_detection <= right_assist->detections.smallest_detection) {
-                        std::cout << "OBS CENTER LEFT" << std::endl;
-                        this->obstacle_init.type = OBS_LEFT_CENTER;
-                    }
-                    else {
-                        std::cout << "OBS CENTER RIGHT" << std::endl;
-                        this->obstacle_init.type = OBS_RIGHT_CENTER;
-                    }
-                } else if (center_assist && left_assist) {
-                    this->obstacle_init.type = OBS_LEFT_CENTER;
-                } else if (center_assist && right_assist) {
-                    this->obstacle_init.type = OBS_RIGHT_CENTER;
-                } else if (center_assist) {
-                    this->obstacle_init.type = OBS_CENTER;
-                } else if (left_assist) {
-                    this->obstacle_init.type = OBS_LEFT;
-                } else if (right_assist) {
-                    this->obstacle_init.type = OBS_RIGHT;
-                }
+    if (!accepted_sonar.empty()) {
+        if (left_assist && center_assist && right_assist) {
+            std::cout << "Left range: " << left_assist->detections.smallest_detection << std::endl;
+            std::cout << "Center range: " << center_assist->detections.smallest_detection << std::endl;
+            std::cout << "Right range: " << right_assist->detections.smallest_detection << std::endl;
+            // Base Case: if the rover meets a flat object head-on
+            if (left_assist->detections.smallest_detection == center_assist->detections.smallest_detection &&
+                center_assist->detections.smallest_detection == right_assist->detections.smallest_detection) {
+                std::cout << "OBS CENTER" << std::endl;
+                obstacle.type = OBS_CENTER;
             }
-                // Reset 'obstacle' monitors and detections
+            else if (left_assist->detections.smallest_detection <= right_assist->detections.smallest_detection) {
+                std::cout << "OBS CENTER LEFT" << std::endl;
+                obstacle.type = OBS_LEFT_CENTER;
+            }
             else {
-                resetObstacle(INIT);
+                std::cout << "OBS CENTER RIGHT" << std::endl;
+                obstacle.type = OBS_RIGHT_CENTER;
             }
-            break;
-        case STAG:
-            if (!accepted_sonar.empty()) {
-                if (left_assist && center_assist && right_assist) {
-                    // Base Case: if the rover meets a flat object head-on
-                    if (left_assist->detections.smallest_detection == center_assist->detections.smallest_detection &&
-                            center_assist->detections.smallest_detection == right_assist->detections.smallest_detection) {
-                        this->obstacle_stag.type = OBS_CENTER;
-                    }
-                    else if (left_assist->detections.smallest_detection <= right_assist->detections.smallest_detection) {
-                        this->obstacle_stag.type = OBS_LEFT_CENTER;
-                    }
-                    else {
-                        this->obstacle_stag.type = OBS_RIGHT_CENTER;
-                    }
-                } else if (center_assist && left_assist) {
-                    this->obstacle_stag.type = OBS_LEFT_CENTER;
-                } else if (center_assist && center_assist) {
-                    this->obstacle_stag.type = OBS_RIGHT_CENTER;
-                } else if (center_assist) {
-                    this->obstacle_stag.type = OBS_CENTER;
-                } else if (left_assist) {
-                    this->obstacle_stag.type = OBS_LEFT;
-                } else if (right_assist) {
-                    this->obstacle_stag.type = OBS_RIGHT;
-
-                }
-            }
-                // Reset 'obstacle' monitors and detections
-            else {
-                resetObstacle(STAG);
-            }
-            break;
-        default:
-            std::cout << "OBSTACLE_CONTROLLER: hit default" << std::endl;
-            break;
+        } else if (center_assist && left_assist) {
+            obstacle.type = OBS_LEFT_CENTER;
+        } else if (center_assist && right_assist) {
+            obstacle.type = OBS_RIGHT_CENTER;
+        } else if (center_assist) {
+            obstacle.type = OBS_CENTER;
+        } else if (left_assist) {
+            obstacle.type = OBS_LEFT;
+        } else if (right_assist) {
+            obstacle.type = OBS_RIGHT;
+        }
+        this->monitor_map.at(delay_type) = obstacle;
     }
+    else {
+        this->resetDetections(delay_type);
+    }
+//    double x;
+//    double y;
+//    double alpha;
+//
+//    /*
+//     * Grab the accepted detection from the map and verify they
+//     * are below our 'MIN_THRESH'.
+//     */
+//    ObstacleAssistant *left_assist = NULL;
+//    ObstacleAssistant *center_assist = NULL;
+//    ObstacleAssistant *right_assist = NULL;
+//    for (auto assistant : accepted_sonar) {
+//        if (assistant.second.detections.smallest_detection < MIN_THRESH) {
+//            switch (assistant.first) {
+//                case LEFT:
+//                    left_assist = &assistant.second;
+//                    break;
+//                case CENTER:
+//                    center_assist = &assistant.second;
+//                    break;
+//                case RIGHT:
+//                    right_assist = &assistant.second;
+//                    break;
+//                default:
+//                    std::cout << "OBSTACLE_CONTROLLER: hit default in 'ObstacleController::obstacleContactDir()" << std::endl;
+//                    break;
+//            }
+//        }
+//        else {
+//            // Remove sonar that has not passed below our 'MIN_THRESH'
+//            accepted_sonar.erase(assistant.first);
+//            // Restart respective sonar monitor
+//            switch (delay) {
+//                case INIT:
+//                    this->obstacle_init.sonar_map.at(assistant.first).monitor->clear();
+//                    break;
+//                case STAG:
+//                    this->obstacle_stag.sonar_map.at(assistant.first).monitor->clear();
+//                    break;
+//                default:
+//                    std::cout << "OBSTACLE_CONTROLLER: hit default in INIT STAG differentiation" << std::endl;
+//                    break;
+//            }
+//        }
+//    }
+
+//    /*
+//     * Check if there are any good detections
+//     */
+//    switch (delay) {
+//        case INIT:
+//            if (!accepted_sonar.empty()) {
+//                if (left_assist && center_assist && right_assist) {
+//                    std::cout << "Left range: " << left_assist->detections.smallest_detection << std::endl;
+//                    std::cout << "Center range: " << center_assist->detections.smallest_detection << std::endl;
+//                    std::cout << "Right range: " << right_assist->detections.smallest_detection << std::endl;
+//                    // Base Case: if the rover meets a flat object head-on
+//                    if (left_assist->detections.smallest_detection == center_assist->detections.smallest_detection &&
+//                            center_assist->detections.smallest_detection == right_assist->detections.smallest_detection) {
+//                        std::cout << "OBS CENTER" << std::endl;
+//                        this->obstacle_init.type = OBS_CENTER;
+//                    }
+//                    else if (left_assist->detections.smallest_detection <= right_assist->detections.smallest_detection) {
+//                        std::cout << "OBS CENTER LEFT" << std::endl;
+//                        this->obstacle_init.type = OBS_LEFT_CENTER;
+//                    }
+//                    else {
+//                        std::cout << "OBS CENTER RIGHT" << std::endl;
+//                        this->obstacle_init.type = OBS_RIGHT_CENTER;
+//                    }
+//                } else if (center_assist && left_assist) {
+//                    this->obstacle_init.type = OBS_LEFT_CENTER;
+//                } else if (center_assist && right_assist) {
+//                    this->obstacle_init.type = OBS_RIGHT_CENTER;
+//                } else if (center_assist) {
+//                    this->obstacle_init.type = OBS_CENTER;
+//                } else if (left_assist) {
+//                    this->obstacle_init.type = OBS_LEFT;
+//                } else if (right_assist) {
+//                    this->obstacle_init.type = OBS_RIGHT;
+//                }
+//            }
+//                // Reset 'obstacle' monitors and detections
+//            else {
+//                resetObstacle(INIT);
+//            }
+//            break;
+//        case STAG:
+//            if (!accepted_sonar.empty()) {
+//                if (left_assist && center_assist && right_assist) {
+//                    // Base Case: if the rover meets a flat object head-on
+//                    if (left_assist->detections.smallest_detection == center_assist->detections.smallest_detection &&
+//                            center_assist->detections.smallest_detection == right_assist->detections.smallest_detection) {
+//                        this->obstacle_stag.type = OBS_CENTER;
+//                    }
+//                    else if (left_assist->detections.smallest_detection <= right_assist->detections.smallest_detection) {
+//                        this->obstacle_stag.type = OBS_LEFT_CENTER;
+//                    }
+//                    else {
+//                        this->obstacle_stag.type = OBS_RIGHT_CENTER;
+//                    }
+//                } else if (center_assist && left_assist) {
+//                    this->obstacle_stag.type = OBS_LEFT_CENTER;
+//                } else if (center_assist && right_assist) {
+//                    this->obstacle_stag.type = OBS_RIGHT_CENTER;
+//                } else if (center_assist) {
+//                    this->obstacle_stag.type = OBS_CENTER;
+//                } else if (left_assist) {
+//                    this->obstacle_stag.type = OBS_LEFT;
+//                } else if (right_assist) {
+//                    this->obstacle_stag.type = OBS_RIGHT;
+//                }
+//            }
+//                // Reset 'obstacle' monitors and detections
+//            else {
+//                resetObstacle(STAG);
+//            }
+//            break;
+//        default:
+//            std::cout << "OBSTACLE_CONTROLLER: hit default" << std::endl;
+//            break;
+//    }
 }
 
 
@@ -669,61 +859,93 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
  * @param assistant : the passed obstacle assistant (type, detections, monitor)
  * @param delay : which monitor are we editing
  */
-void ObstacleController::sonarAnalysis(ObstacleAssistant assistant, DELAY_TYPE delay) {
-    float prev;
-    float curr;
-    bool has_begun = false;
-    SONAR sonar = assistant.sonar;
-    // check to make sure the passed structure has been populated
-    if (!assistant.monitor->empty()) {
-        for (auto detectionRange : *assistant.monitor) {
-            if (!has_begun) {
-                curr = detectionRange;
-                has_begun = true;
-            } else {
-                prev = curr;
-                curr = detectionRange;
-                double diff = std::fabs(prev - curr);
-                if (diff < DELTA) {
-                    switch (delay) {
-                        case INIT:
-                            this->obstacle_init.sonar_map.at(sonar).detections.good_detection = true;
-                            this->obstacle_init.sonar_map.at(sonar).detections.smallest_detection = curr;
-                            break;
-                        case STAG:
-                            this->obstacle_stag.sonar_map.at(sonar).detections.good_detection = true;
-                            this->obstacle_stag.sonar_map.at(sonar).detections.smallest_detection = curr;
-                    }
-                    /*
-                     * DO NOT REMOVE COMMENTED CODE
-                     * IF DETECTION ERRORS OCCUR SEE MASON U'REN FOR DEBUGGING
-                     */
-    //                    last_detect = curr;
-                    // TESTING: noticed false detections
-    //                    if (curr > 0.06) {
-    //                        last_detect = curr;
-    //                    }
-    //                    else {
-    //                        bad_detection = true;
-    //                        last_detect = -1;
-    //                    }
+//void ObstacleController::sonarAnalysis(ObstacleAssistant assistant, DELAY_TYPE delay) {
+void ObstacleController::sonarAnalysis(DELAY_TYPE delay_type) {
+    OBSTACLE obstacle = this->monitor_map.at(delay_type);
+    for (auto assistant : obstacle.sonar_map) {
+        float prev;
+        float curr;
+        bool has_begun = false;
+        SONAR sonar = assistant.sonar;
+        // Check to make sure the passed monitor has been populated
+        if (!assistant.monitor->empty()) {
+            for (auto detection_range : *assistant.monitor) {
+                if (!has_begun) {
+                    curr = detection_range;
+                    has_begun = true;
                 }
-                else { // Throw out bad vector
-                    switch (delay) {
-                        case INIT:
-                            this->obstacle_init.sonar_map.at(sonar).detections.good_detection = false;
-                            this->obstacle_init.sonar_map.at(sonar).monitor->clear(); // Remove bad vector
-                            break;
-                        case STAG:
-                            this->obstacle_stag.sonar_map.at(sonar).detections.good_detection = false;
-                            this->obstacle_stag.sonar_map.at(sonar).monitor->clear(); // Remove bad vector
-                            break;
+                else {
+                    prev = curr;
+                    curr = detection_range;
+                    double diff = std::fabs(prev - curr);
+                    if (diff < DELTA) {
+                        obstacle.sonar_map.at(sonar).detections.good_detection = true;
+                        obstacle.sonar_map.at(sonar).detections.smallest_detection = curr;
                     }
-                    break;
+                    else {
+                        obstacle.sonar_map.at(sonar).detections.good_detection = false;
+                    }
                 }
             }
         }
+        this->monitor_map.at(delay_type) = obstacle;
     }
+
+
+//    float prev;
+//    float curr;
+//    bool has_begun = false;
+//    SONAR sonar = assistant.sonar;
+//    // check to make sure the passed structure has been populated
+//    if (!assistant.monitor->empty()) {
+//        for (auto detectionRange : *assistant.monitor) {
+//            if (!has_begun) {
+//                curr = detectionRange;
+//                has_begun = true;
+//            } else {
+//                prev = curr;
+//                curr = detectionRange;
+//                double diff = std::fabs(prev - curr);
+//                if (diff < DELTA) {
+//                    switch (delay) {
+//                        case INIT:
+//                            this->obstacle_init.sonar_map.at(sonar).detections.good_detection = true;
+//                            this->obstacle_init.sonar_map.at(sonar).detections.smallest_detection = curr;
+//                            break;
+//                        case STAG:
+//                            this->obstacle_stag.sonar_map.at(sonar).detections.good_detection = true;
+//                            this->obstacle_stag.sonar_map.at(sonar).detections.smallest_detection = curr;
+//                    }
+//                    /*
+//                     * DO NOT REMOVE COMMENTED CODE
+//                     * IF DETECTION ERRORS OCCUR SEE MASON U'REN FOR DEBUGGING
+//                     */
+//    //                    last_detect = curr;
+//                    // TESTING: noticed false detections
+//    //                    if (curr > 0.06) {
+//    //                        last_detect = curr;
+//    //                    }
+//    //                    else {
+//    //                        bad_detection = true;
+//    //                        last_detect = -1;
+//    //                    }
+//                }
+//                else { // Throw out bad vector
+//                    switch (delay) {
+//                        case INIT:
+//                            this->obstacle_init.sonar_map.at(sonar).detections.good_detection = false;
+//                            this->obstacle_init.sonar_map.at(sonar).monitor->clear(); // Remove bad vector
+//                            break;
+//                        case STAG:
+//                            this->obstacle_stag.sonar_map.at(sonar).detections.good_detection = false;
+//                            this->obstacle_stag.sonar_map.at(sonar).monitor->clear(); // Remove bad vector
+//                            break;
+//                    }
+//                    break;
+//                }
+//            }
+//        }
+//    }
 }
 
 /**
@@ -733,24 +955,36 @@ void ObstacleController::sonarAnalysis(ObstacleAssistant assistant, DELAY_TYPE d
  * @param range : the distance of the respective detection
  * @param sonar : which sensor are we referencing
  */
-void ObstacleController::sonarMonitor(OBSTACLE obstacle, float range, SONAR sonar) {
+void ObstacleController::sonarMonitor(DELAY_TYPE delay_type, float range, SONAR sonar) {
+    OBSTACLE obstacle = this->monitor_map.at(delay_type);
     if (obstacle.allowed) {
         obstacle.sonar_map.at(sonar).monitor->push_back(range);
         if (obstacle.sonar_map.at(sonar).monitor->size() >= VECTOR_MAX) {
-            switch (obstacle.delay) {
-                case INIT:
-                    this->obstacle_init.sonar_map.at(sonar).detections.init_detection = true;
-                    break;
-                case STAG:
-                    this->obstacle_stag.sonar_map.at(sonar).detections.init_detection = true;
-                    break;
-            }
+            obstacle.sonar_map.at(sonar).detections.init_detection = true;
         }
         else {
-            this->obstacle_init.sonar_map(sonar).detections.init_detection = false;
-            this->obstacle_stag.sonar_map(sonar).detections.init_detection = false;
+            obstacle.sonar_map.at(sonar).detections.init_detection = false;
         }
+        this->monitor_map.at(delay_type) = obstacle; // Assign new values
     }
+
+//    if (obstacle.allowed) {
+//        obstacle.sonar_map.at(sonar).monitor->push_back(range);
+//        if (obstacle.sonar_map.at(sonar).monitor->size() >= VECTOR_MAX) {
+//            switch (obstacle.delay) {
+//                case INIT:
+//                    this->obstacle_init.sonar_map.at(sonar).detections.init_detection = true;
+//                    break;
+//                case STAG:
+//                    this->obstacle_stag.sonar_map.at(sonar).detections.init_detection = true;
+//                    break;
+//            }
+//        }
+//        else {
+//            this->obstacle_init.sonar_map(sonar).detections.init_detection = false;
+//            this->obstacle_stag.sonar_map(sonar).detections.init_detection = false;
+//        }
+//    }
 }
 
 /**
@@ -758,44 +992,59 @@ void ObstacleController::sonarMonitor(OBSTACLE obstacle, float range, SONAR sona
  * @param delay_type : which 'assistant' is being passed
  */
 void ObstacleController::resetObstacle(DELAY_TYPE delay_type) {
-    switch (delay_type) {
-        case INIT:
-            this->obstacle_init.type = NO_OBSTACLE;
-            this->obstacle_init.sonar_map = {
-                    {LEFT, ObstacleAssistant(LEFT)},
-                    {CENTER, ObstacleAssistant(CENTER)},
-                    {RIGHT, ObstacleAssistant(RIGHT)}
-            };
-            break;
-        case STAG:
-            this->obstacle_stag.type = NO_OBSTACLE;
-            this->obstacle_stag.sonar_map = {
-                    {LEFT, ObstacleAssistant(LEFT)},
-                    {CENTER, ObstacleAssistant(CENTER)},
-                    {RIGHT, ObstacleAssistant(RIGHT)}
-            };
-            break;
-        default:
-            std::cout << "OBSTACLE_CONTROLLER: hit default in resetObstacle " << std::endl;
-            break;
-    }
+    this->monitor_map.at(delay_type).type = NO_OBSTACLE;
+    this->monitor_map.at(delay_type).sonar_map = {
+            {LEFT, ObstacleAssistant(LEFT)},
+            {CENTER, ObstacleAssistant(CENTER)},
+            {RIGHT, ObstacleAssistant(RIGHT)}
+    };
+
+
+//    switch (delay_type) {
+//        case INIT:
+//            this->obstacle_init.type = NO_OBSTACLE;
+//            this->obstacle_init.sonar_map = {
+//                    {LEFT, ObstacleAssistant(LEFT)},
+//                    {CENTER, ObstacleAssistant(CENTER)},
+//                    {RIGHT, ObstacleAssistant(RIGHT)}
+//            };
+//            break;
+//        case STAG:
+//            this->obstacle_stag.type = NO_OBSTACLE;
+//            this->obstacle_stag.sonar_map = {
+//                    {LEFT, ObstacleAssistant(LEFT)},
+//                    {CENTER, ObstacleAssistant(CENTER)},
+//                    {RIGHT, ObstacleAssistant(RIGHT)}
+//            };
+//            break;
+//        default:
+//            std::cout << "OBSTACLE_CONTROLLER: hit default in resetObstacle " << std::endl;
+//            break;
+//    }
 }
 
 /**
  * Each iteration through should have to recalc detection.
  * Final detection should be checked if it is allowed to end.
  */
-void ObstacleController::resetDetections() {
-    this->obstacle_init.type = NO_OBSTACLE;
-    this->obstacle_stag.type = NO_OBSTACLE;
+void ObstacleController::resetDetections(DELAY_TYPE delay_type) {
+    this->monitor_map.at(delay_type).type = NO_OBSTACLE;
     // Only reset main detection after previous reflection has finished
-    std::cout << "OBSTACLE CONTROLLER: processData() can start: " << this->reflection.can_start << std::endl;
-    std::cout << "OBSTACLE CONTROLLER: processData() can end: " << this->reflection.can_end << std::endl;
     if (this->reflection.can_end) {
-        std::cout << "OBSTACLE CONTROLLER: processData() AVOIDED" << std::endl;
         this->detection_declaration = NO_OBSTACLE;
         obstacleAvoided = true;
     }
+
+//    this->obstacle_init.type = NO_OBSTACLE;
+//    this->obstacle_stag.type = NO_OBSTACLE;
+//    // Only reset main detection after previous reflection has finished
+//    std::cout << "OBSTACLE CONTROLLER: processData() can start: " << this->reflection.can_start << std::endl;
+//    std::cout << "OBSTACLE CONTROLLER: processData() can end: " << this->reflection.can_end << std::endl;
+//    if (this->reflection.can_end) {
+//        std::cout << "OBSTACLE CONTROLLER: processData() AVOIDED" << std::endl;
+//        this->detection_declaration = NO_OBSTACLE;
+//        obstacleAvoided = true;
+//    }
 }
 
 
