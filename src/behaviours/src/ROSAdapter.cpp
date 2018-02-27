@@ -787,7 +787,9 @@ void logicMessage(long int currentTime, string component, string message) {
 }
 
 void tagMessage(vector <Tag> tags) {
-  float tagYaw;
+  double tagYaw;
+  double tagRoll;
+  double tagPitch;
   float xPos;
   float yPos;
   float zPos;
@@ -796,7 +798,9 @@ void tagMessage(vector <Tag> tags) {
   tagDataPublish.publish(messageToPublish);
   for (int i = 0; i < tags.size(); i++) {
     // if (tags[i].getID() == 256) {
-      tagYaw = tags[i].calcYaw();
+      tf::Quaternion tagOrien(tags[0].getOrientationX(), tags[0].getOrientationY(), tags[0].getOrientationZ(), tags[0].getOrientationW());
+      tf::Matrix3x3 rotMartrix(tagOrien);
+      rotMartrix.getRPY(tagRoll, tagPitch, tagYaw);
       xPos = tags[i].getPositionX();
       yPos = tags[i].getPositionY();
       zPos = tags[i].getPositionZ();                 
