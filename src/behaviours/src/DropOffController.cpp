@@ -33,7 +33,7 @@ DropOffController::~DropOffController() {
 Result DropOffController::DoWork() {
 
 
-  //cout << "8 I am currently in DropOff mode" << endl;
+    //cout << "8 I am currently in DropOff mode" << endl;
 
     logicMessage(current_time, ClassName, __func__);
     int count = countLeft + countRight;
@@ -76,7 +76,7 @@ Result DropOffController::DoWork() {
         return result;
     }
 
-    double distanceToCenter = Utilities::distance_between_points(centerLocation,currentLocation);
+    double distanceToCenter = Utilities::distance_between_points(centerLocation, currentLocation);
 
     //check to see if we are driving to the center location or if we need to drive in a circle and look.
     if (distanceToCenter > collectionPointVisualDistance && !circularCenterSearching && (count == 0)) {
@@ -102,7 +102,7 @@ Result DropOffController::DoWork() {
         //radians counterclockwise from being purly along the x-axis.
         nextSpinPoint.x = centerLocation.x + (initialSpinSize + spinSizeIncrease) * cos(spinner);
         nextSpinPoint.y = centerLocation.y + (initialSpinSize + spinSizeIncrease) * sin(spinner);
-        nextSpinPoint.theta = Utilities::angle_between_points(nextSpinPoint,currentLocation);
+        nextSpinPoint.theta = Utilities::angle_between_points(nextSpinPoint, currentLocation);
 
         result.type = waypoint;
         result.waypoints.clear();
@@ -251,21 +251,21 @@ Result DropOffController::DoWork() {
 }
 
 void DropOffController::Reset() {
-  result.type = behavior;
-  result.behaviourType = wait;
-  result.pd.cmdVel = 0;
-  result.pd.cmdAngularError = 0;
-  result.fingerAngle = -1;
-  result.wristAngle = 0.7;
-  result.reset = false;
-  result.waypoints.clear();
-  spinner = 0;
-  spinSizeIncrease = 0;
-  prevCount = 0;
-  timerTimeElapsed = -1;
+    result.type = behavior;
+    result.behaviourType = wait;
+    result.pd.cmdVel = 0;
+    result.pd.cmdAngularError = 0;
+    result.fingerAngle = -1;
+    result.wristAngle = 0.7;
+    result.reset = false;
+    result.waypoints.clear();
+    spinner = 0;
+    spinSizeIncrease = 0;
+    prevCount = 0;
+    timerTimeElapsed = -1;
 
-  countLeft = 0;
-  countRight = 0;
+    countLeft = 0;
+    countRight = 0;
 
     //reset flags
     reachedCollectionPoint = false;
@@ -277,11 +277,11 @@ void DropOffController::Reset() {
     targetHeld = false;
     startWaypoint = false;
     first_center = true;
-        //cout << "6 Reset has occurred" << endl;
+    //cout << "6 Reset has occurred" << endl;
 
 }
 
-void DropOffController::SetTargetData(vector <Tag> tags) {
+void DropOffController::SetTargetData(vector<Tag> tags) {
     countRight = 0;
     countLeft = 0;
 
@@ -370,60 +370,50 @@ void DropOffController::SetCurrentTimeInMilliSecs(long int time) {
     current_time = time;
 }
 
-Point closestAnchor(Point current){
+Point closestAnchor(Point current) {
     int x = current.x;
     int y = current.y;
     Point nearestAnchor;
-    if(x > 0 && y > 0) //if true in quadrant I
+    if (x > 0 && y > 0) //if true in quadrant I
     {
-        if(y > x)//upper triangle of quadrant I
+        if (y > x)//upper triangle of quadrant I
         {
             nearestAnchor.x = 0;
             nearestAnchor.y = 1;//rover goes to (0,1)
-        }
-        else
-        {
+        } else {
             nearestAnchor.x = 1;
             nearestAnchor.y = 0;//rover goes to (1, 0)
         }
 
-    }
-    else if(x > 0 && y < 0) //if true in quadrant II
+    } else if (x > 0 && y < 0) //if true in quadrant II
     {
-        if(abs(y) > x)//lower triangle of quadrant II
+        if (abs(y) > x)//lower triangle of quadrant II
         {
             nearestAnchor.x = 0;
             nearestAnchor.y = -1;//rover goes to (0,-1)
-        }
-        else //upper triangle of quadrant II
+        } else //upper triangle of quadrant II
         {
             nearestAnchor.x = 1;
             nearestAnchor.y = 0;//rover goes to (1, 0)
         }
-    }
-    else if(x < 0 && y > 0)//if true in quadrant IV
+    } else if (x < 0 && y > 0)//if true in quadrant IV
     {
-        if(y > x)//upper triangle of quadrant IV
+        if (y > x)//upper triangle of quadrant IV
         {
             nearestAnchor.x = 0;
             nearestAnchor.y = 1;//rover goes to (0,1)
-        }
-        else
-        {
+        } else {
             nearestAnchor.x = -1;
             nearestAnchor.y = 0;//rover goes to (-1, 0)
         }
 
-    }
-    else if(x < 0 && y < 0) //if true in quadrant III
+    } else if (x < 0 && y < 0) //if true in quadrant III
     {
-        if(abs(y) > x)//upper triangle of quadrant III
+        if (abs(y) > x)//upper triangle of quadrant III
         {
             nearestAnchor.x = 0;
             nearestAnchor.y = -1;//rover goes to (0,-1)
-        }
-        else
-        {
+        } else {
             nearestAnchor.x = -1;
             nearestAnchor.y = 0;//rover goes to (-1, 0)
         }
