@@ -7,6 +7,8 @@
 #include <math.h>
 #include <ros/ros.h>
 #include <std_msgs/String.h>
+#include <tf/transform_datatypes.h>
+#include <tf/transform_listener.h>
 
 extern void logMessage(long int currentTime, string component, string message);
 extern void logicMessage(long int currentTime, string component, string message);
@@ -52,6 +54,7 @@ public:
 private:
 
     void ProcessData();
+    bool Align();
 
     //Constants
 

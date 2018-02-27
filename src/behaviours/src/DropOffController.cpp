@@ -250,6 +250,34 @@ Result DropOffController::DoWork() {
     return result;
 }
 
+//Rotates bot to better align with home tags
+bool DropOffController::Align()
+{
+
+    //still need to add condition where yaw is +-1.5
+    if(tagYaw > 0.09)// turn right
+    {
+        result.type = precisionDriving;
+        result.pd.cmdVel = 0.3;
+        result.pd.cmdAngularError = -0.17; //10 degrees
+    }
+    else if(tagYaw < -0.09)//turn left
+    {
+        result.type = precisionDriving;
+        result.pd.cmdVel = 0.3;
+        result.pd.cmdAngularError = 0.17;
+    }
+
+    if((tagYaw > -0.09 && tagYaw < 0.09))
+    {
+        result.pd.cmdVel = 0.0;
+        result.pd.cmdAngularError = 0.0;
+        return true;
+    }
+
+    return false;
+}
+
 void DropOffController::Reset() {
   result.type = behavior;
   result.behaviourType = wait;
@@ -284,25 +312,26 @@ void DropOffController::Reset() {
 void DropOffController::SetTargetData(vector <Tag> tags) {
     countRight = 0;
     countLeft = 0;
-    float tagYaw;
-    float xPos;
-    float yPos;
-    float zPos;
     int upRQuad = 0;
     int lowRQuad = 0;
     int upLQuad = 0;
     int lowLQuad = 0;
+    double roll, pitch;
 
     //if (targetHeld) {
         // if a target is detected and we are looking for center tags
         if (tags.size() > 0 && !reachedCollectionPoint) {
+
+            //proper calculations of roll, pitch, yaw
+            tf::Quaternion tagOrien(tags[0].getOrientationX(), tags[0].getOrientationY(), tags[0].getOrientationZ(), tags[0].getOrientationW());
+            tf::Matrix3x3 rotMartrix(tagOrien);
+            rotMartrix.getRPY(roll, pitch, tagYaw);
+
+            logicMessage(current_time, "YAW:::  ", std::to_string(tagYaw));
             // this loop is to get the number of center tags
             for (int i = 0; i < tags.size(); i++) {
                 if (tags[i].getID() == 256) {
-                    tagYaw = tags[i].calcYaw();
-                    xPos = tags[i].getPositionX();
-                    yPos = tags[i].getPositionY();
-                    zPos = tags[i].getPositionZ();
+                    //tagYaw = tags[i].calcYaw();
                     // checks if tag is on the right or left side of the image
                     if (tags[i].getPositionX() + cameraOffsetCorrection > 0) {
                         if(tags[i].getPositionY() > 0) {
