@@ -52,6 +52,20 @@ private:
 
     void ProcessData();
 
+    /**
+     * Get the index of the center tag closest to the camera
+     * @param tags Vector of tags to search
+     * @return The index of the closest tag, or -1 if none found
+     */
+    int getClosestCenterTagIdx(const vector<Tag> &tags);
+
+    /**
+     * Gets the distance from the camera to a tag
+     * @param tag The tag to get the distance to
+     * @return The distance (presumably in meters)
+     */
+    double tagDistanceFromCamera(const Tag &tag);
+
     //Constants
 
     const float cameraOffsetCorrection = 0.020; //meters
@@ -63,6 +77,8 @@ private:
     const float spinSizeIncrement = 0.50; //in meters
     const float searchVelocity = 0.15; //in meters per second
     const float dropDelay = 0.5; //delay in seconds for dropOff
+    const double centerClearedDistanceThreshold = .25; // Distance we must be from the center to consider it cleared
+    const double minimumBackupThreshold = 2; // Minimum time to spend backing up
 
 
 
@@ -92,6 +108,9 @@ private:
     //Count of tags on the left and right, respectively
     int countLeft;
     int countRight;
+
+    // Distance from the camera of the closest tag
+    double closestTagDistance;
 
     //Center and current locations as of the last call to setLocationData
     Point centerLocation;

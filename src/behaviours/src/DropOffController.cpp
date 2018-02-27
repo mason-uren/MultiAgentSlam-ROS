@@ -47,7 +47,12 @@ Result DropOffController::DoWork() {
     //to resart our search.
     if (reachedCollectionPoint) {
         //cout << "2 I am at home" << endl;
-        if (timerTimeElapsed >= 5) {
+
+        // Check if we have backed far enough away from the dropoff zone
+        bool clearOfCircle = timerTimeElapsed > minimumBackupThreshold
+                             && closestTagDistance > centerClearedDistanceThreshold;
+
+        if (clearOfCircle) {
             if (finalInterrupt) {
                 result.type = behavior;
                 result.behaviourType = nextProcess;
@@ -56,6 +61,7 @@ Result DropOffController::DoWork() {
                 logMessage(current_time, "DROPOFF", message);
                 return result;
             } else {
+                logMessage(current_time, "DROPOFF", "Clear of circle, entering final interrupt");
                 finalInterrupt = true;
                 cout << "1" << endl;
             }
@@ -266,6 +272,7 @@ void DropOffController::Reset() {
 
     countLeft = 0;
     countRight = 0;
+    closestTagDistance = 0;
 
     //reset flags
     reachedCollectionPoint = false;
@@ -285,6 +292,13 @@ void DropOffController::SetTargetData(vector<Tag> tags) {
     countRight = 0;
     countLeft = 0;
 
+    int closestIdx = getClosestCenterTagIdx(tags);
+
+    if (closestIdx > -1) {
+        // Found a tag
+        closestTagDistance = tagDistanceFromCamera(tags[closestIdx]);
+    }
+
     // this loop is to get the number of center tags
     for (auto &tag : tags) {
         if (tag.getID() == 256) {
@@ -301,8 +315,6 @@ void DropOffController::SetTargetData(vector<Tag> tags) {
 
         }
     }
-
-
 }
 
 void DropOffController::ProcessData() {
@@ -366,6 +378,28 @@ void DropOffController::SetBlockBlockingUltrasound(bool blockBlock) {
 
 void DropOffController::SetCurrentTimeInMilliSecs(long int time) {
     current_time = time;
+}
+
+int DropOffController::getClosestCenterTagIdx(const vector<Tag> &tags) {
+    int idx = -1;
+    double closest = std::numeric_limits<double>::max();
+
+    for (int i = 0; i < tags.size(); i++) {
+        if (tags[i].getID() == 256) {
+            double distance = tagDistanceFromCamera(tags[i]);
+
+            if (distance < closest) {
+                idx = i;
+                closest = distance;
+            }
+        }
+    }
+
+    return idx;
+}
+
+double DropOffController::tagDistanceFromCamera(const Tag &tag) {
+    return hypot(hypot(tag.getPositionX(), tag.getPositionY()), tag.getPositionZ());
 }
 
 Point closestAnchor(Point current) {
