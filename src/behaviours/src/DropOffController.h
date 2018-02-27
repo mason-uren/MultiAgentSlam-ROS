@@ -9,6 +9,7 @@
 #include <std_msgs/String.h>
 
 extern void logMessage(long int currentTime, string component, string message);
+
 extern void logicMessage(long int currentTime, string component, string message);
 
 class DropOffController : virtual Controller {
@@ -35,13 +36,13 @@ public:
 
     void SetBlockBlockingUltrasound(bool blockBlock);
 
-    void SetTargetData(vector <Tag> tags);
+    void SetTargetData(vector<Tag> tags);
 
     bool HasTarget() { return targetHeld; }
 
     float GetSpinner() { return spinner; }
 
-    void UpdateData(vector <Tag> tags);
+    void UpdateData(vector<Tag> tags);
 
     void SetCurrentTimeInMilliSecs(long int time);
 
@@ -129,8 +130,8 @@ private:
 
     Result result;
 
-  //current ROS time from the RosAdapter
-  long int current_time;
+    //current ROS time from the RosAdapter
+    long int current_time;
 
     bool interrupt = false;
     bool precisionInterrupt = false;
