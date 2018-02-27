@@ -285,25 +285,23 @@ void DropOffController::SetTargetData(vector<Tag> tags) {
     countRight = 0;
     countLeft = 0;
 
-    if (targetHeld) {
-        // if a target is detected and we are looking for center tags
-        if (tags.size() > 0 && !reachedCollectionPoint) {
+    // this loop is to get the number of center tags
+    for (auto &tag : tags) {
+        if (tag.getID() == 256) {
+            // if a target is detected and we are looking for center tags
+            if (targetHeld && !reachedCollectionPoint) {
+                // checks if tag is on the right or left side of the image
+                if (tag.getPositionX() + cameraOffsetCorrection > 0) {
+                    countRight++;
 
-            // this loop is to get the number of center tags
-            for (int i = 0; i < tags.size(); i++) {
-                if (tags[i].getID() == 256) {
-
-                    // checks if tag is on the right or left side of the image
-                    if (tags[i].getPositionX() + cameraOffsetCorrection > 0) {
-                        countRight++;
-
-                    } else {
-                        countLeft++;
-                    }
+                } else {
+                    countLeft++;
                 }
             }
+
         }
     }
+
 
 }
 
