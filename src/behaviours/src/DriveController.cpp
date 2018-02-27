@@ -178,7 +178,7 @@ Result DriveController::DoWork()
             // calculate the distance between current and desired heading in radians
             printf("\nskid %d\n", result.type);
             if (result.type == vectorDriving) {
-                fastPID(5, 0,.3,0);
+                fastPID(.3,0,5,0);
                 break;
             }
             else {
@@ -259,13 +259,8 @@ void DriveController::ProcessData() {
             stateMachineState = STATE_MACHINE_WAYPOINTS;
         }
     } else if (result.type == vectorDriving) {
-        float errorYaw = angles::shortest_angular_distance(result.desired_heading, currentLocation.theta);
-        float abs_error = fabs(errorYaw);
-        if (abs_error > .5) {
-            stateMachineState = STATE_MACHINE_ROTATE;
-        } else {
-            stateMachineState = STATE_MACHINE_ROTATE;
-        }
+        stateMachineState = STATE_MACHINE_ROTATE;
+
     } else if (result.type == precisionDriving) {
 
         //calculate inputs into the PIDS for precision driving
