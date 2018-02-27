@@ -786,9 +786,24 @@ void logicMessage(long int currentTime, string component, string message) {
   logicPublish.publish(messageToPublish);
 }
 
-void tagMessage(float xPos, float yPos, float zPos, float yaw) {
+void tagMessage(vector <Tag> tags) {
+  float tagYaw;
+  float xPos;
+  float yPos;
+  float zPos;
   std_msgs::String messageToPublish;
-  messageToPublish.data = "X: " + std::to_string(xPos) + " Y: " + std::to_string(xPos) + " Z: " + std::to_string(zPos) + " yaw: " + std::to_string(yaw);
+  messageToPublish.data = "New Frame:---------------------------------------------------";
+  tagDataPublish.publish(messageToPublish);
+  for (int i = 0; i < tags.size(); i++) {
+    // if (tags[i].getID() == 256) {
+      tagYaw = tags[i].calcYaw();
+      xPos = tags[i].getPositionX();
+      yPos = tags[i].getPositionY();
+      zPos = tags[i].getPositionZ();                 
+      messageToPublish.data = "X: " + std::to_string(xPos) + " Y: " + std::to_string(yPos) + " Z: " + std::to_string(zPos) + " yaw: " + std::to_string(tagYaw);
+      tagDataPublish.publish(messageToPublish);
+    // }
+  }
   tagDataPublish.publish(messageToPublish);
 }
 

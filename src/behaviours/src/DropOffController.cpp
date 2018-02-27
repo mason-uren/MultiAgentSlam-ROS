@@ -326,10 +326,10 @@ void DropOffController::SetTargetData(vector <Tag> tags) {
                     } else {
                         countLeft++;
                     }
-                    tagMessage(xPos, yPos, zPos, tagYaw);
                     tagQuadMessage(upLQuad, upRQuad, lowLQuad, lowRQuad);
                 }
             }
+            tagMessage(tags);
         }
     //}
 
