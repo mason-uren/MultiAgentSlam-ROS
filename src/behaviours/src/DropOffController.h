@@ -69,6 +69,7 @@ private:
     const float dropDelay = 0.5; //delay in seconds for dropOff
 
     double tagYaw;
+    bool isAligned;
 
     //Instance Variables
 

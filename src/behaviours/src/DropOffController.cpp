@@ -16,7 +16,7 @@ DropOffController::DropOffController() {
     centerApproach = false;
     seenEnoughCenterTags = false;
     prevCount = 0;
-
+    isAligned = false;
     countLeft = 0;
     countRight = 0;
 
@@ -303,6 +303,8 @@ void DropOffController::Reset() {
     targetHeld = false;
     startWaypoint = false;
     first_center = true;
+
+    isAligned = false;
         //cout << "6 Reset has occurred" << endl;
 
 }
