@@ -37,10 +37,10 @@
 /*
  * Reflection bounds
  */
-#define RIGHT_LOW (-M_PI_2)
+#define RIGHT_LOW (-(2 * M_PI) / 3)
 #define RIGHT_HIGH (-M_PI)
 
-#define LEFT_LOW M_PI_2
+#define LEFT_LOW ((2 * M_PI) / 3)
 #define LEFT_HIGH (M_PI)
 
 #define R_LOW 0

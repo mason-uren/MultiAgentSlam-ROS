@@ -63,34 +63,49 @@ void ObstacleController::avoidObstacle() {
      */
     std::cout << "OBSTACLE CONTROLLER: avoidObstacle" << std::endl;
     switch (this->detection_declaration) {
-        case OBS_LEFT:
-            std::cout << "left" << std::endl;
-            this->reflect({LEFT_LOW, LEFT_HIGH});
-            result.pd.cmdAngular = -K_angular; // Turn right to avoid obstacle (NOTE: negated K_angular for all in avoidObstacle TODO:)
-            break;
-        case OBS_CENTER:
-        std::cout << "center" << std::endl;
-            this->reflect({LEFT_LOW, LEFT_HIGH});
-            result.pd.cmdAngular = -K_angular; // Turn right to avoid obstacle
-            break;
-        case OBS_RIGHT:
-        std::cout << "right" << std::endl;
+        case OBS_LEFT: case OBS_LEFT_CENTER: case CENTER:
             this->reflect({RIGHT_LOW, RIGHT_HIGH});
-            result.pd.cmdAngular = K_angular; // Turn left to avoid obstacle
+            result.pd.cmdAngular = K_angular; // Turn Right
             break;
-        case OBS_LEFT_CENTER:
-        std::cout << "center left" << std::endl;
+        case OBS_RIGHT: case OBS_LEFT_CENTER:
             this->reflect({LEFT_LOW, LEFT_HIGH});
-            result.pd.cmdAngular = -K_angular; // Turn right to avoid obstacle
-            break;
-        case OBS_RIGHT_CENTER:
-        std::cout << "center right" << std::endl;
-            this->reflect({RIGHT_LOW, RIGHT_HIGH});
-            result.pd.cmdAngular = K_angular; // Turn left to avoid obstacle
+            result.pd.cmdAngular = -K_angular; // Turn Left
             break;
         default:
             std::cout << "OBSTACLE_CONTROLLER: avoidObstacle(), hit default" << std::endl;
     }
+
+
+
+//    switch (this->detection_declaration) {
+//        case OBS_LEFT:
+//            std::cout << "left" << std::endl;
+//            this->reflect({LEFT_LOW, LEFT_HIGH});
+//            result.pd.cmdAngular = -K_angular; // Turn right to avoid obstacle (NOTE: negated K_angular for all in avoidObstacle TODO:)
+//            break;
+//        case OBS_CENTER:
+//        std::cout << "center" << std::endl;
+//            this->reflect({LEFT_LOW, LEFT_HIGH});
+//            result.pd.cmdAngular = -K_angular; // Turn right to avoid obstacle
+//            break;
+//        case OBS_RIGHT:
+//        std::cout << "right" << std::endl;
+//            this->reflect({RIGHT_LOW, RIGHT_HIGH});
+//            result.pd.cmdAngular = K_angular; // Turn left to avoid obstacle
+//            break;
+//        case OBS_LEFT_CENTER:
+//        std::cout << "center left" << std::endl;
+//            this->reflect({LEFT_LOW, LEFT_HIGH});
+//            result.pd.cmdAngular = -K_angular; // Turn right to avoid obstacle
+//            break;
+//        case OBS_RIGHT_CENTER:
+//        std::cout << "center right" << std::endl;
+//            this->reflect({RIGHT_LOW, RIGHT_HIGH});
+//            result.pd.cmdAngular = K_angular; // Turn left to avoid obstacle
+//            break;
+//        default:
+//            std::cout << "OBSTACLE_CONTROLLER: avoidObstacle(), hit default" << std::endl;
+//    }
 }
 
 // A collection zone was seen in front of the rover and we are not carrying a target
@@ -510,13 +525,13 @@ void ObstacleController::setTargetHeldClear() {
  */
 void ObstacleController::reflect(std::vector<double> bounds) {
     std::cout << "OBSTACLE CONTROLLER: reflect" << std::endl; // Only want to deal with positive values
-//    double abs_heading = std::fabs(currentLocation.theta);
     if (!this->reflection.can_start) {
         std::cout << "reflect() create angle" << std::endl;
         int rand();
         double range = bounds.at(1) - bounds.at(0);
-        this->reflection.desired_heading = std::fabs(fmod(rand(), range) + bounds.at(0));
-//        this->reflection.reflect_angle = this->reflection.desired_heading;
+        // Keep `desired_heading` positive
+        this->reflection.desired_heading = std::fabs(fmod(rand(), range) + bounds.at(0) + currentLocation.theta);
+        // Create a reference to guage how far rover has turned
         this->reflection.reflect_angle = angles::shortest_angular_distance(this->reflection.desired_heading, currentLocation.theta);
         this->reflection.can_start = true;
         this->reflection.can_end = false;
@@ -529,8 +544,9 @@ void ObstacleController::reflect(std::vector<double> bounds) {
     }
     else {
         std::cout << "reflect() still rotating" << std::endl;
-//        this->reflection.reflect_angle -= this->reflection.desired_heading * K_angular * K_FACTOR;
-        this->reflection.reflect_angle = angles::shortest_angular_distance(this->reflection.desired_heading, currentLocation.theta);
+        // Monitor how far the rover has turned in relation to its desired heading
+        this->reflection.reflect_angle -=
+                (this->reflection.reflect_angle - angles::shortest_angular_distance(this->reflection.desired_heading, currentLocation.theta));
         std::cout << "reflect() radians left: " << this->reflection.reflect_angle << std::endl;
     }
 }
