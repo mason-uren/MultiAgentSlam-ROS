@@ -164,8 +164,12 @@ Result ObstacleController::DoWork() {
         can_set_waypoint = false; //only one waypoint is set
         set_waypoint = false;
         clearWaypoints = false;
-
-        result.type = waypoint;
+        // TODO: obstacle traversal
+        if (targetHeld)
+            result.type = waypoint;
+        else
+            result.type = vectorDriving;
+        result.desired_heading = currentLocation.theta;
         result.PIDMode = FAST_PID; //use fast pid for waypoints
         Point forward;            //waypoint is directly ahead of current heading
         forward.x = currentLocation.x + (0.5 * cos(currentLocation.theta));

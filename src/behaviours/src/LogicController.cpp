@@ -62,7 +62,7 @@ Result LogicController::DoWork() {
 
             //Reset the control queue
             control_queue = priority_queue<PrioritizedController>();
-
+            
             //check what controllers have work to do all that say yes will be added to the priority queue.
             for (PrioritizedController cntrlr : prioritizedControllers) {
                 if (cntrlr.controller->HasWork()) {
@@ -85,8 +85,9 @@ Result LogicController::DoWork() {
             }
 
             //take the top member of the priority queue and run their do work function.
+            printf("before pop logic\n");
             result = control_queue.top().controller->DoWork();
-
+            printf("after pop logic %d\n",result.type);
             //anaylyze the result that was returned and do state changes accordingly
             //behavior types are used to indicate behavior changes of some form
             if (result.type == behavior) {
@@ -135,13 +136,12 @@ Result LogicController::DoWork() {
 
                 //waypoints are also a pass through facilitated command but with a slightly diffrent overhead
                 //they are handled in the LOGIC_STATE_WAITING switch case
-            else if (result.type == waypoint) {
+            else if (result.type == waypoint || result.type == vectorDriving) {
 
                 logicState = LOGIC_STATE_WAITING;
                 driveController.SetResultData(result);
                 //fall through on purpose
             }
-
         } //end of interupt case***************************************************************************************
 
             //this case is primarly when logic controller is waiting for drive controller to reach its last waypoint

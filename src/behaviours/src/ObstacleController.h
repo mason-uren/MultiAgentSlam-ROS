@@ -4,6 +4,7 @@
 #include "Controller.h"
 #include "Tag.h"
 #include "ObstacleAssistant.h"
+#include "Result.h"
 #include <map>
 #include <cstdlib>
 
