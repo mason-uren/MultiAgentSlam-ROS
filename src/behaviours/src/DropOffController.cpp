@@ -16,13 +16,17 @@ DropOffController::DropOffController() {
     centerApproach = false;
     seenEnoughCenterTags = false;
     prevCount = 0;
-    isAligned = false;
     countLeft = 0;
     countRight = 0;
+    tagCount = 0; //total home tag count
 
     isPrecisionDriving = false;
     startWaypoint = false;
     timerTimeElapsed = -1;
+
+    //new globals
+    inHome = false;
+    isAligned = false;
 
 }
 
@@ -36,15 +40,20 @@ Result DropOffController::DoWork() {
   //cout << "8 I am currently in DropOff mode" << endl;
 
     logicMessage(current_time, ClassName, __func__);
-    int count = countLeft + countRight;
 
+    ///////////////////////////////////////////////////////////////////////////////
+    ///leaving this chunk alone until Collin's backup code is complete/////////////
+    //////////////////////////////////////////////////////////////////////////////
+
+
+    //Starts the timer
     if (timerTimeElapsed > -1) {
         long int elapsed = current_time - returnTimer;
         timerTimeElapsed = elapsed / 1e3; // Convert from milliseconds to seconds
     }
 
-    //if we are in the routine for exiting the circle once we have dropped a block off and reseting all our flags
-    //to resart our search.
+    //if we are in the routine for exiting the circle once we have dropped a block off and resetting all our flags
+    //to restart our search.
     if (reachedCollectionPoint) {
         //cout << "2 I am at home" << endl;
         if (timerTimeElapsed >= 5) {
@@ -63,9 +72,9 @@ Result DropOffController::DoWork() {
             isPrecisionDriving = true;
             result.type = precisionDriving;
 
-            result.fingerAngle = M_PI_2; //open fingers
-            result.wristAngle = 0; //raise wrist
+            DropCube();
 
+            //backing out of home
             result.pd.cmdVel = -0.3;
             result.pd.cmdAngularError = 0.0;
 
@@ -79,61 +88,30 @@ Result DropOffController::DoWork() {
     double distanceToCenter = Utilities::distance_between_points(centerLocation,currentLocation);
 
     //check to see if we are driving to the center location or if we need to drive in a circle and look.
-    if (distanceToCenter > collectionPointVisualDistance && !circularCenterSearching && (count == 0)) {
+    if (distanceToCenter > collectionPointVisualDistance && !circularCenterSearching && (tagCount == 0)) {
 
-        result.type = waypoint;
-        result.waypoints.clear();
-        result.waypoints.push_back(this->centerLocation);
-        startWaypoint = false;
-        isPrecisionDriving = false;
-
-        timerTimeElapsed = 0;
-
-        string message = "Starting DropOff, setting waypoint to center location";
-        logMessage(current_time, "DROPOFF", message);
+        WaypointNav();
 
         return result;
 
     } else if (timerTimeElapsed >= 2)//spin search for center
     {
-        Point nextSpinPoint;
-
-        //sets a goal that is 60cm from the centerLocation and spinner
-        //radians counterclockwise from being purly along the x-axis.
-        nextSpinPoint.x = centerLocation.x + (initialSpinSize + spinSizeIncrease) * cos(spinner);
-        nextSpinPoint.y = centerLocation.y + (initialSpinSize + spinSizeIncrease) * sin(spinner);
-        nextSpinPoint.theta = Utilities::angle_between_points(nextSpinPoint,currentLocation);
-
-        result.type = waypoint;
-        result.waypoints.clear();
-        result.waypoints.push_back(nextSpinPoint);
-
-        spinner += 45 * (M_PI / 180); //add 45 degrees in radians to spinner.
-        if (spinner > 2 * M_PI) {
-            spinner -= 2 * M_PI;
-        }
-        spinSizeIncrease += spinSizeIncrement / 8;
-        circularCenterSearching = true;
-        //safety flag to prevent us trying to drive back to the
-        //center since we have a block with us and the above point is
-        //greater than collectionPointVisualDistance from the center.
-
-        returnTimer = current_time;
-        timerTimeElapsed = 0;
-
+        SearchForHome(); //currently spin search
     }
+
+    //////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////
 
     bool left = (countLeft > 0);
     bool right = (countRight > 0);
     bool centerSeen = (right || left);
 
     //reset lastCenterTagThresholdTime timout timer to current time
-    if ((!centerApproach && !seenEnoughCenterTags) || (count > 0 && !seenEnoughCenterTags)) {
+    if ((!centerApproach && !seenEnoughCenterTags) || (tagCount > 0 && !seenEnoughCenterTags)) {
         lastCenterTagThresholdTime = current_time;
     }
 
-    if (count > 0 || seenEnoughCenterTags ||
-        prevCount > 0 || !isAligned) //if we have a target and the center is located drive towards it.
+    if (tagCount > 0 || seenEnoughCenterTags || prevCount > 0 || !isAligned) //if we have a target and the center is located drive towards it.
     {
         string message = "Attempting DropOff";
         logMessage(current_time, "DROPOFF", message);
@@ -141,7 +119,7 @@ Result DropOffController::DoWork() {
         //cout << "9 I have located the center" << endl;
         centerSeen = true;
 
-        if (first_center && isPrecisionDriving) {
+        if (first_center && isPrecisionDriving) { //literally no clue what this does
             first_center = false;
             result.type = behavior;
             result.reset = false;
@@ -150,24 +128,7 @@ Result DropOffController::DoWork() {
         }
         isPrecisionDriving = true;
 
-        if (seenEnoughCenterTags) //if we have seen enough tags
-        {
-            if ((countLeft - 5) > countRight) //and there are too many on the left
-            {
-                right = false; //then we say none on the right to cause us to turn right
-            } else if ((countRight - 5) > countLeft) {
-                left = false; //or left in this case
-            }
-        }
-
-        float turnDirection = 1;
-        //reverse tag rejection when we have seen enough tags that we are on a
-        //trajectory in to the square we dont want to follow an edge.
-        if (seenEnoughCenterTags) turnDirection = -3;
-
         result.type = precisionDriving;
-
-        //otherwise turn till tags on both sides of image then drive straight
 
         if(!isAligned)
         {
@@ -179,11 +140,11 @@ Result DropOffController::DoWork() {
         }
 
         //must see greater than this many tags before assuming we are driving into the center and not along an edge.
-        if (count > centerTagThreshold) {
+        if (tagCount > centerTagThreshold) {
             seenEnoughCenterTags = true; //we have driven far enough forward to be in and aligned with the circle.
             lastCenterTagThresholdTime = current_time;
         }
-        if (count > 0) //reset gaurd to prevent drop offs due to loosing tracking on tags for a frame or 2.
+        if (tagCount > 0) //reset gaurd to prevent drop offs due to loosing tracking on tags for a frame or 2.
         {
             lastCenterTagThresholdTime = current_time;
         }
@@ -192,12 +153,12 @@ Result DropOffController::DoWork() {
         float timeSinceSeeingEnoughCenterTags = elapsed / 1e3; // Convert from milliseconds to seconds
 
         //we have driven far enough forward to have passed over the circle.
-        if (count < 1 && seenEnoughCenterTags && timeSinceSeeingEnoughCenterTags > dropDelay) {
+        if (tagCount < 1 && seenEnoughCenterTags && timeSinceSeeingEnoughCenterTags > dropDelay) {
             centerSeen = false;
         }
         centerApproach = true;
-        prevCount = count;
-        count = 0;
+        prevCount = tagCount;
+        tagCount = 0;
         countLeft = 0;
         countRight = 0;
     }
@@ -269,6 +230,73 @@ bool DropOffController::Align()
     return false;
 }
 
+
+//drives forward until no tags seen
+//sets inHome which triggers next action
+void DropOffController::DeliverCube()
+{
+    if(tagCount > 0) //while tags are still seen
+    {
+        result.pd.cmdVel = 0.12;
+        result.pd.cmdAngularError = 0.0;
+
+    }
+    else
+    {
+        result.pd.cmdVel = 0.0;
+        result.pd.cmdAngularError = 0.0;
+        inHome = true; //will trigger releasing cube and backing out
+    }
+}
+
+void DropOffController::DropCube()
+{
+    result.fingerAngle = M_PI_2; //open fingers
+    result.wristAngle = 0; //raise wrist
+}
+
+void DropOffController::WaypointNav()
+{
+    result.type = waypoint;
+    result.waypoints.clear();
+    result.waypoints.push_back(this->centerLocation);
+    startWaypoint = false;
+    isPrecisionDriving = false;
+
+    timerTimeElapsed = 0;
+
+    string message = "Starting DropOff, setting waypoint to center location";
+    logMessage(current_time, "DROPOFF", message);
+}
+
+void DropOffController::SearchForHome()
+{
+    Point nextSpinPoint;
+
+    //sets a goal that is 60cm from the centerLocation and spinner
+    //radians counterclockwise from being purly along the x-axis.
+    nextSpinPoint.x = centerLocation.x + (initialSpinSize + spinSizeIncrease) * cos(spinner);
+    nextSpinPoint.y = centerLocation.y + (initialSpinSize + spinSizeIncrease) * sin(spinner);
+    nextSpinPoint.theta = Utilities::angle_between_points(nextSpinPoint,currentLocation);
+
+    result.type = waypoint;
+    result.waypoints.clear();
+    result.waypoints.push_back(nextSpinPoint);
+
+    spinner += 45 * (M_PI / 180); //add 45 degrees in radians to spinner.
+    if (spinner > 2 * M_PI) {
+        spinner -= 2 * M_PI;
+    }
+    spinSizeIncrease += spinSizeIncrement / 8;
+    circularCenterSearching = true;
+    //safety flag to prevent us trying to drive back to the
+    //center since we have a block with us and the above point is
+    //greater than collectionPointVisualDistance from the center.
+
+    returnTimer = current_time;
+    timerTimeElapsed = 0;
+}
+
 void DropOffController::Reset() {
   result.type = behavior;
   result.behaviourType = wait;
@@ -285,6 +313,7 @@ void DropOffController::Reset() {
 
   countLeft = 0;
   countRight = 0;
+    tagCount = 0;
 
     //reset flags
     reachedCollectionPoint = false;
@@ -298,6 +327,7 @@ void DropOffController::Reset() {
     first_center = true;
 
     isAligned = false;
+    inHome = false;
         //cout << "6 Reset has occurred" << endl;
 
 }
@@ -305,11 +335,14 @@ void DropOffController::Reset() {
 void DropOffController::SetTargetData(vector <Tag> tags) {
     countRight = 0;
     countLeft = 0;
+    tagCount = 0;
     int upRQuad = 0;
     int lowRQuad = 0;
     int upLQuad = 0;
     int lowLQuad = 0;
     double roll, pitch;
+    double tagDistanceFromCamera;
+    double tagDistance;
 
     //if (targetHeld) {
         // if a target is detected and we are looking for center tags
@@ -319,38 +352,19 @@ void DropOffController::SetTargetData(vector <Tag> tags) {
             tf::Quaternion tagOrien(tags[0].getOrientationX(), tags[0].getOrientationY(), tags[0].getOrientationZ(), tags[0].getOrientationW());
             tf::Matrix3x3 rotMartrix(tagOrien);
             rotMartrix.getRPY(roll, pitch, tagYaw);
-
-            logicMessage(current_time, "YAW:::  ", std::to_string(tagYaw));
             // this loop is to get the number of center tags
             for (int i = 0; i < tags.size(); i++) {
                 if (tags[i].getID() == 256) {
-                    //tagYaw = tags[i].calcYaw();
                     // checks if tag is on the right or left side of the image
-                    if (tags[i].getPositionX() + cameraOffsetCorrection > 0) {
-                        if(tags[i].getPositionY() > 0) {
-                            upRQuad++;
-                        }
-                        else{
-                            lowRQuad++;
-                        }
-                    } else {
-                        if(tags[i].getPositionY() > 0) {
-                            upLQuad++;
-                        }
-                        else{
-                            lowLQuad++;
-                        }
-                    }
-
                     if (tags[i].getPositionX() + cameraOffsetCorrection > 0) {
                         countRight++;
 
                     } else {
                         countLeft++;
                     }
-                    tagQuadMessage(upLQuad, upRQuad, lowLQuad, lowRQuad);
                 }
             }
+            tagCount = countLeft + countRight; //total home tags
             tagMessage(tags);
         }
     //}

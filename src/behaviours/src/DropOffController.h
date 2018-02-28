@@ -13,7 +13,6 @@
 extern void logMessage(long int currentTime, string component, string message);
 extern void logicMessage(long int currentTime, string component, string message);
 extern void tagMessage(vector <Tag> tags);
-extern void tagQuadMessage(int upL, int upR, int lowL, int lowR);
 
 class DropOffController : virtual Controller {
 public:
@@ -55,6 +54,10 @@ private:
 
     void ProcessData();
     bool Align();
+    void DropCube();
+    void WaypointNav();
+    void SearchForHome();
+    void DeliverCube();
 
     //Constants
 
@@ -68,8 +71,10 @@ private:
     const float searchVelocity = 0.15; //in meters per second
     const float dropDelay = 0.5; //delay in seconds for dropOff
 
-    double tagYaw;
-    bool isAligned;
+    //New globals
+    double tagYaw; //yaw of closest tag
+    bool isAligned; //aligned to tag based on 0 orientation of home tag yaw
+    bool inHome; //has driven into home and tags are no longer visible
 
     //Instance Variables
 
@@ -97,6 +102,7 @@ private:
     //Count of tags on the left and right, respectively
     int countLeft;
     int countRight;
+    int tagCount;
 
     //Center and current locations as of the last call to setLocationData
     Point centerLocation;
