@@ -15,10 +15,8 @@ ObstacleController::ObstacleController() {
     result.PIDMode = CONST_PID; //use the const PID to turn at a constant speed
 
     /*
-     * Create 'OBSTACLE' structures to contain all evaluations and obstacle decision of the sonar readings.
-     * Contains:
-     * -> 'type' of obstacle
-     * -> 'sonar_map' of feedback from each sensor
+     * Create a 'monitor_map' of OBSTACLE objects using the DELAY_TYPE as a key.
+     * Structure is setup to allow multiple detection monitors to run in parallel.
      */
     std::map<SONAR, ObstacleAssistant> assistant_map = {
             {LEFT, ObstacleAssistant(LEFT)},
@@ -237,7 +235,6 @@ void ObstacleController::ProcessData() {
     for (auto monitor : monitor_map) {
         this->resetDetections(monitor.first);
     }
-//    this->resetDetections();
 
     /*
      * TODO: Not sure if this is needed
@@ -250,13 +247,14 @@ void ObstacleController::ProcessData() {
 //    }
 
 
-    // Delay the start of the second set of monitors
+    /*
+     * Stagger the start of the declared monitors
+     */
     for (auto monitor : this->monitor_map) {
         // Every even iteration will start another monitor if one is available and hasn't been started
         if (!monitor.second.allowed && this->stag % DELAY_ITERATION == 0) {
             monitor.second.allowed = true;
             this->monitor_map.at(monitor.first) = monitor.second;
-//            this->stag++;
             break;
         }
         else if (this->stag < this->monitor_map.size()){
@@ -276,8 +274,7 @@ void ObstacleController::ProcessData() {
 
     /* 1)
      * Monitor the detection values that fall below our 'MAX_THRESH'
-     * INIT: should always be running from the start
-     * STAG: needs to wait two iterations before starting, then should always be running
+     * Sets 'init_detection' to 'true' if sonar monitor is at capacity.
      */
     for (auto monitor : this->monitor_map) {
         if (left <= MAX_THRESH) {
@@ -292,7 +289,7 @@ void ObstacleController::ProcessData() {
     }
 
     /* 2)
-     * Check if any of the monitors are at capacity
+     * Check if any of the monitors are at capacity.
      */
     for (auto monitor : this->monitor_map) {
         if (monitor.second.allowed) {
@@ -312,11 +309,10 @@ void ObstacleController::ProcessData() {
                 if (assistant.second.detections.good_detection) {
                     accepted_sonar_map->insert(std::pair<SONAR, ObstacleAssistant>(assistant.first, assistant.second));
                     // Reset acceptable monitor after it has been copied
-//                    assistant.second.monitor->clear();
+                    assistant.second.monitor->clear();
                 }
             }
-//            monitor.second.sonar_map.clear();
-//            std::cout << "sonarMap size: " << monitor.second.sonar_map.size() << std::endl;
+            // Add to values temporary map
             monitor.second.sonar_map = *accepted_sonar_map;
             accepted_sonar_map->clear();
             accepted_monitor_map->insert(std::pair<DELAY_TYPE, OBSTACLE>(monitor.first, monitor.second));
@@ -337,11 +333,8 @@ void ObstacleController::ProcessData() {
 
 
     /* 5)
-     * Only accept a detection if both monitors agree that there is an obstacle. If one flags but not the other
+     * Only accept a detection if all monitors agree that there is an obstacle. If one flags but not the other
      * then there is the possibility that it's still a false detection.
-     * NOTE: There shouldn't be any obstacle impeeding the rovers path 0.2 secs after its been
-     * turned on, so this statement should be caught by 'obstacle_init' and skipped before
-     * the initialization of 'obstacle_stag'
      */
     bool can_see_obs = false;
     for (auto monitor : this->monitor_map) {
@@ -352,8 +345,10 @@ void ObstacleController::ProcessData() {
             can_see_obs = false;
         }
     }
+    // Check if we're listening to detections
     if (can_see_obs && acceptDetections) {
         if (this->reflection.can_end) {
+            // Declare detection
             this->detection_declaration = this->monitor_map.at(INIT).type;
             std::cout << "OBSTACLE CONTROLLER: processData() detection made: " << this->detection_declaration << std::endl;
         }
@@ -361,10 +356,14 @@ void ObstacleController::ProcessData() {
             resetObstacle(monitor.first);
         }
     }
+
+    // TODO: debugging
     if (this->reflection.can_start)
         std::cout << "Can Start" << std::endl;
     if (this->reflection.can_end)
         std::cout << "Can End" << std::endl;
+
+    // Set flow control variables
     if (this->detection_declaration != NO_OBSTACLE) {
         if (collection_zone_seen) {
             std::cout << "Collection zone seen" << std::endl;
@@ -505,6 +504,10 @@ void ObstacleController::setTargetHeldClear() {
     }
 }
 
+/**
+ * Generates a random reflection angle that is bounded by how the rover encounters the obstacle.
+ * @param bounds : the lower and upper bounds of the generate angle
+ */
 void ObstacleController::reflect(std::vector<double> bounds) {
     std::cout << "OBSTACLE CONTROLLER: reflect" << std::endl; // Only want to deal with positive values
 //    double abs_heading = std::fabs(currentLocation.theta);
@@ -535,30 +538,31 @@ void ObstacleController::reflect(std::vector<double> bounds) {
 /**
  * If accepted detections cross 'MIN_THRESH' mark the direction of the obstacle
  * @param accepted_sonar : temporary map of accepted sonar vectors
- * @param delay : which monitor are we editing
+ * @param delay_type : which monitor are we editing
  */
 void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> accepted_sonar, DELAY_TYPE delay_type) {
     OBSTACLE obstacle = this->monitor_map.at(delay_type);
 
-    std::vector<bool> has_detection = {false, false, false};
+    // Based on number of sonar sensors
+    std::vector<bool> valid_monitors = {false, false, false};
     bool admit = false;
     ObstacleAssistant *left_assist = NULL;
     ObstacleAssistant *center_assist = NULL;
     ObstacleAssistant *right_assist = NULL;
-    for (std::map<SONAR, ObstacleAssistant>::iterator it = accepted_sonar.begin(); it != accepted_sonar.end(); ++it) {
-        if (it->second.detections.smallest_detection < MIN_THRESH) {
-            switch (it->first) {
+    for (auto assistant : accepted_sonar) {
+        if (assistant.second.detections.smallest_detection < MIN_THRESH) {
+            switch (assistant->first) {
                 case LEFT:
-                    left_assist = &it->second;
-                    has_detection.at(0) = true;
+                    left_assist = &assistant.second;
+                    valid_monitors.at(0) = true;
                     break;
                 case CENTER:
-                    center_assist = &it->second;
-                    has_detection.at(1) = true;
+                    center_assist = &assistant.second;
+                    valid_monitors.at(1) = true;
                     break;
                 case RIGHT:
-                    right_assist = &it->second;
-                    has_detection.at(2) = true;
+                    right_assist = &assistant.second;
+                    valid_monitors.at(2) = true;
                     break;
                 default:
                     std::cout << "OBSTACLE_CONTROLLER: hit default in 'ObstacleController::obstacleContactDir()" << std::endl;
@@ -573,8 +577,8 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
     /*
      * Check if there are any good detections
      */
-    for (auto accept : has_detection) {
-        if (accept == true) {
+    for (auto member : valid_monitors) {
+        if (member == true) {
             admit = true;
             break;
         }
@@ -621,10 +625,9 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
 
 
 /**
- * Iterates of the passed structure and verifies detection are of acceptable range.
+ * Iterates over the passed structure and verifies detection are of acceptable range.
  * Note: Acceptable values are messured against 'DELTA' (calculated max dist. the rover can cover in 1 sec.)
- * @param assistant : the passed obstacle assistant (type, detections, monitor)
- * @param delay : which monitor are we editing
+ * @param delay_type : which monitor are we editing
  */
 void ObstacleController::sonarAnalysis(DELAY_TYPE delay_type) {
     OBSTACLE obstacle = this->monitor_map.at(delay_type);
@@ -635,7 +638,6 @@ void ObstacleController::sonarAnalysis(DELAY_TYPE delay_type) {
         SONAR sonar = assistant.second.sonar;
         obstacle.sonar_map.at(sonar).detections.good_detection = false;
         // Check to make sure the passed monitor has been populated
-//        if (!assistant.second.monitor->empty()) {
         if (assistant.second.detections.init_detection) {
             for (auto detection_range : *assistant.second.monitor) {
                 if (!has_begun) {
@@ -663,7 +665,7 @@ void ObstacleController::sonarAnalysis(DELAY_TYPE delay_type) {
 /**
  * Adds passed values of sonar detections to respective structures, then checks
  * to make sure structure doesn't exceed specified size 'VECTOR_MAX'
- * @param obstacle : the entire obstacle structure (INIT, STAG, etc) <-- if more are added
+ * @param delay_type : which monitor
  * @param range : the distance of the respective detection
  * @param sonar : which sensor are we referencing
  */
@@ -697,6 +699,7 @@ void ObstacleController::resetObstacle(DELAY_TYPE delay_type) {
 /**
  * Each iteration through should have to recalc detection.
  * Final detection should be checked if it is allowed to end.
+ * @param delay_type : which monitor
  */
 void ObstacleController::resetDetections(DELAY_TYPE delay_type) {
     this->monitor_map.at(delay_type).type = NO_OBSTACLE;
