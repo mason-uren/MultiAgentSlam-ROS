@@ -133,7 +133,7 @@ Result DropOffController::DoWork() {
     }
 
     if (count > 0 || seenEnoughCenterTags ||
-        prevCount > 0) //if we have a target and the center is located drive towards it.
+        prevCount > 0 || !isAligned) //if we have a target and the center is located drive towards it.
     {
         string message = "Attempting DropOff";
         logMessage(current_time, "DROPOFF", message);
@@ -168,18 +168,14 @@ Result DropOffController::DoWork() {
         result.type = precisionDriving;
 
         //otherwise turn till tags on both sides of image then drive straight
-        if (left && right) {
-            result.pd.cmdVel = searchVelocity;
-            result.pd.cmdAngularError = 0.0;
-        } else if (right) {
-            result.pd.cmdVel = -0.1 * turnDirection;
-            result.pd.cmdAngularError = -centeringTurnRate * turnDirection;
-        } else if (left) {
-            result.pd.cmdVel = -0.1 * turnDirection;
-            result.pd.cmdAngularError = centeringTurnRate * turnDirection;
-        } else {
-            result.pd.cmdVel = searchVelocity;
-            result.pd.cmdAngularError = 0.0;
+
+        if(!isAligned)
+        {
+            isAligned = Align();
+        }
+        else
+        {
+            result.pd.cmdVel = 0.12;
         }
 
         //must see greater than this many tags before assuming we are driving into the center and not along an edge.
@@ -208,7 +204,7 @@ Result DropOffController::DoWork() {
 
         //was on approach to center and did not seenEnoughCenterTags
         //for lostCenterCutoff seconds so reset.
-    else if (centerApproach) {
+    else if (centerApproach && isAligned) {
 
         long int elapsed = current_time - lastCenterTagThresholdTime;
         float timeSinceSeeingEnoughCenterTags = elapsed / 1e3; // Convert from milliseconds to seconds
@@ -255,20 +251,17 @@ bool DropOffController::Align()
 {
 
     //still need to add condition where yaw is +-1.5
-    if(tagYaw > 0.09)// turn right
+    if(tagYaw > 0.08)// turn right
     {
-        result.pd.cmdVel = 0.3;
-        result.pd.cmdAngularError = -0.17; //10 degrees
+        result.pd.cmdAngularError = -0.15;
     }
-    else if(tagYaw < -0.09)//turn left
+    else if(tagYaw < -0.08)//turn left
     {
-        result.pd.cmdVel = 0.3;
-        result.pd.cmdAngularError = 0.17;
+        result.pd.cmdAngularError = 0.15;
     }
 
     if((tagYaw > -0.09 && tagYaw < 0.09))
     {
-        result.pd.cmdVel = 0.0;
         result.pd.cmdAngularError = 0.0;
         return true;
     }
