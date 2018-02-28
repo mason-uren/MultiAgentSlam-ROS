@@ -1,6 +1,5 @@
 #include <angles/angles.h>
 #include "ObstacleController.h"
-#include "ObstacleAssistant.h"
 
 ObstacleController::ObstacleController() {
     /*
@@ -63,13 +62,15 @@ void ObstacleController::avoidObstacle() {
      */
     std::cout << "OBSTACLE CONTROLLER: avoidObstacle" << std::endl;
     switch (this->detection_declaration) {
-        case OBS_LEFT: case OBS_LEFT_CENTER: case CENTER:
+        case OBS_LEFT: case OBS_LEFT_CENTER: case OBS_CENTER:
             this->reflect({RIGHT_LOW, RIGHT_HIGH});
-            result.pd.cmdAngular = K_angular; // Turn Right
+            std::cout << "RIGHT TURN!! RIGHT TURN!!" << std::endl;
+            result.pd.cmdAngular = -K_angular; // Turn Right
             break;
-        case OBS_RIGHT: case OBS_LEFT_CENTER:
+        case OBS_RIGHT: case OBS_RIGHT_CENTER:
             this->reflect({LEFT_LOW, LEFT_HIGH});
-            result.pd.cmdAngular = -K_angular; // Turn Left
+            std::cout << "LEFT TURN!! LEFT TURN!!" << std::endl;
+            result.pd.cmdAngular = K_angular; // Turn Left
             break;
         default:
             std::cout << "OBSTACLE_CONTROLLER: avoidObstacle(), hit default" << std::endl;
@@ -565,19 +566,19 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
     ObstacleAssistant *left_assist = NULL;
     ObstacleAssistant *center_assist = NULL;
     ObstacleAssistant *right_assist = NULL;
-    for (auto assistant : accepted_sonar) {
-        if (assistant.second.detections.smallest_detection < MIN_THRESH) {
-            switch (assistant->first) {
+    for (std::map<SONAR, ObstacleAssistant>::iterator it = accepted_sonar.begin(); it != accepted_sonar.end(); ++it) {
+        if (it->second.detections.smallest_detection < MIN_THRESH) {
+            switch (it->first) {
                 case LEFT:
-                    left_assist = &assistant.second;
+                    left_assist = &it->second;
                     valid_monitors.at(0) = true;
                     break;
                 case CENTER:
-                    center_assist = &assistant.second;
+                    center_assist = &it->second;
                     valid_monitors.at(1) = true;
                     break;
                 case RIGHT:
-                    right_assist = &assistant.second;
+                    right_assist = &it->second;
                     valid_monitors.at(2) = true;
                     break;
                 default:
