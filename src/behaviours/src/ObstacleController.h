@@ -36,11 +36,11 @@
 /*
  * Reflection bounds
  */
-#define RIGHT_LOW -M_PI_4
-#define RIGHT_HIGH (-(3 * M_PI) / 4)
+#define RIGHT_LOW (-M_PI_2)
+#define RIGHT_HIGH (-M_PI)
 
-#define LEFT_LOW M_PI_4
-#define LEFT_HIGH ((3 * M_PI) / 4)
+#define LEFT_LOW M_PI_2
+#define LEFT_HIGH (M_PI)
 
 #define R_LOW 0
 #define R_HIGH -M_PI_2
@@ -56,6 +56,7 @@
 
 #define DELAY_ITERATION 2
 
+#define K_FACTOR 0.03
 
 /*
  * Obstacle structure
@@ -63,7 +64,6 @@
 typedef struct {
     bool allowed;
     OBS_TYPE type;
-//    DELAY_TYPE delay;
     std::map<SONAR, ObstacleAssistant> sonar_map;
 } OBSTACLE;
 
@@ -73,8 +73,9 @@ typedef struct {
 typedef struct {
     bool can_start;
     bool can_end;
+    double desired_heading;
     double reflect_angle;
-    double prev_orient;
+//    double prev_orient;
 } REFLECTION;
 
 extern void logMessage(long int currentTime, string component, string message);
