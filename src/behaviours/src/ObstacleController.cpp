@@ -121,11 +121,11 @@ void ObstacleController::avoidCollectionZone() {
     // from that side
 //    if (count_left_collection_zone_tags < count_right_collection_zone_tags) {
     if (count_left_collection_zone_tags > count_right_collection_zone_tags) { // Todo: MYCODE inequality seemed backwards
-        this->reflect({LEFT_LOW, LEFT_HIGH}); // Todo:
-        result.pd.cmdAngular = K_angular; // Home on the left; turn right
+        // this->reflect({LEFT_LOW, LEFT_HIGH}); // Todo:
+        // result.pd.cmdAngular = K_angular; // Home on the left; turn right
     } else {
-        this->reflect({RIGHT_LOW, RIGHT_HIGH}); // Todo:
-        result.pd.cmdAngular = -K_angular; // Home on the right; turn left
+        // this->reflect({RIGHT_LOW, RIGHT_HIGH}); // Todo:
+        // result.pd.cmdAngular = -K_angular; // Home on the right; turn left
     }
 
     result.pd.setPointVel = 0.0;
@@ -183,7 +183,7 @@ Result ObstacleController::DoWork() {
             result.type = waypoint;
         else
             result.type = vectorDriving;
-        result.desired_heading = currentLocation.theta;
+        //result.desired_heading = currentLocation.theta;
         result.PIDMode = FAST_PID; //use fast pid for waypoints
         Point forward;            //waypoint is directly ahead of current heading
         forward.x = currentLocation.x + (0.5 * cos(currentLocation.theta));
@@ -376,8 +376,8 @@ void ObstacleController::ProcessData() {
     // TODO: debugging
     if (this->reflection.can_start)
         std::cout << "Can Start" << std::endl;
-    if (this->reflection.can_end)
-        std::cout << "Can End" << std::endl;
+    // if (this->reflection.can_end)
+    //     std::cout << "Can End" << std::endl;
 
     // Set flow control variables
     if (this->detection_declaration != NO_OBSTACLE) {
@@ -394,7 +394,7 @@ void ObstacleController::ProcessData() {
     else {
         // Verify that we've completed the reflection off the obstacle
         if (this->reflection.can_end) {
-            std::cout << "processData() obstacle avoided" << std::endl;
+            // std::cout << "processData() obstacle avoided" << std::endl;
             obstacleAvoided = true;
 
         }
@@ -532,8 +532,9 @@ void ObstacleController::reflect(std::vector<double> bounds) {
         double range = bounds.at(1) - bounds.at(0);
         // Keep `desired_heading` positive
         this->reflection.desired_heading = std::fabs(fmod(rand(), range) + bounds.at(0) + currentLocation.theta);
+        std::cout << "Current Location Theta: " << currentLocation.theta << std::endl;
         // Create a reference to guage how far rover has turned
-        this->reflection.reflect_angle = angles::shortest_angular_distance(this->reflection.desired_heading, currentLocation.theta);
+        this->reflection.reflect_angle = angles::shortest_angular_distance(currentLocation.theta, this->reflection.desired_heading);
         this->reflection.can_start = true;
         this->reflection.can_end = false;
     }
@@ -547,7 +548,7 @@ void ObstacleController::reflect(std::vector<double> bounds) {
         std::cout << "reflect() still rotating" << std::endl;
         // Monitor how far the rover has turned in relation to its desired heading
         this->reflection.reflect_angle -=
-                (this->reflection.reflect_angle - angles::shortest_angular_distance(this->reflection.desired_heading, currentLocation.theta));
+                (this->reflection.reflect_angle - angles::shortest_angular_distance(currentLocation.theta, this->reflection.desired_heading));
         std::cout << "reflect() radians left: " << this->reflection.reflect_angle << std::endl;
     }
 }
@@ -659,6 +660,7 @@ void ObstacleController::sonarAnalysis(DELAY_TYPE delay_type) {
             for (auto detection_range : *assistant.second.monitor) {
                 if (!has_begun) {
                     curr = detection_range;
+                    obstacle.sonar_map.at(sonar).detections.smallest_detection = curr;
                     has_begun = true;
                 }
                 else {
@@ -667,10 +669,13 @@ void ObstacleController::sonarAnalysis(DELAY_TYPE delay_type) {
                     double diff = std::fabs(prev - curr);
                     if (diff < DELTA) {
                         obstacle.sonar_map.at(sonar).detections.good_detection = true;
-                        obstacle.sonar_map.at(sonar).detections.smallest_detection = curr;
+                        // obstacle.sonar_map.at(sonar).detections.smallest_detection = curr;
                     }
                     else {
                         obstacle.sonar_map.at(sonar).detections.good_detection = false;
+                        obstacle.sonar_map.at(sonar).detections.good_detection = DEFAULT_RANGE;
+                        obstacle.sonar_map.at(sonar).monitor->clear();
+                        break;
                     }
                 }
             }

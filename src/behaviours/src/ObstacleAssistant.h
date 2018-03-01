@@ -7,6 +7,8 @@
 
 #define START_STAG 2
 
+#define DEFAULT_RANGE 10
+
 /*
  * Type of declared obstacle
  */
@@ -54,7 +56,7 @@ public:
     explicit ObstacleAssistant(SONAR s) :
             sonar(s),
             monitor(new std::vector<float>),
-            detections({false, false, 10}) {};
+            detections({false, false, DEFAULT_RANGE}) {};
 
 };
 

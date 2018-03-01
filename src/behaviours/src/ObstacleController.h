@@ -26,7 +26,7 @@
 /*
  * With rover speed of 0.3m/s and min head on collisoin separation at 0.35m, structure size cannot exceed the value of 8.
  */
-#define VECTOR_MAX 8
+#define VECTOR_MAX 4
 
 /*
  * Calculated max dist. lost when collision imminent between two rover, plus variance observed at 1.5m range
@@ -36,11 +36,11 @@
 /*
  * Reflection bounds
  */
-#define RIGHT_LOW (-(2 * M_PI) / 3)
-#define RIGHT_HIGH (-M_PI)
+#define RIGHT_LOW (-(7 * M_PI) / 12)
+#define RIGHT_HIGH (-(5 * M_PI) / 6)
 
-#define LEFT_LOW ((2 * M_PI) / 3)
-#define LEFT_HIGH (M_PI)
+#define LEFT_LOW ((7 * M_PI) / 12)
+#define LEFT_HIGH ((5 * M_PI) / 6)
 
 #define R_LOW 0
 #define R_HIGH -M_PI_2
@@ -57,6 +57,7 @@
 #define DELAY_ITERATION 2
 
 #define K_FACTOR 0.03
+
 
 /*
  * Obstacle structure

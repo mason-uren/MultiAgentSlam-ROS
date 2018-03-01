@@ -77,7 +77,7 @@ float SearchController::GetNewHeading(float beta, bool search_mode) {
   std::default_random_engine generator;
   std::uniform_real_distribution<float> distribution(-2.355,-3.928);
   float theta = 0;
-    theta = currentLocation.theta + (distribution(generator));
+    theta = currentLocation.theta;// + (distribution(generator));
   return theta;
 }
 
