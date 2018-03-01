@@ -13,6 +13,7 @@
 extern void logMessage(long int currentTime, string component, string message);
 extern void logicMessage(long int currentTime, string component, string message);
 extern void tagMessage(vector <Tag> tags);
+extern void dropOffMessage(string component, string message);
 
 class DropOffController : virtual Controller {
 public:

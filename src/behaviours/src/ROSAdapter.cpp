@@ -142,6 +142,7 @@ ros::Publisher sonarPublisher;
 ros::Publisher logicPublish;
 ros::Publisher tagDataPublish;
 ros::Publisher tagQuadPublish;
+ros::Publisher dropOffPublish;
 
 // Subscribers
 ros::Subscriber joySubscriber;
@@ -239,6 +240,7 @@ int main(int argc, char **argv) {
   logicPublish = mNH.advertise<std_msgs::String>((publishedName + "/logic"), 1, true);
   tagDataPublish = mNH.advertise<std_msgs::String>((publishedName + "/tagData"), 1, true);
   tagQuadPublish = mNH.advertise<std_msgs::String>((publishedName + "/tagQuad"), 1, true);
+  dropOffPublish = mNH.advertise<std_msgs::String>((publishedName + "/tagQuad"), 1, true);
 
   publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
   stateMachineTimer = mNH.createTimer(ros::Duration(behaviourLoopTimeStep), behaviourStateMachine);
@@ -815,5 +817,11 @@ void tagQuadMessage(int upL, int upR, int lowL, int lowR) {
   std_msgs::String messageToPublish;
   messageToPublish.data = "UpL : " + std::to_string(upL) + " UpR : " + std::to_string(upR) + "LowL: " + std::to_string(lowL) + " lowR: " + std::to_string(lowR);
   tagQuadPublish.publish(messageToPublish);
+}
+
+void dropOffMessage(string component, string message) {
+  std_msgs::String messageToPublish;
+  messageToPublish.data = "[ " + component + "] " + message;
+  dropOffPublish.publish(messageToPublish);
 }
 

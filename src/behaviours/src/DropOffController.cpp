@@ -111,7 +111,7 @@ Result DropOffController::DoWork() {
         lastCenterTagThresholdTime = current_time;
     }
 
-    if (tagCount > 0 || seenEnoughCenterTags || prevCount > 0 || !isAligned) //if we have a target and the center is located drive towards it.
+    if ((tagCount > 0 || seenEnoughCenterTags || prevCount > 0) && !isAligned) //if we have a target and the center is located drive towards it.
     {
         string message = "Attempting DropOff";
         logMessage(current_time, "DROPOFF", message);
@@ -165,7 +165,7 @@ Result DropOffController::DoWork() {
 
         //was on approach to center and did not seenEnoughCenterTags
         //for lostCenterCutoff seconds so reset.
-    else if (centerApproach && isAligned) {
+    else if (centerApproach) {
 
         long int elapsed = current_time - lastCenterTagThresholdTime;
         float timeSinceSeeingEnoughCenterTags = elapsed / 1e3; // Convert from milliseconds to seconds
@@ -214,14 +214,14 @@ bool DropOffController::Align()
     //still need to add condition where yaw is +-1.5
     if(tagYaw > 0.08)// turn right
     {
-        result.pd.cmdAngularError = -0.15;
+        result.pd.cmdAngularError = -0.17;
     }
     else if(tagYaw < -0.08)//turn left
     {
-        result.pd.cmdAngularError = 0.15;
+        result.pd.cmdAngularError = 0.17;
     }
 
-    if((tagYaw > -0.09 && tagYaw < 0.09))
+    if((tagYaw > -0.08 && tagYaw < 0.08))
     {
         result.pd.cmdAngularError = 0.0;
         return true;
