@@ -55,22 +55,27 @@ Result DropOffController::DoWork() {
     //if we are in the routine for exiting the circle once we have dropped a block off and resetting all our flags
     //to restart our search.
     if (reachedCollectionPoint) {
+        dropOffMessage("Reached Collection point", "-----");
         //cout << "2 I am at home" << endl;
         if (timerTimeElapsed >= 5) {
+            dropOffMessage("timer Elapsed > 5", "-----");
             if (finalInterrupt) {
                 result.type = behavior;
                 result.behaviourType = nextProcess;
                 result.reset = true;
+                dropOffMessage("timer Elapsed > 5", "final interrupt, type: behavior, nextProcess, reset");
                 string message = "Exiting DropOff";
                 logMessage(current_time, "DROPOFF", message);
                 return result;
             } else {
+                dropOffMessage("timer Elapsed > 5", "set final interrupt");
                 finalInterrupt = true;
                 cout << "1" << endl;
             }
         } else if (timerTimeElapsed >= 0.1) {
             isPrecisionDriving = true;
             result.type = precisionDriving;
+            dropOffMessage("timer Elapsed > 0.1", "set final dropping off. Driving");
 
             DropCube();
 
@@ -109,6 +114,7 @@ Result DropOffController::DoWork() {
     //reset lastCenterTagThresholdTime timout timer to current time
     if ((!centerApproach && !seenEnoughCenterTags) || (tagCount > 0 && !seenEnoughCenterTags)) {
         lastCenterTagThresholdTime = current_time;
+        dropOffMessage("setting last time saw tag", "// no tags seen");
     }
 
     if ((tagCount > 0 || seenEnoughCenterTags || prevCount > 0) && !isAligned) //if we have a target and the center is located drive towards it.
@@ -124,19 +130,24 @@ Result DropOffController::DoWork() {
             result.type = behavior;
             result.reset = false;
             result.behaviourType = nextProcess;
+            dropOffMessage("Mystery action", "type: behavior, behaviourType: next, reset: false");
             return result;
         }
         isPrecisionDriving = true;
+        dropOffMessage("maybe lining up", "precision driving true");
 
         result.type = precisionDriving;
 
         if(!isAligned)
         {
             isAligned = Align();
+            dropOffMessage("Aligning", "----------");
         }
         else
         {
             result.pd.cmdVel = 0.12;
+            result.pd.cmdAngularError = 0.0;
+            dropOffMessage("Aligned complete", "-----Driving Forward");
         }
 
         //must see greater than this many tags before assuming we are driving into the center and not along an edge.
@@ -166,10 +177,13 @@ Result DropOffController::DoWork() {
         //was on approach to center and did not seenEnoughCenterTags
         //for lostCenterCutoff seconds so reset.
     else if (centerApproach) {
+        dropOffMessage("Center approach thing", "----------");
 
         long int elapsed = current_time - lastCenterTagThresholdTime;
         float timeSinceSeeingEnoughCenterTags = elapsed / 1e3; // Convert from milliseconds to seconds
         if (timeSinceSeeingEnoughCenterTags > lostCenterCutoff) {
+
+            dropOffMessage("timeSinceSeeingEnoughCenterTags > lostCenterCutoff", "----------");
             //cout << "4 We have lost the center, drop off attempt abandoned" << endl;
             //go back to drive to center base location instead of drop off attempt
             reachedCollectionPoint = false;
@@ -182,6 +196,7 @@ Result DropOffController::DoWork() {
                 result.type = behavior;
                 result.behaviourType = prevProcess;
                 result.reset = false;
+                dropOffMessage("timeSinceSeeingEnoughCenterTags > lostCenterCutoff", "turning off precision driving");
             }
             isPrecisionDriving = false;
             interrupt = false;
@@ -192,6 +207,7 @@ Result DropOffController::DoWork() {
         } else {
             result.pd.cmdVel = searchVelocity;
             result.pd.cmdAngularError = 0.0;
+            dropOffMessage("center approach", "driving forward");
         }
 
         return result;
