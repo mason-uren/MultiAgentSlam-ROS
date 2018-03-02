@@ -63,7 +63,8 @@ echo $(realpath ..)/camera_info/head_camera.yaml
 # mage_raw:=/$HOSTNAME/camera/image _camera_info_url:=file://${HOME}/rover_workspace/camera_info/head_camera.yaml _image_width:=320 _image_height:=240 &
 
 echo "rosrun behaviours"
-nohup > logs/$HOSTNAME"_behaviours_log.txt" rosrun behaviours behaviours &
+#nohup > logs/$HOSTNAME"_behaviours_log.txt" 
+rosrun behaviours behaviours &
 echo "rosrun obstacle_detection"
 nohup rosrun obstacle_detection obstacle &
 echo "rosrun diagnostics"
