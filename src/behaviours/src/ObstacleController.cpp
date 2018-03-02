@@ -1,5 +1,6 @@
 #include <angles/angles.h>
 #include "ObstacleController.h"
+#include "ObstacleAssistant.h"
 
 ObstacleController::ObstacleController() {
     /*
@@ -14,7 +15,7 @@ ObstacleController::ObstacleController() {
     result.PIDMode = CONST_PID; //use the const PID to turn at a constant speed
 
     /*
-     * Create a 'monitor_map' of OBSTACLE objects using the DELAY_TYPE as a key.
+     * Create a 'monitor_map' of LISTENER objects using the DELAY_TYPE as a key.
      * Structure is setup to allow multiple detection monitors to run in parallel.
      */
     std::map<SONAR, ObstacleAssistant> assistant_map = {
@@ -22,10 +23,10 @@ ObstacleController::ObstacleController() {
             {CENTER, ObstacleAssistant(CENTER)},
             {RIGHT, ObstacleAssistant(RIGHT)}
     };
-    OBSTACLE obstacle = {true, NO_OBSTACLE, assistant_map};
+    LISTENER listener = {true, NO_OBSTACLE, assistant_map};
     this->monitor_map = {
-            {INIT, obstacle},
-            {STAG, obstacle}
+            {INIT, listener},
+            {STAG, listener}
     };
     this->stag = 0;
 
@@ -62,51 +63,25 @@ void ObstacleController::avoidObstacle() {
      */
     std::cout << "OBSTACLE CONTROLLER: avoidObstacle" << std::endl;
     switch (this->detection_declaration) {
-        case OBS_LEFT: case OBS_LEFT_CENTER: case OBS_CENTER:
-            this->reflect({RIGHT_LOW, RIGHT_HIGH});
-            std::cout << "RIGHT TURN!! RIGHT TURN!!" << std::endl;
+        case OBS_LEFT:
+            this->reflect({R_LOW, R_HIGH});
+            result.pd.cmdAngular = -K_angular;
+        case OBS_LEFT_CENTER: case OBS_CENTER:
+            this->reflect({RC_LOW, RC_HIGH});
             result.pd.cmdAngular = -K_angular; // Turn Right
             break;
-        case OBS_RIGHT: case OBS_RIGHT_CENTER:
-            this->reflect({LEFT_LOW, LEFT_HIGH});
-            std::cout << "LEFT TURN!! LEFT TURN!!" << std::endl;
+        case OBS_RIGHT:
+            this->reflect({L_LOW, L_HIGH});
+            result.pd.cmdAngular = K_angular;
+            break;
+        case OBS_RIGHT_CENTER:
+            this->reflect({LC_LOW, LC_HIGH});
             result.pd.cmdAngular = K_angular; // Turn Left
             break;
         default:
             std::cout << "OBSTACLE_CONTROLLER: avoidObstacle(), hit default" << std::endl;
+            break;
     }
-
-
-
-//    switch (this->detection_declaration) {
-//        case OBS_LEFT:
-//            std::cout << "left" << std::endl;
-//            this->reflect({LEFT_LOW, LEFT_HIGH});
-//            result.pd.cmdAngular = -K_angular; // Turn right to avoid obstacle (NOTE: negated K_angular for all in avoidObstacle TODO:)
-//            break;
-//        case OBS_CENTER:
-//        std::cout << "center" << std::endl;
-//            this->reflect({LEFT_LOW, LEFT_HIGH});
-//            result.pd.cmdAngular = -K_angular; // Turn right to avoid obstacle
-//            break;
-//        case OBS_RIGHT:
-//        std::cout << "right" << std::endl;
-//            this->reflect({RIGHT_LOW, RIGHT_HIGH});
-//            result.pd.cmdAngular = K_angular; // Turn left to avoid obstacle
-//            break;
-//        case OBS_LEFT_CENTER:
-//        std::cout << "center left" << std::endl;
-//            this->reflect({LEFT_LOW, LEFT_HIGH});
-//            result.pd.cmdAngular = -K_angular; // Turn right to avoid obstacle
-//            break;
-//        case OBS_RIGHT_CENTER:
-//        std::cout << "center right" << std::endl;
-//            this->reflect({RIGHT_LOW, RIGHT_HIGH});
-//            result.pd.cmdAngular = K_angular; // Turn left to avoid obstacle
-//            break;
-//        default:
-//            std::cout << "OBSTACLE_CONTROLLER: avoidObstacle(), hit default" << std::endl;
-//    }
 }
 
 // A collection zone was seen in front of the rover and we are not carrying a target
@@ -114,20 +89,23 @@ void ObstacleController::avoidObstacle() {
 void ObstacleController::avoidCollectionZone() {
     logicMessage(current_time, ClassName, __func__);
 
+//    std::cout << "HOME DETECTED: avoidCollectionZone()" << std::endl;
+
     result.type = precisionDriving;
     result.pd.cmdVel = 0.0;
 
     // Decide which side of the rover sees the most april tags and turn away
     // from that side
 //    if (count_left_collection_zone_tags < count_right_collection_zone_tags) {
-    if (count_left_collection_zone_tags > count_right_collection_zone_tags) { // Todo: MYCODE inequality seemed backwards
-        // this->reflect({LEFT_LOW, LEFT_HIGH}); // Todo:
-        // result.pd.cmdAngular = K_angular; // Home on the left; turn right
+    if (this->x_home_tag_orientation > 0) {
+         this->reflect({LC_LOW, LC_HIGH});
+         result.pd.cmdAngular = K_angular; // Home on the right; turn left
+//         std::cout << "LEFT TURN!! LEFT TURN!!" << std::endl;
     } else {
-        // this->reflect({RIGHT_LOW, RIGHT_HIGH}); // Todo:
-        // result.pd.cmdAngular = -K_angular; // Home on the right; turn left
+         this->reflect({RC_LOW, RC_HIGH});
+         result.pd.cmdAngular = -K_angular; // Home on the left; turn right
+//         std::cout << "RIGHT TURN!! RIGHT TURN!!" << std::endl;
     }
-
     result.pd.setPointVel = 0.0;
     result.pd.cmdVel = 0.0;
     result.pd.setPointYaw = 0;
@@ -215,6 +193,7 @@ void ObstacleController::ProcessData() {
     long int Tdifference = current_time - timeSinceTags;
     float Td = Tdifference / 1e3;
     if (Td >= 0.5) {
+        std::cout << "Reset Collection Zone Seen" << std::endl;
         collection_zone_seen = false;
         phys = false;
         if (!obstacleAvoided) {
@@ -317,7 +296,7 @@ void ObstacleController::ProcessData() {
      * If any of the monitors are valid, check if they have cross the 'MIN_THRESH'.
      * Populate temporary map with acceptable detections. Then clear respective monitor so new detections can be made.
      */
-    auto *accepted_monitor_map = new std::map<DELAY_TYPE, OBSTACLE>();
+    auto *accepted_monitor_map = new std::map<DELAY_TYPE, LISTENER>();
     for (auto monitor : this->monitor_map) {
         if (monitor.second.allowed) {
             auto *accepted_sonar_map = new std::map<SONAR, ObstacleAssistant>();
@@ -331,7 +310,7 @@ void ObstacleController::ProcessData() {
             // Add to values temporary map
             monitor.second.sonar_map = *accepted_sonar_map;
             accepted_sonar_map->clear();
-            accepted_monitor_map->insert(std::pair<DELAY_TYPE, OBSTACLE>(monitor.first, monitor.second));
+            accepted_monitor_map->insert(std::pair<DELAY_TYPE, LISTENER>(monitor.first, monitor.second));
         }
     }
 
@@ -366,7 +345,7 @@ void ObstacleController::ProcessData() {
         if (this->reflection.can_end) {
             // Declare detection
             this->detection_declaration = this->monitor_map.at(INIT).type;
-            std::cout << "OBSTACLE CONTROLLER: processData() detection made: " << this->detection_declaration << std::endl;
+            std::cout << "LISTENER CONTROLLER: processData() detection made: " << this->detection_declaration << std::endl;
         }
         for (auto monitor : this->monitor_map) {
             resetObstacle(monitor.first);
@@ -374,13 +353,11 @@ void ObstacleController::ProcessData() {
     }
 
     // TODO: debugging
-    if (this->reflection.can_start)
-        std::cout << "Can Start" << std::endl;
-    // if (this->reflection.can_end)
-    //     std::cout << "Can End" << std::endl;
+//    if (this->reflection.can_start)
+//        std::cout << "Can Start" << std::endl;
 
     // Set flow control variables
-    if (this->detection_declaration != NO_OBSTACLE) {
+    if (this->detection_declaration != NO_OBSTACLE || collection_zone_seen) {
         if (collection_zone_seen) {
             std::cout << "Collection zone seen" << std::endl;
             this->detection_declaration = HOME;
@@ -415,6 +392,7 @@ void ObstacleController::ProcessData() {
 // top of the AprilTag is pointing towards the rover or away.
 // If the top of the tags are away from the rover then treat them as obstacles.
 void ObstacleController::setTagData(vector <Tag> tags) {
+//    std::cout << "OBSTACLE CONTROLLER: setTagData()" << std::endl;
     collection_zone_seen = false;
     count_left_collection_zone_tags = 0;
     count_right_collection_zone_tags = 0;
@@ -425,6 +403,9 @@ void ObstacleController::setTagData(vector <Tag> tags) {
         for (int i = 0; i < tags.size(); i++) { //redundant for loop
             if (tags[i].getID() == 256) {
                 collection_zone_seen = checkForCollectionZoneTags(tags);
+                if (collection_zone_seen) {
+                    this->detection_declaration = HOME;
+                }
                 timeSinceTags = current_time;
             }
         }
@@ -432,7 +413,7 @@ void ObstacleController::setTagData(vector <Tag> tags) {
 }
 
 bool ObstacleController::checkForCollectionZoneTags(vector<Tag> tags) {
-
+//    std::cout << "OBSTACLE CONTROLLER:  checkForCollectionZoneTags" << std::endl;
     for (auto &tag : tags) {
 
         // Check the orientation of the tag. If we are outside the collection zone the yaw will be positive so treat the collection zone as an obstacle.
@@ -453,7 +434,7 @@ bool ObstacleController::checkForCollectionZoneTags(vector<Tag> tags) {
             this->x_home_tag_orientation += tag.getPositionX() + camera_offset_correction;
         }
     }
-
+    this->x_home_tag_orientation /= tags.size();
     // Did any tags indicate that the robot is inside the collection zone?
     return count_left_collection_zone_tags + count_right_collection_zone_tags > 0;
 
@@ -525,7 +506,7 @@ void ObstacleController::setTargetHeldClear() {
  * @param bounds : the lower and upper bounds of the generate angle
  */
 void ObstacleController::reflect(std::vector<double> bounds) {
-    std::cout << "OBSTACLE CONTROLLER: reflect" << std::endl; // Only want to deal with positive values
+    std::cout << "LISTENER CONTROLLER: reflect" << std::endl; // Only want to deal with positive values
     if (!this->reflection.can_start) {
         std::cout << "reflect() create angle" << std::endl;
         int rand();
@@ -559,7 +540,7 @@ void ObstacleController::reflect(std::vector<double> bounds) {
  * @param delay_type : which monitor are we editing
  */
 void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> accepted_sonar, DELAY_TYPE delay_type) {
-    OBSTACLE obstacle = this->monitor_map.at(delay_type);
+    LISTENER obstacle = this->monitor_map.at(delay_type);
 
     // Based on number of sonar sensors
     std::vector<bool> valid_monitors = {false, false, false};
@@ -601,24 +582,17 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
             break;
         }
     }
-    std::cout << "Admit : " << admit << std::endl;
     if (admit) {
         if (left_assist && center_assist && right_assist) {
-            std::cout << "Left range: " << left_assist->detections.smallest_detection << std::endl;
-            std::cout << "Center range: " << center_assist->detections.smallest_detection << std::endl;
-            std::cout << "Right range: " << right_assist->detections.smallest_detection << std::endl;
             // Base Case: if the rover meets a flat object head-on
             if (left_assist->detections.smallest_detection == center_assist->detections.smallest_detection &&
                 center_assist->detections.smallest_detection == right_assist->detections.smallest_detection) {
-                std::cout << "OBS CENTER" << std::endl;
                 obstacle.type = OBS_CENTER;
             }
             else if (left_assist->detections.smallest_detection <= right_assist->detections.smallest_detection) {
-                std::cout << "OBS CENTER LEFT" << std::endl;
                 obstacle.type = OBS_LEFT_CENTER;
             }
             else {
-                std::cout << "OBS CENTER RIGHT" << std::endl;
                 obstacle.type = OBS_RIGHT_CENTER;
             }
         } else if (center_assist && left_assist) {
@@ -648,7 +622,7 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
  * @param delay_type : which monitor are we editing
  */
 void ObstacleController::sonarAnalysis(DELAY_TYPE delay_type) {
-    OBSTACLE obstacle = this->monitor_map.at(delay_type);
+    LISTENER obstacle = this->monitor_map.at(delay_type);
     for (auto assistant : obstacle.sonar_map) {
         float prev;
         float curr;
@@ -673,7 +647,7 @@ void ObstacleController::sonarAnalysis(DELAY_TYPE delay_type) {
                     }
                     else {
                         obstacle.sonar_map.at(sonar).detections.good_detection = false;
-                        obstacle.sonar_map.at(sonar).detections.good_detection = DEFAULT_RANGE;
+                        obstacle.sonar_map.at(sonar).detections.smallest_detection = DEFAULT_RANGE;
                         obstacle.sonar_map.at(sonar).monitor->clear();
                         break;
                     }
@@ -692,7 +666,7 @@ void ObstacleController::sonarAnalysis(DELAY_TYPE delay_type) {
  * @param sonar : which sensor are we referencing
  */
 void ObstacleController::sonarMonitor(DELAY_TYPE delay_type, float range, SONAR sonar) {
-    OBSTACLE obstacle = this->monitor_map.at(delay_type);
+    LISTENER obstacle = this->monitor_map.at(delay_type);
     if (obstacle.allowed) {
         obstacle.sonar_map.at(sonar).monitor->push_back(range);
         if (obstacle.sonar_map.at(sonar).monitor->size() >= VECTOR_MAX) {
@@ -731,5 +705,6 @@ void ObstacleController::resetDetections(DELAY_TYPE delay_type) {
         obstacleAvoided = true;
     }
 }
+
 
 

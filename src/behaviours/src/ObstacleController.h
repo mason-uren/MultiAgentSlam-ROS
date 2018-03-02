@@ -36,27 +36,20 @@
 /*
  * Reflection bounds
  */
-#define RIGHT_LOW (-(7 * M_PI) / 12)
-#define RIGHT_HIGH (-(5 * M_PI) / 6)
+#define R_LOW (-(M_PI) / 4)
+#define R_HIGH (-(7 * M_PI) / 6)
 
-#define LEFT_LOW ((7 * M_PI) / 12)
-#define LEFT_HIGH ((5 * M_PI) / 6)
+#define L_LOW ((M_PI) / 4)
+#define L_HIGH ((7 * M_PI) / 6)
 
-#define R_LOW 0
-#define R_HIGH -M_PI_2
+#define RC_LOW (-(7 * M_PI) / 12)
+#define RC_HIGH (-(4 * M_PI) / 5)
 
-#define L_LOW 0
-#define L_HIGH M_PI_2
-
-#define RC_LOW -M_PI_2
-#define RC_HIGH -M_PI
-
-#define LC_LOW M_PI_2
-#define LC_HIGH M_PI
+#define LC_LOW ((7 * M_PI) / 12)
+#define LC_HIGH ((4 * M_PI) / 5)
 
 #define DELAY_ITERATION 2
 
-#define K_FACTOR 0.03
 
 
 /*
@@ -66,7 +59,7 @@ typedef struct {
     bool allowed;
     OBS_TYPE type;
     std::map<SONAR, ObstacleAssistant> sonar_map;
-} OBSTACLE;
+} LISTENER;
 
 /*
  * Reflection
@@ -76,7 +69,6 @@ typedef struct {
     bool can_end;
     double desired_heading;
     double reflect_angle;
-//    double prev_orient;
 } REFLECTION;
 
 extern void logMessage(long int currentTime, string component, string message);
@@ -203,11 +195,11 @@ private:
      */
     int stag;
     OBS_TYPE detection_declaration;
-//    OBSTACLE obstacle_init;
-//    OBSTACLE obstacle_stag;
+//    LISTENER obstacle_init;
+//    LISTENER obstacle_stag;
     REFLECTION reflection;
 
-    std::map<DELAY_TYPE, OBSTACLE> monitor_map;
+    std::map<DELAY_TYPE, LISTENER> monitor_map;
 
     string detect_msg;
 
