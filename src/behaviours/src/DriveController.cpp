@@ -261,7 +261,7 @@ void DriveController::ProcessData() {
             stateMachineState = STATE_MACHINE_WAYPOINTS;
         }
     } else if (result.type == vectorDriving) {
-        stateMachineState = STATE_MACHINE_ROTATE;
+        stateMachineState = STATE_MACHINE_SKID_STEER;
 
     } else if (result.type == precisionDriving) {
 
