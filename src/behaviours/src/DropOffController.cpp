@@ -230,16 +230,16 @@ bool DropOffController::Align()
     //still need to add condition where yaw is +-1.5
     if(tagYaw > 0.08)// turn right
     {
-        result.pd.cmdAngularError = -0.17;
+        result.pd.cmdAngular = -0.5;
     }
     else if(tagYaw < -0.08)//turn left
     {
-        result.pd.cmdAngularError = 0.17;
+        result.pd.cmdAngular = 0.5;
     }
 
     if((tagYaw > -0.08 && tagYaw < 0.08))
     {
-        result.pd.cmdAngularError = 0.0;
+        result.pd.cmdAngular = 0.0;
         return true;
     }
 
