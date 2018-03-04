@@ -26,10 +26,12 @@ DropOffController::DropOffController() {
     startWaypoint = false;
     timerTimeElapsed = -1;
     alignTimer = -1;
+    realignTimer = -1;
 
     //new globals
     isAligned = false;
     firstAlign = false;
+    firstReAlign = false;
     edgeCase = false;
 
 }
@@ -94,19 +96,13 @@ Result DropOffController::DoWork() {
 
     bool centerSeen = tagCount > 0;
 
-    //reset lastCenterTagThresholdTime timout timer to current time
-//    if ((!centerApproach && !seenEnoughCenterTags) || (tagCount > 0 && !seenEnoughCenterTags)) {
-//        lastCenterTagThresholdTime = current_time;
-//        dropOffMessage("setting last time saw tag", "// no tags seen");
-//    }
-
     if(isAligned && !edgeCase)
     {
         DeliverCube();
     }
     else if(edgeCase)
     {
-
+        ReAlign();
     }
     else if(centerSeen)
     {
@@ -126,6 +122,12 @@ Result DropOffController::DoWork() {
             isAligned = Align();
         }
     }
+
+    //reset lastCenterTagThresholdTime timout timer to current time
+//    if ((!centerApproach && !seenEnoughCenterTags) || (tagCount > 0 && !seenEnoughCenterTags)) {
+//        lastCenterTagThresholdTime = current_time;
+//        dropOffMessage("setting last time saw tag", "// no tags seen");
+//    }
 
 //    if ((tagCount > 0 || seenEnoughCenterTags || prevCount > 0) && !isAligned) //if we have a target and the center is located drive towards it.
 //    {
@@ -266,12 +268,12 @@ bool DropOffController::Align()
 
 void DropOffController::ReAlign()
 {
-    if(closestTagDistance > centerClearedDistanceThreshold)
+    if(closestTagDistance > centerClearedDistanceThreshold && tagCount > 0)
     {
         result.pd.cmdVel = -0.2;
         result.pd.cmdAngularError = 0.0;
     }
-    else
+    else if(closestTagDistance <= centerClearedDistanceThreshold && tagCount > 0)
     {
         if(abs(prevYaw) != prevYaw) //negative previous yaw
         {
@@ -284,6 +286,41 @@ void DropOffController::ReAlign()
             result.pd.cmdAngularError = -1.5;
         }
     }
+    else
+    {
+        if(firstReAlign)
+        {
+            timerTimeElapsed = realignTimer; //used to check for edge and corner cases
+            firstAlign = false;
+        }
+        if(timerTimeElapsed - realignTimer > 1 && timerTimeElapsed - realignTimer < 2)
+        {
+            result.pd.cmdVel = 0.15;
+            result.pd.cmdAngularError = 0.0;
+        }
+        else if(timerTimeElapsed - realignTimer >= 2 && timerTimeElapsed - realignTimer <= 3.5) //turning back
+        {
+            if(abs(prevYaw) != prevYaw) //negative previous yaw
+            {
+                result.pd.cmdAngular = 0.7;
+                result.pd.cmdAngularError = -1.5;
+            }
+            else //turn right
+            {
+                result.pd.cmdAngular = 0.7;
+                result.pd.cmdAngularError = 1.5;
+            }
+        }
+
+        else //resetting variables
+        {
+            isAligned = false;
+            edgeCase = false;
+            firstReAlign = false;
+            firstAlign = false;
+        }
+
+    }
 }
 
 
@@ -291,15 +328,16 @@ void DropOffController::ReAlign()
 //sets reachedCollectionPoint which triggers next action
 void DropOffController::DeliverCube()
 {
-    if(tagYaw > 1.0)
+    if(centerYaw > 1.0)
     {
+        dropOffMessage(ClassName, "Edge case during devliver");
         edgeCase = true;
         prevYaw = tagYaw;
     }
     else if(countCenter > 0) //while tags are still seen
     {
         dropOffMessage(ClassName, __func__);
-        result.pd.cmdVel = 0.15;
+        result.pd.cmdVel = 0.2;
         result.pd.cmdAngularError = 0.0;
     }
     else
@@ -393,6 +431,7 @@ void DropOffController::Reset() {
     prevCount = 0;
     timerTimeElapsed = -1;
     alignTimer = -1;
+    realignTimer = -1;
 
     countLeft = 0;
     countRight = 0;
@@ -413,6 +452,7 @@ void DropOffController::Reset() {
 
     isAligned = false;
     firstAlign = false;
+    firstReAlign = false;
     edgeCase = false;
 }
 
@@ -447,6 +487,10 @@ void DropOffController::SetTargetData(vector<Tag> tags) {
                 }
                 else if (tag.getPositionX() + cameraOffsetCorrection <= 0.02 || tag.getPositionX() + cameraOffsetCorrection >= -0.02) {
                     countCenter++;
+                    tf::Quaternion tagOrien(tag.getOrientationX(), tag.getOrientationY(), tag.getOrientationZ(), tag.getOrientationW());
+                    tf::Matrix3x3 rotMartrix(tagOrien);
+                    rotMartrix.getRPY(roll, pitch, centerYaw);
+
                 } else {
                     countLeft++;
                 }

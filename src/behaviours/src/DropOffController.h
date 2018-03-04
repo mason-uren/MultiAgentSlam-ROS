@@ -61,6 +61,7 @@ private:
     void SearchForHome();
     void DeliverCube();
     void BackUp();
+    void ReAlign();
 
     /**
      * Get the index of the center tag closest to the camera
@@ -93,8 +94,10 @@ private:
     //New globals
     double tagYaw; //yaw of closest tag
     double prevYaw;
+    double centerYaw;
     bool isAligned; //aligned to tag based on 0 orientation of home tag yaw
     bool firstAlign;
+    bool firstReAlign;
     bool edgeCase;
 
     //Instance Variables
@@ -137,6 +140,7 @@ private:
     float timerTimeElapsed;
 
     float alignTimer;
+    float realignTimer;
 
     //The amount over initialSpinSize we've gotten to
     float spinSizeIncrease;
