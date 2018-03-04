@@ -16,6 +16,7 @@ DropOffController::DropOffController() {
     centerApproach = false;
     seenEnoughCenterTags = false;
     prevCount = 0;
+
     countLeft = 0;
     countRight = 0;
     tagCount = 0; //total home tag count
@@ -357,12 +358,7 @@ void DropOffController::SetTargetData(vector<Tag> tags) {
     countRight = 0;
     countLeft = 0;
     tagCount = 0;
-    int upRQuad = 0;
-    int lowRQuad = 0;
-    int upLQuad = 0;
-    int lowLQuad = 0;
     double roll, pitch;
-    double tagDistanceFromCamera;
     double tagDistance;
 
     int closestIdx = getClosestCenterTagIdx(tags);
