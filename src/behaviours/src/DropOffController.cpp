@@ -26,7 +26,6 @@ DropOffController::DropOffController() {
     timerTimeElapsed = -1;
 
     //new globals
-    inHome = false;
     isAligned = false;
 
 }
@@ -42,11 +41,6 @@ Result DropOffController::DoWork() {
 
     logicMessage(current_time, ClassName, __func__);
 
-    ///////////////////////////////////////////////////////////////////////////////
-    ///leaving this chunk alone until Collin's backup code is complete/////////////
-    //////////////////////////////////////////////////////////////////////////////
-
-
     //Starts the timer
     if (timerTimeElapsed > -1) {
         long int elapsed = current_time - returnTimer;
@@ -56,8 +50,9 @@ Result DropOffController::DoWork() {
     //if we are in the routine for exiting the circle once we have dropped a block off and resetting all our flags
     //to restart our search.
     if (reachedCollectionPoint) {
-        dropOffMessage("Reached Collection point", "-----");
         //cout << "2 I am at home" << endl;
+
+        dropOffMessage(ClassName, "reached collection point");
 
         // Check if we have backed far enough away from the dropoff zone
         bool clearOfCircle = timerTimeElapsed > minimumBackupThreshold
@@ -68,7 +63,6 @@ Result DropOffController::DoWork() {
                 result.type = behavior;
                 result.behaviourType = nextProcess;
                 result.reset = true;
-                dropOffMessage("timer Elapsed > 5", "final interrupt, type: behavior, nextProcess, reset");
                 string message = "Exiting DropOff";
                 logMessage(current_time, "DROPOFF", message);
                 return result;
@@ -80,7 +74,6 @@ Result DropOffController::DoWork() {
         } else if (timerTimeElapsed >= 0.1) {
             isPrecisionDriving = true;
             result.type = precisionDriving;
-            dropOffMessage("timer Elapsed > 0.1", "set final dropping off. Driving");
 
             DropCube();
 
@@ -104,33 +97,28 @@ Result DropOffController::DoWork() {
 
         return result;
 
-    } else if (timerTimeElapsed >= 2)//spin search for center
+    } else if (timerTimeElapsed >= 2 && tagCount == 0 || !isAligned) //Believes it is home but is not
     {
         SearchForHome(); //currently spin search
     }
 
-    //////////////////////////////////////////////////////////////
-    /////////////////////////////////////////////////////////////
-
-    bool left = (countLeft > 0);
-    bool right = (countRight > 0);
-    bool centerSeen = (right || left);
+    bool centerSeen = tagCount > 0;
 
     //reset lastCenterTagThresholdTime timout timer to current time
-    if ((!centerApproach && !seenEnoughCenterTags) || (tagCount > 0 && !seenEnoughCenterTags)) {
-        lastCenterTagThresholdTime = current_time;
-        dropOffMessage("setting last time saw tag", "// no tags seen");
+//    if ((!centerApproach && !seenEnoughCenterTags) || (tagCount > 0 && !seenEnoughCenterTags)) {
+//        lastCenterTagThresholdTime = current_time;
+//        dropOffMessage("setting last time saw tag", "// no tags seen");
+//    }
+
+    if(isAligned)
+    {
+        DeliverCube();
     }
 
-    if ((tagCount > 0 || seenEnoughCenterTags || prevCount > 0) && !isAligned) //if we have a target and the center is located drive towards it.
+    else if(centerSeen)
     {
-        string message = "Attempting DropOff";
-        logMessage(current_time, "DROPOFF", message);
 
-        //cout << "9 I have located the center" << endl;
-        centerSeen = true;
-
-        if (first_center && isPrecisionDriving) { //literally no clue what this does
+        if (first_center && isPrecisionDriving) {
             first_center = false;
             result.type = behavior;
             result.reset = false;
@@ -138,92 +126,117 @@ Result DropOffController::DoWork() {
             dropOffMessage("Mystery action", "type: behavior, behaviourType: next, reset: false");
             return result;
         }
-        isPrecisionDriving = true;
-        dropOffMessage("maybe lining up", "precision driving true");
 
         result.type = precisionDriving;
 
         if(!isAligned)
         {
             isAligned = Align();
-            dropOffMessage("Aligning", "----------");
         }
-        else
-        {
-            result.pd.cmdVel = 0.12;
-            result.pd.cmdAngularError = 0.0;
-            dropOffMessage("Aligned complete", "-----Driving Forward");
-        }
-
-        //must see greater than this many tags before assuming we are driving into the center and not along an edge.
-        if (tagCount > centerTagThreshold) {
-            seenEnoughCenterTags = true; //we have driven far enough forward to be in and aligned with the circle.
-            lastCenterTagThresholdTime = current_time;
-        }
-        if (tagCount > 0) //reset gaurd to prevent drop offs due to loosing tracking on tags for a frame or 2.
-        {
-            lastCenterTagThresholdTime = current_time;
-        }
-        //time since we dropped below countGuard tags
-        long int elapsed = current_time - lastCenterTagThresholdTime;
-        float timeSinceSeeingEnoughCenterTags = elapsed / 1e3; // Convert from milliseconds to seconds
-
-        //we have driven far enough forward to have passed over the circle.
-        if (tagCount < 1 && seenEnoughCenterTags && timeSinceSeeingEnoughCenterTags > dropDelay) {
-            centerSeen = false;
-        }
-        centerApproach = true;
-        prevCount = tagCount;
-        tagCount = 0;
-        countLeft = 0;
-        countRight = 0;
     }
+
+//    if ((tagCount > 0 || seenEnoughCenterTags || prevCount > 0) && !isAligned) //if we have a target and the center is located drive towards it.
+//    {
+//        string message = "Attempting DropOff";
+//        logMessage(current_time, "DROPOFF", message);
+//
+//        //cout << "9 I have located the center" << endl;
+//        //centerSeen = true;
+//
+//        if (first_center && isPrecisionDriving) {
+//            first_center = false;
+//            result.type = behavior;
+//            result.reset = false;
+//            result.behaviourType = nextProcess;
+//            dropOffMessage("Mystery action", "type: behavior, behaviourType: next, reset: false");
+//            return result;
+//        }
+//        isPrecisionDriving = true;
+//        dropOffMessage("maybe lining up", "precision driving true");
+//
+//        result.type = precisionDriving;
+//
+//        if(!isAligned)
+//        {
+//            isAligned = Align();
+//            dropOffMessage("Aligning", "----------");
+//        }
+//        else
+//        {
+//            result.pd.cmdVel = 0.12;
+//            result.pd.cmdAngularError = 0.0;
+//            dropOffMessage("Aligned complete", "-----Driving Forward");
+//        }
+//
+//        //must see greater than this many tags before assuming we are driving into the center and not along an edge.
+//        if (tagCount > centerTagThreshold) {
+//            seenEnoughCenterTags = true; //we have driven far enough forward to be in and aligned with the circle.
+//            lastCenterTagThresholdTime = current_time;
+//        }
+//        if (tagCount > 0) //reset gaurd to prevent drop offs due to loosing tracking on tags for a frame or 2.
+//        {
+//            lastCenterTagThresholdTime = current_time;
+//        }
+//        //time since we dropped below countGuard tags
+//        long int elapsed = current_time - lastCenterTagThresholdTime;
+//        float timeSinceSeeingEnoughCenterTags = elapsed / 1e3; // Convert from milliseconds to seconds
+//
+//        //we have driven far enough forward to have passed over the circle.
+//        if (tagCount < 1 && seenEnoughCenterTags && timeSinceSeeingEnoughCenterTags > dropDelay) {
+//            centerSeen = false;
+//        }
+//        centerApproach = true;
+//        prevCount = tagCount;
+//        tagCount = 0;
+//        countLeft = 0;
+//        countRight = 0;
+//    }
 
         //was on approach to center and did not seenEnoughCenterTags
         //for lostCenterCutoff seconds so reset.
-    else if (centerApproach) {
-        dropOffMessage("Center approach thing", "----------");
+//    else if (centerApproach) {
+//        dropOffMessage("Center approach thing", "----------");
+//
+//        long int elapsed = current_time - lastCenterTagThresholdTime;
+//        float timeSinceSeeingEnoughCenterTags = elapsed / 1e3; // Convert from milliseconds to seconds
+//        if (timeSinceSeeingEnoughCenterTags > lostCenterCutoff) {
+//
+//            dropOffMessage("timeSinceSeeingEnoughCenterTags > lostCenterCutoff", "----------");
+//            //cout << "4 We have lost the center, drop off attempt abandoned" << endl;
+//            //go back to drive to center base location instead of drop off attempt
+//            reachedCollectionPoint = false;
+//            seenEnoughCenterTags = false;
+//            centerApproach = false;
+//
+//            result.type = waypoint;
+//            result.waypoints.push_back(this->centerLocation);
+//            if (isPrecisionDriving) {
+//                result.type = behavior;
+//                result.behaviourType = prevProcess;
+//                result.reset = false;
+//                dropOffMessage("timeSinceSeeingEnoughCenterTags > lostCenterCutoff", "turning off precision driving");
+//            }
+//            isPrecisionDriving = false;
+//            interrupt = false;
+//            precisionInterrupt = false;
+//
+//            string message = "Abandoning DropOff. Lost sight of home.";
+//            logMessage(current_time, "DROPOFF", message);
+//        } else {
+//            result.pd.cmdVel = searchVelocity;
+//            result.pd.cmdAngularError = 0.0;
+//            dropOffMessage("center approach", "driving forward");
+//        }
+//
+//        return result;
+//
+//    }
 
-        long int elapsed = current_time - lastCenterTagThresholdTime;
-        float timeSinceSeeingEnoughCenterTags = elapsed / 1e3; // Convert from milliseconds to seconds
-        if (timeSinceSeeingEnoughCenterTags > lostCenterCutoff) {
-
-            dropOffMessage("timeSinceSeeingEnoughCenterTags > lostCenterCutoff", "----------");
-            //cout << "4 We have lost the center, drop off attempt abandoned" << endl;
-            //go back to drive to center base location instead of drop off attempt
-            reachedCollectionPoint = false;
-            seenEnoughCenterTags = false;
-            centerApproach = false;
-
-            result.type = waypoint;
-            result.waypoints.push_back(this->centerLocation);
-            if (isPrecisionDriving) {
-                result.type = behavior;
-                result.behaviourType = prevProcess;
-                result.reset = false;
-                dropOffMessage("timeSinceSeeingEnoughCenterTags > lostCenterCutoff", "turning off precision driving");
-            }
-            isPrecisionDriving = false;
-            interrupt = false;
-            precisionInterrupt = false;
-
-            string message = "Abandoning DropOff. Lost sight of home.";
-            logMessage(current_time, "DROPOFF", message);
-        } else {
-            result.pd.cmdVel = searchVelocity;
-            result.pd.cmdAngularError = 0.0;
-            dropOffMessage("center approach", "driving forward");
-        }
-
-        return result;
-
-    }
-
-    if (!centerSeen && seenEnoughCenterTags) {
-        reachedCollectionPoint = true;
-        centerApproach = false;
-        returnTimer = current_time;
-    }
+//    if(!centerSeen && seenEnoughCenterTags) {
+//        reachedCollectionPoint = true;
+//        centerApproach = false;
+//        returnTimer = current_time;
+//    }
 
     return result;
 }
@@ -233,13 +246,17 @@ bool DropOffController::Align()
 {
 
     //still need to add condition where yaw is +-1.5
-    if(tagYaw > 0.08)// turn right
+    if(tagYaw >= 0.08)// turn right
     {
-        result.pd.cmdAngular = -0.5;
+        result.pd.cmdAngular = 0.7;
+        result.pd.cmdAngularError = -0.12;
+        dropOffMessage(ClassName, "Align right");
     }
-    else if(tagYaw < -0.08)//turn left
+    else if(tagYaw <= -0.08)//turn left
     {
-        result.pd.cmdAngular = 0.5;
+        result.pd.cmdAngular = 0.7;
+        result.pd.cmdAngularError = 0.12;
+        dropOffMessage(ClassName, "Align left");
     }
 
     if((tagYaw > -0.08 && tagYaw < 0.08))
@@ -253,31 +270,36 @@ bool DropOffController::Align()
 
 
 //drives forward until no tags seen
-//sets inHome which triggers next action
+//sets reachedCollectionPoint which triggers next action
 void DropOffController::DeliverCube()
 {
     if(tagCount > 0) //while tags are still seen
     {
-        result.pd.cmdVel = 0.12;
+        dropOffMessage(ClassName, __func__);
+        result.pd.cmdVel = 0.10;
         result.pd.cmdAngularError = 0.0;
 
     }
     else
     {
+        dropOffMessage(ClassName, "deliver should stop");
         result.pd.cmdVel = 0.0;
         result.pd.cmdAngularError = 0.0;
-        inHome = true; //will trigger releasing cube and backing out
+        reachedCollectionPoint = true; //will trigger releasing cube and backing out
+        returnTimer = current_time;
     }
 }
 
 void DropOffController::DropCube()
 {
+    dropOffMessage(ClassName, __func__);
     result.fingerAngle = M_PI_2; //open fingers
     result.wristAngle = 0; //raise wrist
 }
 
 void DropOffController::WaypointNav()
 {
+    dropOffMessage(ClassName, __func__);
     result.type = waypoint;
     result.waypoints.clear();
     result.waypoints.push_back(this->centerLocation);
@@ -292,6 +314,7 @@ void DropOffController::WaypointNav()
 
 void DropOffController::SearchForHome()
 {
+    dropOffMessage(ClassName, __func__);
     Point nextSpinPoint;
 
     //sets a goal that is 60cm from the centerLocation and spinner
@@ -319,6 +342,7 @@ void DropOffController::SearchForHome()
 }
 
 void DropOffController::Reset() {
+    dropOffMessage(ClassName, __func__);
     result.type = behavior;
     result.behaviourType = wait;
     result.pd.cmdVel = 0;
@@ -349,7 +373,6 @@ void DropOffController::Reset() {
     first_center = true;
 
     isAligned = false;
-    inHome = false;
         //cout << "6 Reset has occurred" << endl;
 
 }

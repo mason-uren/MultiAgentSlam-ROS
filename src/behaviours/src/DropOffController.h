@@ -92,7 +92,6 @@ private:
     //New globals
     double tagYaw; //yaw of closest tag
     bool isAligned; //aligned to tag based on 0 orientation of home tag yaw
-    bool inHome; //has driven into home and tags are no longer visible
 
     //Instance Variables
 
