@@ -120,6 +120,7 @@ private:
     int countLeft;
     int countRight;
     int tagCount;
+    int countCenter;
 
     // Distance from the camera of the closest tag
     double closestTagDistance;

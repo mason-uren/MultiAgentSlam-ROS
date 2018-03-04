@@ -19,6 +19,7 @@ DropOffController::DropOffController() {
 
     countLeft = 0;
     countRight = 0;
+    countCenter = 0;
     tagCount = 0; //total home tag count
 
     isPrecisionDriving = false;
@@ -273,10 +274,10 @@ bool DropOffController::Align()
 //sets reachedCollectionPoint which triggers next action
 void DropOffController::DeliverCube()
 {
-    if(tagCount > 0) //while tags are still seen
+    if(countCenter > 0) //while tags are still seen
     {
         dropOffMessage(ClassName, __func__);
-        result.pd.cmdVel = 0.10;
+        result.pd.cmdVel = 0.15;
         result.pd.cmdAngularError = 0.0;
 
     }
@@ -358,6 +359,7 @@ void DropOffController::Reset() {
 
     countLeft = 0;
     countRight = 0;
+    countCenter = 0;
     closestTagDistance = 0;
     tagCount = 0;
 
@@ -380,6 +382,7 @@ void DropOffController::Reset() {
 void DropOffController::SetTargetData(vector<Tag> tags) {
     countRight = 0;
     countLeft = 0;
+    countCenter = 0;
     tagCount = 0;
     double roll, pitch;
     double tagDistance;
@@ -402,8 +405,11 @@ void DropOffController::SetTargetData(vector<Tag> tags) {
             // if a target is detected and we are looking for center tags
             if (targetHeld && !reachedCollectionPoint) {
                 // checks if tag is on the right or left side of the image
-                if (tag.getPositionX() + cameraOffsetCorrection > 0) {
+                if (tag.getPositionX() + cameraOffsetCorrection > 0.02) {
                     countRight++;
+                }
+                else if (tag.getPositionX() + cameraOffsetCorrection <= 0.02 || tag.getPositionX() + cameraOffsetCorrection >= -0.02) {
+                    countCenter++;
                 } else {
                     countLeft++;
                 }
