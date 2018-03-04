@@ -25,9 +25,12 @@ DropOffController::DropOffController() {
     isPrecisionDriving = false;
     startWaypoint = false;
     timerTimeElapsed = -1;
+    alignTimer = -1;
 
     //new globals
     isAligned = false;
+    firstAlign = false;
+    edgeCase = false;
 
 }
 
@@ -51,9 +54,6 @@ Result DropOffController::DoWork() {
     //if we are in the routine for exiting the circle once we have dropped a block off and resetting all our flags
     //to restart our search.
     if (reachedCollectionPoint) {
-        //cout << "2 I am at home" << endl;
-
-        dropOffMessage(ClassName, "reached collection point");
 
         // Check if we have backed far enough away from the dropoff zone
         bool clearOfCircle = timerTimeElapsed > minimumBackupThreshold
@@ -64,26 +64,15 @@ Result DropOffController::DoWork() {
                 result.type = behavior;
                 result.behaviourType = nextProcess;
                 result.reset = true;
-                string message = "Exiting DropOff";
-                logMessage(current_time, "DROPOFF", message);
+                logMessage(current_time, ClassName, "Exiting DropOff");
                 return result;
             } else {
                 logMessage(current_time, "DROPOFF", "Clear of circle, entering final interrupt");
                 finalInterrupt = true;
-                cout << "1" << endl;
             }
         } else if (timerTimeElapsed >= 0.1) {
-            isPrecisionDriving = true;
-            result.type = precisionDriving;
 
-            DropCube();
-
-            //backing out of home
-            result.pd.cmdVel = -0.3;
-            result.pd.cmdAngularError = 0.0;
-
-            string message = "Resource released and exiting home";
-            logMessage(current_time, "DROPOFF", message);
+            BackUp();
         }
 
         return result;
@@ -111,11 +100,14 @@ Result DropOffController::DoWork() {
 //        dropOffMessage("setting last time saw tag", "// no tags seen");
 //    }
 
-    if(isAligned)
+    if(isAligned && !edgeCase)
     {
         DeliverCube();
     }
+    else if(edgeCase)
+    {
 
+    }
     else if(centerSeen)
     {
 
@@ -124,7 +116,6 @@ Result DropOffController::DoWork() {
             result.type = behavior;
             result.reset = false;
             result.behaviourType = nextProcess;
-            dropOffMessage("Mystery action", "type: behavior, behaviourType: next, reset: false");
             return result;
         }
 
@@ -245,23 +236,27 @@ Result DropOffController::DoWork() {
 //Rotates bot to better align with home tags
 bool DropOffController::Align()
 {
+    if(firstAlign)
+    {
+        timerTimeElapsed = alignTimer; //used to check for edge and corner cases
+        firstAlign = false;
+    }
 
     //still need to add condition where yaw is +-1.5
-    if(tagYaw >= 0.08)// turn right
+    if(tagYaw >= 0.07)// turn right
     {
         result.pd.cmdAngular = 0.7;
         result.pd.cmdAngularError = -0.12;
         dropOffMessage(ClassName, "Align right");
     }
-    else if(tagYaw <= -0.08)//turn left
+    else if(tagYaw <= -0.07)//turn left
     {
         result.pd.cmdAngular = 0.7;
         result.pd.cmdAngularError = 0.12;
         dropOffMessage(ClassName, "Align left");
     }
 
-    if((tagYaw > -0.08 && tagYaw < 0.08))
-    {
+    if((tagYaw > -0.06 && tagYaw < 0.08)) {
         result.pd.cmdAngular = 0.0;
         return true;
     }
@@ -269,17 +264,43 @@ bool DropOffController::Align()
     return false;
 }
 
+void DropOffController::ReAlign()
+{
+    if(closestTagDistance > centerClearedDistanceThreshold)
+    {
+        result.pd.cmdVel = -0.2;
+        result.pd.cmdAngularError = 0.0;
+    }
+    else
+    {
+        if(abs(prevYaw) != prevYaw) //negative previous yaw
+        {
+            result.pd.cmdAngular = 0.7;
+            result.pd.cmdAngularError = 1.5;
+        }
+        else //turn right
+        {
+            result.pd.cmdAngular = 0.7;
+            result.pd.cmdAngularError = -1.5;
+        }
+    }
+}
+
 
 //drives forward until no tags seen
 //sets reachedCollectionPoint which triggers next action
 void DropOffController::DeliverCube()
 {
-    if(countCenter > 0) //while tags are still seen
+    if(tagYaw > 1.0)
+    {
+        edgeCase = true;
+        prevYaw = tagYaw;
+    }
+    else if(countCenter > 0) //while tags are still seen
     {
         dropOffMessage(ClassName, __func__);
         result.pd.cmdVel = 0.15;
         result.pd.cmdAngularError = 0.0;
-
     }
     else
     {
@@ -296,6 +317,21 @@ void DropOffController::DropCube()
     dropOffMessage(ClassName, __func__);
     result.fingerAngle = M_PI_2; //open fingers
     result.wristAngle = 0; //raise wrist
+}
+
+void DropOffController::BackUp()
+{
+    logicMessage(current_time, ClassName, __func__);
+    logMessage(current_time, ClassName, "Resource released and exiting home");
+
+    isPrecisionDriving = true;
+    result.type = precisionDriving;
+
+    DropCube();
+
+    //backing out of home
+    result.pd.cmdVel = -0.3;
+    result.pd.cmdAngularError = 0.0;
 }
 
 void DropOffController::WaypointNav()
@@ -356,6 +392,7 @@ void DropOffController::Reset() {
     spinSizeIncrease = 0;
     prevCount = 0;
     timerTimeElapsed = -1;
+    alignTimer = -1;
 
     countLeft = 0;
     countRight = 0;
@@ -375,8 +412,8 @@ void DropOffController::Reset() {
     first_center = true;
 
     isAligned = false;
-        //cout << "6 Reset has occurred" << endl;
-
+    firstAlign = false;
+    edgeCase = false;
 }
 
 void DropOffController::SetTargetData(vector<Tag> tags) {
