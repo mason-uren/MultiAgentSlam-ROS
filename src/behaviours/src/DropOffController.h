@@ -11,6 +11,7 @@
 #include <tf/transform_listener.h>
 
 extern void logMessage(long int currentTime, string component, string message);
+
 extern void logicMessage(long int currentTime, string component, string message);
 extern void tagMessage(vector <Tag> tags);
 extern void dropOffMessage(string component, string message);
@@ -39,13 +40,13 @@ public:
 
     void SetBlockBlockingUltrasound(bool blockBlock);
 
-    void SetTargetData(vector <Tag> tags);
+    void SetTargetData(vector<Tag> tags);
 
     bool HasTarget() { return targetHeld; }
 
     float GetSpinner() { return spinner; }
 
-    void UpdateData(vector <Tag> tags);
+    void UpdateData(vector<Tag> tags);
 
     void SetCurrentTimeInMilliSecs(long int time);
 
@@ -60,6 +61,20 @@ private:
     void SearchForHome();
     void DeliverCube();
 
+    /**
+     * Get the index of the center tag closest to the camera
+     * @param tags Vector of tags to search
+     * @return The index of the closest tag, or -1 if none found
+     */
+    int getClosestCenterTagIdx(const vector<Tag> &tags);
+
+    /**
+     * Gets the distance from the camera to a tag
+     * @param tag The tag to get the distance to
+     * @return The distance (presumably in meters)
+     */
+    double tagDistanceFromCamera(const Tag &tag);
+
     //Constants
 
     const float cameraOffsetCorrection = 0.020; //meters
@@ -71,6 +86,8 @@ private:
     const float spinSizeIncrement = 0.50; //in meters
     const float searchVelocity = 0.15; //in meters per second
     const float dropDelay = 0.5; //delay in seconds for dropOff
+    const double centerClearedDistanceThreshold = .25; // Distance we must be from the center to consider it cleared
+    const double minimumBackupThreshold = 2; // Minimum time to spend backing up
 
     //New globals
     double tagYaw; //yaw of closest tag
@@ -104,6 +121,9 @@ private:
     int countLeft;
     int countRight;
     int tagCount;
+
+    // Distance from the camera of the closest tag
+    double closestTagDistance;
 
     //Center and current locations as of the last call to setLocationData
     Point centerLocation;
@@ -142,8 +162,8 @@ private:
 
     Result result;
 
-  //current ROS time from the RosAdapter
-  long int current_time;
+    //current ROS time from the RosAdapter
+    long int current_time;
 
     bool interrupt = false;
     bool precisionInterrupt = false;

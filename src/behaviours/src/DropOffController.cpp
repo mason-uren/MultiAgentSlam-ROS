@@ -37,7 +37,7 @@ DropOffController::~DropOffController() {
 Result DropOffController::DoWork() {
 
 
-  //cout << "8 I am currently in DropOff mode" << endl;
+    //cout << "8 I am currently in DropOff mode" << endl;
 
     logicMessage(current_time, ClassName, __func__);
 
@@ -57,8 +57,12 @@ Result DropOffController::DoWork() {
     if (reachedCollectionPoint) {
         dropOffMessage("Reached Collection point", "-----");
         //cout << "2 I am at home" << endl;
-        if (timerTimeElapsed >= 5) {
-            dropOffMessage("timer Elapsed > 5", "-----");
+
+        // Check if we have backed far enough away from the dropoff zone
+        bool clearOfCircle = timerTimeElapsed > minimumBackupThreshold
+                             && closestTagDistance > centerClearedDistanceThreshold;
+
+        if (clearOfCircle) {
             if (finalInterrupt) {
                 result.type = behavior;
                 result.behaviourType = nextProcess;
@@ -68,7 +72,7 @@ Result DropOffController::DoWork() {
                 logMessage(current_time, "DROPOFF", message);
                 return result;
             } else {
-                dropOffMessage("timer Elapsed > 5", "set final interrupt");
+                logMessage(current_time, "DROPOFF", "Clear of circle, entering final interrupt");
                 finalInterrupt = true;
                 cout << "1" << endl;
             }
@@ -90,7 +94,7 @@ Result DropOffController::DoWork() {
         return result;
     }
 
-    double distanceToCenter = Utilities::distance_between_points(centerLocation,currentLocation);
+    double distanceToCenter = Utilities::distance_between_points(centerLocation, currentLocation);
 
     //check to see if we are driving to the center location or if we need to drive in a circle and look.
     if (distanceToCenter > collectionPointVisualDistance && !circularCenterSearching && (tagCount == 0)) {
@@ -314,21 +318,22 @@ void DropOffController::SearchForHome()
 }
 
 void DropOffController::Reset() {
-  result.type = behavior;
-  result.behaviourType = wait;
-  result.pd.cmdVel = 0;
-  result.pd.cmdAngularError = 0;
-  result.fingerAngle = -1;
-  result.wristAngle = 0.7;
-  result.reset = false;
-  result.waypoints.clear();
-  spinner = 0;
-  spinSizeIncrease = 0;
-  prevCount = 0;
-  timerTimeElapsed = -1;
+    result.type = behavior;
+    result.behaviourType = wait;
+    result.pd.cmdVel = 0;
+    result.pd.cmdAngularError = 0;
+    result.fingerAngle = -1;
+    result.wristAngle = 0.7;
+    result.reset = false;
+    result.waypoints.clear();
+    spinner = 0;
+    spinSizeIncrease = 0;
+    prevCount = 0;
+    timerTimeElapsed = -1;
 
-  countLeft = 0;
-  countRight = 0;
+    countLeft = 0;
+    countRight = 0;
+    closestTagDistance = 0;
     tagCount = 0;
 
     //reset flags
@@ -348,7 +353,7 @@ void DropOffController::Reset() {
 
 }
 
-void DropOffController::SetTargetData(vector <Tag> tags) {
+void DropOffController::SetTargetData(vector<Tag> tags) {
     countRight = 0;
     countLeft = 0;
     tagCount = 0;
@@ -360,31 +365,34 @@ void DropOffController::SetTargetData(vector <Tag> tags) {
     double tagDistanceFromCamera;
     double tagDistance;
 
-    //if (targetHeld) {
-        // if a target is detected and we are looking for center tags
-        if (tags.size() > 0 && !reachedCollectionPoint) {
+    int closestIdx = getClosestCenterTagIdx(tags);
 
-            //proper calculations of roll, pitch, yaw
-            tf::Quaternion tagOrien(tags[0].getOrientationX(), tags[0].getOrientationY(), tags[0].getOrientationZ(), tags[0].getOrientationW());
-            tf::Matrix3x3 rotMartrix(tagOrien);
-            rotMartrix.getRPY(roll, pitch, tagYaw);
-            // this loop is to get the number of center tags
-            for (int i = 0; i < tags.size(); i++) {
-                if (tags[i].getID() == 256) {
-                    // checks if tag is on the right or left side of the image
-                    if (tags[i].getPositionX() + cameraOffsetCorrection > 0) {
-                        countRight++;
+    if (closestIdx > -1) {
+        // Found a tag
+        closestTagDistance = tagDistanceFromCamera(tags[closestIdx]);
+    }
 
-                    } else {
-                        countLeft++;
-                    }
+    tf::Quaternion tagOrien(tags[closestIdx].getOrientationX(), tags[closestIdx].getOrientationY(), tags[closestIdx].getOrientationZ(), tags[closestIdx].getOrientationW());
+    tf::Matrix3x3 rotMartrix(tagOrien);
+    rotMartrix.getRPY(roll, pitch, tagYaw);
+
+
+    // this loop is to get the number of center tags
+    for (auto &tag : tags) {
+        if (tag.getID() == 256) {
+            // if a target is detected and we are looking for center tags
+            if (targetHeld && !reachedCollectionPoint) {
+                // checks if tag is on the right or left side of the image
+                if (tag.getPositionX() + cameraOffsetCorrection > 0) {
+                    countRight++;
+                } else {
+                    countLeft++;
                 }
             }
-            tagCount = countLeft + countRight; //total home tags
-            tagMessage(tags);
         }
-    //}
-
+    }
+    tagCount = countLeft + countRight; //total home tags
+    tagMessage(tags);
 }
 
 void DropOffController::ProcessData() {
@@ -450,60 +458,72 @@ void DropOffController::SetCurrentTimeInMilliSecs(long int time) {
     current_time = time;
 }
 
-Point closestAnchor(Point current){
+int DropOffController::getClosestCenterTagIdx(const vector<Tag> &tags) {
+    int idx = -1;
+    double closest = std::numeric_limits<double>::max();
+
+    for (int i = 0; i < tags.size(); i++) {
+        if (tags[i].getID() == 256) {
+            double distance = tagDistanceFromCamera(tags[i]);
+
+            if (distance < closest) {
+                idx = i;
+                closest = distance;
+            }
+        }
+    }
+
+    return idx;
+}
+
+double DropOffController::tagDistanceFromCamera(const Tag &tag) {
+    return hypot(hypot(tag.getPositionX(), tag.getPositionY()), tag.getPositionZ());
+}
+
+Point closestAnchor(Point current) {
     int x = current.x;
     int y = current.y;
     Point nearestAnchor;
-    if(x > 0 && y > 0) //if true in quadrant I
+    if (x > 0 && y > 0) //if true in quadrant I
     {
-        if(y > x)//upper triangle of quadrant I
+        if (y > x)//upper triangle of quadrant I
         {
             nearestAnchor.x = 0;
             nearestAnchor.y = 1;//rover goes to (0,1)
-        }
-        else
-        {
+        } else {
             nearestAnchor.x = 1;
             nearestAnchor.y = 0;//rover goes to (1, 0)
         }
 
-    }
-    else if(x > 0 && y < 0) //if true in quadrant II
+    } else if (x > 0 && y < 0) //if true in quadrant II
     {
-        if(abs(y) > x)//lower triangle of quadrant II
+        if (abs(y) > x)//lower triangle of quadrant II
         {
             nearestAnchor.x = 0;
             nearestAnchor.y = -1;//rover goes to (0,-1)
-        }
-        else //upper triangle of quadrant II
+        } else //upper triangle of quadrant II
         {
             nearestAnchor.x = 1;
             nearestAnchor.y = 0;//rover goes to (1, 0)
         }
-    }
-    else if(x < 0 && y > 0)//if true in quadrant IV
+    } else if (x < 0 && y > 0)//if true in quadrant IV
     {
-        if(y > x)//upper triangle of quadrant IV
+        if (y > x)//upper triangle of quadrant IV
         {
             nearestAnchor.x = 0;
             nearestAnchor.y = 1;//rover goes to (0,1)
-        }
-        else
-        {
+        } else {
             nearestAnchor.x = -1;
             nearestAnchor.y = 0;//rover goes to (-1, 0)
         }
 
-    }
-    else if(x < 0 && y < 0) //if true in quadrant III
+    } else if (x < 0 && y < 0) //if true in quadrant III
     {
-        if(abs(y) > x)//upper triangle of quadrant III
+        if (abs(y) > x)//upper triangle of quadrant III
         {
             nearestAnchor.x = 0;
             nearestAnchor.y = -1;//rover goes to (0,-1)
-        }
-        else
-        {
+        } else {
             nearestAnchor.x = -1;
             nearestAnchor.y = 0;//rover goes to (-1, 0)
         }
