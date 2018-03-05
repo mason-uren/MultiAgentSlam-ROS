@@ -62,6 +62,7 @@ private:
     void DeliverCube();
     void BackUp();
     void ReAlign();
+    void AltDeliver();
 
     /**
      * Get the index of the center tag closest to the camera
@@ -98,6 +99,7 @@ private:
     bool isAligned; //aligned to tag based on 0 orientation of home tag yaw
     bool firstAlign;
     bool firstReAlign;
+    bool alternateDeliver;
     bool edgeCase;
 
     //Instance Variables
