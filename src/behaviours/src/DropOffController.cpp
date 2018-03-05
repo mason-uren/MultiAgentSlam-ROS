@@ -34,6 +34,7 @@ DropOffController::DropOffController() {
     firstReAlign = false;
     edgeCase = false;
     alternateDeliver = false;
+    homeFound = false;
 
 }
 
@@ -84,13 +85,14 @@ Result DropOffController::DoWork() {
     double distanceToCenter = Utilities::distance_between_points(centerLocation, currentLocation);
 
     //check to see if we are driving to the center location or if we need to drive in a circle and look.
-    if (distanceToCenter > collectionPointVisualDistance && !circularCenterSearching && (tagCount == 0)) {
+    if (distanceToCenter > collectionPointVisualDistance && !circularCenterSearching && (tagCount == 0) && !homeFound) {
 
         WaypointNav();
 
         return result;
 
-    } else if (timerTimeElapsed >= 2 && tagCount == 0) //Believes it is home but is not
+    }
+    else if (timerTimeElapsed >= 2 && tagCount == 0 && !homeFound) //Believes it is home but is not
     {
         SearchForHome(); //currently spin search
     }
@@ -105,7 +107,7 @@ Result DropOffController::DoWork() {
     {
         ReAlign();
     }
-    else if(isAligned && !edgeCase)
+    else if(isAligned)
     {
         DeliverCube();
     }
@@ -122,6 +124,7 @@ Result DropOffController::DoWork() {
         }
 
         result.type = precisionDriving;
+        homeFound = true;
 
         if(!isAligned)
         {
@@ -163,95 +166,11 @@ bool DropOffController::Align()
     return false;
 }
 
-void DropOffController::AltDeliver()
-{
-    if(centerYaw >= 0 && tagCount > 0) //rotate right
-    {
-        result.pd.cmdAngular = 0.7;
-        result.pd.cmdAngularError = 0.12;
-    }
-    else if(centerYaw < -0 && tagCount > 0) //rotate left
-    {
-        result.pd.cmdAngular = 0.7;
-        result.pd.cmdAngularError = -0.12;
-    }
-    else
-    {
-        reachedCollectionPoint = true;
-        alternateDeliver = false;
-    }
-}
-
-
-/////////////////Still not working/////////////////////
-void DropOffController::ReAlign()
-{
-    dropOffMessage(ClassName, __func__);
-    if(closestTagDistance > centerClearedDistanceThreshold && tagCount > 0)
-    {
-        result.pd.cmdVel = -0.2;
-        result.pd.cmdAngularError = 0.0;
-    }
-    else if(closestTagDistance <= centerClearedDistanceThreshold && tagCount > 0)
-    {
-        if(abs(prevYaw) != prevYaw) //negative previous yaw
-        {
-            result.pd.cmdAngular = 0.7;
-            result.pd.cmdAngularError = 1.5;
-        }
-        else //turn right
-        {
-            result.pd.cmdAngular = 0.7;
-            result.pd.cmdAngularError = -1.5;
-        }
-    }
-    else
-    {
-        if(firstReAlign)
-        {
-            timerTimeElapsed = realignTimer; //used to check for edge and corner cases
-            firstAlign = false;
-        }
-        if(timerTimeElapsed - realignTimer > 1 && timerTimeElapsed - realignTimer < 2)
-        {
-            result.pd.cmdVel = 0.15;
-            result.pd.cmdAngularError = 0.0;
-        }
-        else if(timerTimeElapsed - realignTimer >= 2 && timerTimeElapsed - realignTimer <= 3.5) //turning back
-        {
-            if(abs(prevYaw) != prevYaw) //negative previous yaw
-            {
-                result.pd.cmdAngular = 0.7;
-                result.pd.cmdAngularError = -1.5;
-            }
-            else //turn right
-            {
-                result.pd.cmdAngular = 0.7;
-                result.pd.cmdAngularError = 1.5;
-            }
-        }
-
-        else //resetting variables
-        {
-            isAligned = false;
-            edgeCase = false;
-            firstReAlign = false;
-            firstAlign = false;
-        }
-
-    }
-}
-
-
 //drives forward until no tags seen
 //sets reachedCollectionPoint which triggers next action
 void DropOffController::DeliverCube()
 {
-    if(abs(centerYaw) > 1.0)
-    {
-        alternateDeliver = true;
-    }
-    else if(countCenter > 0) //while tags are still seen
+    if(countCenter > 0) //while tags are still seen
     {
         dropOffMessage(ClassName, __func__);
         result.pd.cmdVel = 0.2;
@@ -264,6 +183,32 @@ void DropOffController::DeliverCube()
         result.pd.cmdAngularError = 0.0;
         reachedCollectionPoint = true; //will trigger releasing cube and backing out
         returnTimer = current_time;
+    }
+    if(abs(centerYaw) > 1.0)
+    {
+        alternateDeliver = true;
+    }
+}
+
+void DropOffController::AltDeliver()
+{
+    dropOffMessage(ClassName, __func__);
+    if(centerYaw >= 0 && tagCount > 0) //rotate right
+    {
+        result.pd.cmdVel = 0;
+        result.pd.cmdAngular = 0.7;
+        result.pd.cmdAngularError = -0.07;
+    }
+    else if(centerYaw < -0 && tagCount > 0) //rotate left
+    {
+        result.pd.cmdVel = 0.0;
+        result.pd.cmdAngular = 0.7;
+        result.pd.cmdAngularError = 0.07;
+    }
+    else
+    {
+        reachedCollectionPoint = true;
+        alternateDeliver = false;
     }
 }
 
@@ -287,6 +232,13 @@ void DropOffController::BackUp()
     //backing out of home
     result.pd.cmdVel = -0.3;
     result.pd.cmdAngularError = 0.0;
+}
+
+
+/////////////////Still not working/////////////////////
+void DropOffController::ReAlign()
+{
+    //what to do for edge case
 }
 
 void DropOffController::WaypointNav()
@@ -372,6 +324,7 @@ void DropOffController::Reset() {
     firstReAlign = false;
     edgeCase = false;
     alternateDeliver = false;
+    homeFound = false;
 }
 
 void DropOffController::SetTargetData(vector<Tag> tags) {

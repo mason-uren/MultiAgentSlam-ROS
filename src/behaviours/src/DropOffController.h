@@ -101,6 +101,7 @@ private:
     bool firstReAlign;
     bool alternateDeliver;
     bool edgeCase;
+    bool homeFound; //to prevent going into waypoint or home search during delivery
 
     //Instance Variables
 
