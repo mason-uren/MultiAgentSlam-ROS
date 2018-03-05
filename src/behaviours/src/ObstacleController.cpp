@@ -99,11 +99,11 @@ void ObstacleController::avoidCollectionZone() {
 //    if (count_left_collection_zone_tags < count_right_collection_zone_tags) {
     if (this->x_home_tag_orientation > 0) {
          this->reflect({LC_LOW, LC_HIGH});
-         result.pd.cmdAngular = K_angular; // Home on the right; turn left
+         result.pd.cmdAngular = -K_angular; // Home on the right; turn left
 //         std::cout << "LEFT TURN!! LEFT TURN!!" << std::endl;
     } else {
          this->reflect({RC_LOW, RC_HIGH});
-         result.pd.cmdAngular = -K_angular; // Home on the left; turn right
+         result.pd.cmdAngular = K_angular; // Home on the left; turn right
 //         std::cout << "RIGHT TURN!! RIGHT TURN!!" << std::endl;
     }
     result.pd.setPointVel = 0.0;
@@ -113,7 +113,6 @@ void ObstacleController::avoidCollectionZone() {
 
 
 Result ObstacleController::DoWork() {
-//    std::cout << "ObstacleController -> DoWork" << std::endl;
     logicMessage(current_time, ClassName, __func__);
 
     clearWaypoints = true;
@@ -236,13 +235,13 @@ void ObstacleController::ProcessData() {
      * Can't find the trigger that checks whether the rover can see home,
      * then flags 'obstacleDetected'.
      */
-    if (collection_zone_seen) {
-        obstacleDetected = true;
-        this->detection_declaration = HOME;
-    }
-    else {
-        obstacleDetected = false;
-    }
+//    if (collection_zone_seen) {
+//        obstacleDetected = true;
+//        this->detection_declaration = HOME;
+//    }
+//    else {
+//        obstacleDetected = false;
+//    }
 
 
     /*
@@ -360,9 +359,10 @@ void ObstacleController::ProcessData() {
 //        std::cout << "Can Start" << std::endl;
 
     // Set flow control variables
-    if (this->detection_declaration != NO_OBSTACLE) {
-        if (this->detection_declaration == HOME) {
-            std::cout << "Collection zone seen" << std::endl;
+    if (collection_zone_seen || this->detection_declaration != NO_OBSTACLE) {
+        if (collection_zone_seen) {
+            std::cout << "Collection Zone Seen" << std::endl;
+            this->detection_declaration = HOME;
         }
         phys = true;
         timeSinceTags = current_time;
@@ -397,28 +397,28 @@ void ObstacleController::ProcessData() {
 // top of the AprilTag is pointing towards the rover or away.
 // If the top of the tags are away from the rover then treat them as obstacles.
 void ObstacleController::setTagData(vector <Tag> tags) {
-    std::cout << "OBSTACLE CONTROLLER: setTagData()" << std::endl;
-    collection_zone_seen = false;
-    count_left_collection_zone_tags = 0;
-    count_right_collection_zone_tags = 0;
-    x_home_tag_orientation = 0; // Todo:
+    if (!collection_zone_seen) {
+        collection_zone_seen = false;
+        count_left_collection_zone_tags = 0;
+        count_right_collection_zone_tags = 0;
+        x_home_tag_orientation = 0; // Todo:
 
-    // this loop is to get the number of center tags
-    if (!targetHeld) {
-        for (int i = 0; i < tags.size(); i++) { //redundant for loop
-            if (tags[i].getID() == 256) {
-                collection_zone_seen = checkForCollectionZoneTags(tags);
-                if (collection_zone_seen) {
-                    std::cout << "HOME HOME HOME HOME" << std::endl;
+        // this loop is to get the number of center tags
+        if (!targetHeld) {
+            for (int i = 0; i < tags.size(); i++) { //redundant for loop
+                if (tags[i].getID() == 256) {
+                    collection_zone_seen = checkForCollectionZoneTags(tags);
+                    if (collection_zone_seen) {
+                        std::cout << "HOME HOME HOME HOME" << std::endl;
+                    }
+                    timeSinceTags = current_time;
                 }
-                timeSinceTags = current_time;
             }
         }
     }
 }
 
 bool ObstacleController::checkForCollectionZoneTags(vector<Tag> tags) {
-    std::cout << "OBSTACLE CONTROLLER:  checkForCollectionZoneTags" << std::endl;
     for (auto &tag : tags) {
 
         // Check the orientation of the tag. If we are outside the collection zone the yaw will be positive so treat the collection zone as an obstacle.
@@ -526,9 +526,9 @@ void ObstacleController::reflect(std::vector<double> bounds) {
     }
     else if (this->reflection.reflect_angle <= 0) {
         std::cout << "reflect() rotation complete" << std::endl;
-        if (this->detection_declaration == HOME) {
-            this->detection_declaration = NO_OBSTACLE;
-        }
+//        if (this->detection_declaration == HOME) {
+//            this->detection_declaration = NO_OBSTACLE;
+//        }
         this->reflection.can_start = false;
         this->reflection.can_end = true;
     }
