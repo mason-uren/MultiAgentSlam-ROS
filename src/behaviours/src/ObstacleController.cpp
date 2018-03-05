@@ -7,6 +7,7 @@ ObstacleController::ObstacleController() {
      * Turn sonar On/Off
      */
     this->acceptDetections = true;
+    this->acceptCollectionTags = true;
 
     obstacleAvoided = true;
 //    this->detection_declaration = NO_OBSTACLE;
@@ -135,7 +136,7 @@ Result ObstacleController::DoWork() {
          * The obstacle is an april tag marking the collection zone
          * HOME retains highest priority since it is checked first
          */
-        if (collection_zone_seen) {
+        if (acceptCollectionTags && collection_zone_seen) {
             avoidCollectionZone();
         } else {
             avoidObstacle();
@@ -359,8 +360,9 @@ void ObstacleController::ProcessData() {
 //        std::cout << "Can Start" << std::endl;
 
     // Set flow control variables
-    if (collection_zone_seen || this->detection_declaration != NO_OBSTACLE) {
-        if (collection_zone_seen) {
+//    if (collection_zone_seen || this->detection_declaration != NO_OBSTACLE) {
+    if (this->detection_declaration != NO_OBSTACLE) {
+        if (acceptCollectionTags && collection_zone_seen) {
             std::cout << "Collection Zone Seen" << std::endl;
             this->detection_declaration = HOME;
         }
