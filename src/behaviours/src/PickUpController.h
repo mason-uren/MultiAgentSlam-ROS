@@ -22,7 +22,7 @@ public:
 
     Result DoWork() override;
 
-    void SetTagData(vector <Tag> tags);
+    void SetTagData(vector<Tag> tags);
 
     bool ShouldInterrupt() override;
 
