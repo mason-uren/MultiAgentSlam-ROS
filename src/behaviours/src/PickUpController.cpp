@@ -39,15 +39,15 @@ void PickUpController::SetTagData(vector<Tag> tags) {
         double closest = std::numeric_limits<double>::max();
         int target = 0;
 
-        //this loop selects the closest visible block to makes goals for it
+        //this loop selects the block closest to the center of the camera and makes goals for it
         for (int i = 0; i < tags.size(); i++) {
 
             if (tags[i].getID() == 0) {
 
                 targetFound = true;
 
-                //absolute distance to block from camera lens
-                double test = hypot(hypot(tags[i].getPositionX(), tags[i].getPositionY()), tags[i].getPositionZ());
+                //absolute distance to block x from center of camera FOV
+                double test = fabs(tags[i].getPositionX());
 
                 if (closest > test) {
                     target = i;
