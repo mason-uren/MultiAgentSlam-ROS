@@ -208,7 +208,6 @@ private:
      * Default: True
      */
     bool acceptDetections;
-    bool acceptCollectionTags;
 
     double x_home_tag_orientation;
 };

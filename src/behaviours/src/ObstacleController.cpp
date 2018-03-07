@@ -7,7 +7,6 @@ ObstacleController::ObstacleController() {
      * Turn sonar On/Off
      */
     this->acceptDetections = true;
-    this->acceptCollectionTags = true;
 
     obstacleAvoided = true;
 //    this->detection_declaration = NO_OBSTACLE;
@@ -100,11 +99,11 @@ void ObstacleController::avoidCollectionZone() {
 //    if (count_left_collection_zone_tags < count_right_collection_zone_tags) {
     if (this->x_home_tag_orientation > 0) {
          this->reflect({LC_LOW, LC_HIGH});
-         result.pd.cmdAngular = -K_angular; // Home on the right; turn left
+         result.pd.cmdAngular = K_angular; // Home on the right; turn left
 //         std::cout << "LEFT TURN!! LEFT TURN!!" << std::endl;
     } else {
          this->reflect({RC_LOW, RC_HIGH});
-         result.pd.cmdAngular = K_angular; // Home on the left; turn right
+         result.pd.cmdAngular = -K_angular; // Home on the left; turn right
 //         std::cout << "RIGHT TURN!! RIGHT TURN!!" << std::endl;
     }
     result.pd.setPointVel = 0.0;
@@ -136,7 +135,7 @@ Result ObstacleController::DoWork() {
          * The obstacle is an april tag marking the collection zone
          * HOME retains highest priority since it is checked first
          */
-        if (acceptCollectionTags && collection_zone_seen) {
+        if (collection_zone_seen) {
             avoidCollectionZone();
         } else {
             avoidObstacle();
@@ -360,11 +359,11 @@ void ObstacleController::ProcessData() {
 //        std::cout << "Can Start" << std::endl;
 
     // Set flow control variables
-//    if (collection_zone_seen || this->detection_declaration != NO_OBSTACLE) {
     if (this->detection_declaration != NO_OBSTACLE) {
-        if (acceptCollectionTags && collection_zone_seen) {
+        if (collection_zone_seen) {
             std::cout << "Collection Zone Seen" << std::endl;
             this->detection_declaration = HOME;
+
         }
         phys = true;
         timeSinceTags = current_time;
@@ -412,6 +411,7 @@ void ObstacleController::setTagData(vector <Tag> tags) {
                     collection_zone_seen = checkForCollectionZoneTags(tags);
                     if (collection_zone_seen) {
                         std::cout << "HOME HOME HOME HOME" << std::endl;
+                        this->detection_declaration = HOME;
                     }
                     timeSinceTags = current_time;
                 }
@@ -528,9 +528,9 @@ void ObstacleController::reflect(std::vector<double> bounds) {
     }
     else if (this->reflection.reflect_angle <= 0) {
         std::cout << "reflect() rotation complete" << std::endl;
-//        if (this->detection_declaration == HOME) {
-//            this->detection_declaration = NO_OBSTACLE;
-//        }
+        if (collection_zone_seen) {
+            collection_zone_seen = false;
+        }
         this->reflection.can_start = false;
         this->reflection.can_end = true;
     }
@@ -710,8 +710,10 @@ void ObstacleController::resetDetections(DELAY_TYPE delay_type) {
     this->monitor_map.at(delay_type).type = NO_OBSTACLE;
     // Only reset main detection after previous reflection has finished
     if (this->reflection.can_end) {
-        this->detection_declaration = NO_OBSTACLE;
-        obstacleAvoided = true;
+        if (!collection_zone_seen) {
+            this->detection_declaration = NO_OBSTACLE;
+            obstacleAvoided = true;
+        }
     }
 }
 
