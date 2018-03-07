@@ -21,7 +21,7 @@
  * Web cam has max april tag detection range of 0.6604m
  * Any theoretical obstacle needs to be verified 'not a resource'
  */
-#define MIN_THRESH 0.6
+#define MIN_THRESH 0.8
 
 /*
  * With rover speed of 0.3m/s and min head on collisoin separation at 0.35m, structure size cannot exceed the value of 8.
