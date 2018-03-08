@@ -2,76 +2,74 @@
 <project version="4">
   <component name="CMakeRunConfigurationManager" shouldGenerate="true" shouldDeleteObsolete="true" buildAllGenerated="true">
     <generated>
-      <config projectName="Project" targetName="ublox_msgs_generate_messages_lisp" />
+      <config projectName="Project" targetName="bond_generate_messages_py" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_CfgGNSS" />
       <config projectName="Project" targetName="nav_msgs_generate_messages_cpp" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_RxmEPH" />
       <config projectName="Project" targetName="tf_generate_messages_py" />
-      <config projectName="Project" targetName="nav_msgs_generate_messages_py" />
       <config projectName="Project" targetName="tf2_msgs_generate_messages_lisp" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_RxmSFRB" />
+      <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_CfgANT" />
+      <config projectName="Project" targetName="_catkin_empty_exported_target" />
       <config projectName="Project" targetName="tf_generate_messages_cpp" />
       <config projectName="Project" targetName="std_msgs_generate_messages_lisp" />
       <config projectName="Project" targetName="ublox_msgs" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_CfgRATE" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_NavDGPS_SV" />
+      <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_NavPOSECEF" />
       <config projectName="Project" targetName="actionlib_generate_messages_cpp" />
-      <config projectName="Project" targetName="sensor_msgs_generate_messages_py" />
+      <config projectName="Project" targetName="actionlib_generate_messages_lisp" />
       <config projectName="Project" targetName="download_extra_data" />
-      <config projectName="Project" targetName="diagnostic_msgs_generate_messages_cpp" />
-      <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_NavSBAS" />
+      <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_CfgNAVX5" />
+      <config projectName="Project" targetName="nav_msgs_generate_messages_py" />
+      <config projectName="Project" targetName="bond_generate_messages_lisp" />
+      <config projectName="Project" targetName="ublox_msgs_generate_messages_lisp" />
       <config projectName="Project" targetName="gtest_main" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_RxmRAW" />
       <config projectName="Project" targetName="tests" />
-      <config projectName="Project" targetName="rosgraph_msgs_generate_messages_cpp" />
       <config projectName="Project" targetName="roscpp_generate_messages_lisp" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_RxmALM" />
       <config projectName="Project" targetName="bond_generate_messages_cpp" />
-      <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_MonVER" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_AidALM" />
-      <config projectName="Project" targetName="mobility" />
+      <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_NavSVINFO" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_RxmSVSI_SV" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_AidHUI" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_CfgMSG" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_CfgSBAS" />
-      <config projectName="Project" targetName="doxygen" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_RxmRAW_SV" />
-      <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_NavSVINFO" />
+      <config projectName="Project" targetName="diagnostic_msgs_generate_messages_cpp" />
       <config projectName="Project" targetName="actionlib_msgs_generate_messages_py" />
+      <config projectName="Project" targetName="clean_test_results_Project" />
       <config projectName="Project" targetName="clean_test_results" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_NavVELECEF" />
       <config projectName="Project" targetName="actionlib_msgs_generate_messages_lisp" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_NavVELNED" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_NavSVINFO_SV" />
       <config projectName="Project" targetName="rosgraph_msgs_generate_messages_lisp" />
-      <config projectName="Project" targetName="ublox_msgs_genlisp" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_NavCLOCK" />
       <config projectName="Project" targetName="rqt_rover_gui" />
-      <config projectName="Project" targetName="diagnostic_msgs_generate_messages_py" />
+      <config projectName="Project" targetName="run_tests" />
       <config projectName="Project" targetName="geometry_msgs_generate_messages_cpp" />
-      <config projectName="Project" targetName="actionlib_generate_messages_lisp" />
       <config projectName="Project" targetName="tf2_msgs_generate_messages_cpp" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_NavSBAS_SV" />
       <config projectName="Project" targetName="gtest" />
       <config projectName="Project" targetName="nodelet_generate_messages_py" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_NavTIMEUTC" />
-      <config projectName="Project" targetName="roscpp_generate_messages_py" />
       <config projectName="Project" targetName="actionlib_generate_messages_py" />
-      <config projectName="Project" targetName="ublox_msgs_generate_messages" />
+      <config projectName="Project" targetName="roscpp_generate_messages_cpp" />
       <config projectName="Project" targetName="rosgraph_msgs_generate_messages_py" />
-      <config projectName="Project" targetName="ublox_msgs_generate_messages_cpp" />
+      <config projectName="Project" targetName="geometry_msgs_generate_messages_py" />
       <config projectName="Project" targetName="ublox_msgs_gencpp" />
-      <config projectName="Project" targetName="bond_generate_messages_py" />
+      <config projectName="Project" targetName="ublox_msgs_generate_messages" />
       <config projectName="Project" targetName="ublox_msgs_genpy" />
       <config projectName="Project" targetName="std_msgs_generate_messages_cpp" />
-      <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_CfgNAVX5" />
+      <config projectName="Project" targetName="sensor_msgs_generate_messages_py" />
       <config projectName="Project" targetName="ublox_gps" />
       <config projectName="Project" targetName="ublox_msgs_generate_messages_py" />
       <config projectName="Project" targetName="std_msgs_generate_messages_py" />
       <config projectName="Project" targetName="tf2_msgs_generate_messages_py" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_RxmSVSI" />
-      <config projectName="Project" targetName="roscpp_generate_messages_cpp" />
-      <config projectName="Project" targetName="bond_generate_messages_lisp" />
+      <config projectName="Project" targetName="mobility" />
       <config projectName="Project" targetName="ublox_gps_node" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_NavTIMEGPS" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_CfgPRT" />
@@ -79,28 +77,30 @@
       <config projectName="Project" targetName="camera" />
       <config projectName="Project" targetName="sensor_msgs_generate_messages_cpp" />
       <config projectName="Project" targetName="tf_generate_messages_lisp" />
+      <config projectName="Project" targetName="geometry_msgs_generate_messages_lisp" />
       <config projectName="Project" targetName="diagnostic_msgs_generate_messages_lisp" />
-      <config projectName="Project" targetName="_catkin_empty_exported_target" />
+      <config projectName="Project" targetName="doxygen" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_NavSOL" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_NavPOSLLH" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_NavSTATUS" />
+      <config projectName="Project" targetName="nav_msgs_generate_messages_lisp" />
       <config projectName="Project" targetName="sensor_msgs_generate_messages_lisp" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_NavDOP" />
-      <config projectName="Project" targetName="geometry_msgs_generate_messages_lisp" />
+      <config projectName="Project" targetName="rosgraph_msgs_generate_messages_cpp" />
       <config projectName="Project" targetName="abridge" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_NavDGPS" />
       <config projectName="Project" targetName="nodelet_generate_messages_lisp" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_CfgNAV5" />
-      <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_NavPOSECEF" />
+      <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_MonVER" />
       <config projectName="Project" targetName="obstacle" />
       <config projectName="Project" targetName="nodelet_generate_messages_cpp" />
-      <config projectName="Project" targetName="nav_msgs_generate_messages_lisp" />
-      <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_CfgANT" />
-      <config projectName="Project" targetName="run_tests" />
+      <config projectName="Project" targetName="roscpp_generate_messages_py" />
+      <config projectName="Project" targetName="ublox_msgs_genlisp" />
+      <config projectName="Project" targetName="diagnostic_msgs_generate_messages_py" />
       <config projectName="Project" targetName="actionlib_msgs_generate_messages_cpp" />
       <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_AidEPH" />
-      <config projectName="Project" targetName="geometry_msgs_generate_messages_py" />
-      <config projectName="Project" targetName="clean_test_results_Project" />
+      <config projectName="Project" targetName="_ublox_msgs_generate_messages_check_deps_NavSBAS" />
+      <config projectName="Project" targetName="ublox_msgs_generate_messages_cpp" />
       <config projectName="Project" targetName="target" />
     </generated>
   </component>
@@ -132,11 +132,9 @@
       <file leaf-file-name="ObstacleController.cpp" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/behaviours/src/ObstacleController.cpp">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-2312">
-              <caret line="384" column="0" lean-forward="false" selection-start-line="384" selection-start-column="0" selection-end-line="384" selection-end-column="0" />
-              <folding>
-                <element signature="e#0#26#0" expanded="true" />
-              </folding>
+            <state relative-caret-position="368">
+              <caret line="525" column="138" lean-forward="false" selection-start-line="525" selection-start-column="138" selection-end-line="525" selection-end-column="138" />
+              <folding />
             </state>
           </provider>
         </entry>
@@ -144,8 +142,8 @@
       <file leaf-file-name="ObstacleController.h" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/behaviours/src/ObstacleController.h">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="395">
-              <caret line="68" column="20" lean-forward="false" selection-start-line="68" selection-start-column="20" selection-end-line="68" selection-end-column="20" />
+            <state relative-caret-position="1020">
+              <caret line="68" column="17" lean-forward="false" selection-start-line="68" selection-start-column="17" selection-end-line="68" selection-end-column="17" />
               <folding />
             </state>
           </provider>
@@ -154,7 +152,7 @@
       <file leaf-file-name="ObstacleAssistant.h" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/behaviours/src/ObstacleAssistant.h">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="132">
+            <state relative-caret-position="435">
               <caret line="29" column="8" lean-forward="false" selection-start-line="29" selection-start-column="8" selection-end-line="29" selection-end-column="8" />
               <folding />
             </state>
@@ -197,7 +195,7 @@
     <detection-done>true</detection-done>
     <sorting>DEFINITION_ORDER</sorting>
   </component>
-  <component name="ProjectFrameBounds" extendedState="4">
+  <component name="ProjectFrameBounds" extendedState="6">
     <option name="x" value="133" />
     <option name="y" value="24" />
     <option name="width" value="1737" />
@@ -693,23 +691,26 @@
       <workItem from="1520381633884" duration="1869000" />
       <workItem from="1520449197500" duration="1991000" />
       <workItem from="1520464466209" duration="5541000" />
+      <workItem from="1520487225241" duration="394000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="23274000" />
+    <option name="totallyTimeSpent" value="23668000" />
   </component>
   <component name="ToolWindowManager">
-    <frame x="133" y="24" width="1737" height="1056" extended-state="4" />
+    <frame x="0" y="23" width="1440" height="822" extended-state="6" />
     <editor active="true" />
     <layout>
-      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.20070012" sideWeight="0.4790097" order="0" side_tool="false" content_ui="combo" />
+      <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.20014094" sideWeight="0.47317743" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
-      <window_info id="CMake" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32831" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Tool Output" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
+      <window_info id="CMake" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3287483" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="true" content_ui="tabs" />
+      <window_info id="ANTLR Preview" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="-1" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="false" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32939634" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
-      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.20070012" sideWeight="0.5209903" order="1" side_tool="true" content_ui="tabs" />
+      <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.20014094" sideWeight="0.52682257" order="1" side_tool="true" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
       <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.39895013" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
@@ -746,9 +747,31 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#26#0" expanded="true" />
-          </folding>
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/behaviours/src/ObstacleController.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1020">
+          <caret line="68" column="17" lean-forward="true" selection-start-line="68" selection-start-column="17" selection-end-line="68" selection-end-column="17" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/behaviours/src/ObstacleAssistant.h">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="435">
+          <caret line="29" column="8" lean-forward="false" selection-start-line="29" selection-start-column="8" selection-end-line="29" selection-end-column="8" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/behaviours/src/ObstacleController.cpp">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+          <folding />
         </state>
       </provider>
     </entry>
@@ -764,9 +787,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="4410">
           <caret line="245" column="37" lean-forward="false" selection-start-line="245" selection-start-column="37" selection-end-line="245" selection-end-column="37" />
-          <folding>
-            <element signature="e#0#28#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -782,9 +802,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="9252">
           <caret line="514" column="25" lean-forward="false" selection-start-line="514" selection-start-column="25" selection-end-line="514" selection-end-column="25" />
-          <folding>
-            <element signature="e#0#26#0" expanded="true" />
-          </folding>
+          <folding />
         </state>
       </provider>
     </entry>
@@ -792,9 +810,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="4410">
           <caret line="245" column="37" lean-forward="false" selection-start-line="245" selection-start-column="37" selection-end-line="245" selection-end-column="37" />
-          <folding>
-            <element signature="e#0#28#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -818,9 +833,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#26#0" expanded="true" />
-          </folding>
+          <folding />
         </state>
       </provider>
     </entry>
@@ -836,9 +849,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="4410">
           <caret line="245" column="37" lean-forward="false" selection-start-line="245" selection-start-column="37" selection-end-line="245" selection-end-column="37" />
-          <folding>
-            <element signature="e#0#28#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -854,9 +864,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#26#0" expanded="true" />
-          </folding>
+          <folding />
         </state>
       </provider>
     </entry>
@@ -864,9 +872,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="4410">
           <caret line="245" column="37" lean-forward="true" selection-start-line="245" selection-start-column="37" selection-end-line="245" selection-end-column="37" />
-          <folding>
-            <element signature="e#0#28#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
@@ -898,7 +903,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/behaviours/src/ObstacleAssistant.h">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="132">
+        <state relative-caret-position="435">
           <caret line="29" column="8" lean-forward="false" selection-start-line="29" selection-start-column="8" selection-end-line="29" selection-end-column="8" />
           <folding />
         </state>
@@ -906,8 +911,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/behaviours/src/ObstacleController.h">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="395">
-          <caret line="68" column="20" lean-forward="false" selection-start-line="68" selection-start-column="20" selection-end-line="68" selection-end-column="20" />
+        <state relative-caret-position="1020">
+          <caret line="68" column="17" lean-forward="false" selection-start-line="68" selection-start-column="17" selection-end-line="68" selection-end-column="17" />
           <folding />
         </state>
       </provider>
@@ -916,19 +921,14 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="863">
           <caret line="245" column="37" lean-forward="false" selection-start-line="245" selection-start-column="37" selection-end-line="245" selection-end-column="37" />
-          <folding>
-            <element signature="e#0#28#0" expanded="false" />
-          </folding>
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/behaviours/src/ObstacleController.cpp">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-2312">
-          <caret line="384" column="0" lean-forward="false" selection-start-line="384" selection-start-column="0" selection-end-line="384" selection-end-column="0" />
-          <folding>
-            <element signature="e#0#26#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="368">
+          <caret line="525" column="138" lean-forward="false" selection-start-line="525" selection-start-column="138" selection-end-line="525" selection-end-column="138" />
+          <folding />
         </state>
       </provider>
     </entry>

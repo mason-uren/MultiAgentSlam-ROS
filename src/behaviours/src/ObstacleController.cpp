@@ -501,10 +501,19 @@ void ObstacleController::reflect(std::vector<double> bounds) {
         int rand();
         double range = bounds.at(1) - bounds.at(0);
         // Keep `desired_heading` positive
-        this->reflection.desired_heading = std::fabs(fmod(rand(), range) + bounds.at(0) + currentLocation.theta);
+        this->reflection.desired_heading = fmod(rand(), range) + bounds.at(0) + currentLocation.theta;
         std::cout << "Current Location Theta: " << currentLocation.theta << std::endl;
+
+        // Bounds checking
+        double remainder = this->reflection.desired_heading % M_PI;
+        if (this->reflection.desired_heading <= -M_PI) {
+            this->reflection.desired_heading = M_PI + remainder;
+        }
+        else if (this->reflection.desired_heading >= M_PI) {
+            this->reflection.desired_heading = remainder - M_PI;
+        }
         // Create a reference to guage how far rover has turned
-        this->reflection.reflect_angle = angles::shortest_angular_distance(currentLocation.theta, this->reflection.desired_heading);
+        this->reflection.reflect_angle = fabs(angles::shortest_angular_distance(currentLocation.theta, this->reflection.desired_heading));
         this->reflection.should_start = false;
     }
     else if (this->reflection.reflect_angle <= 0) {
@@ -514,8 +523,7 @@ void ObstacleController::reflect(std::vector<double> bounds) {
     else {
         std::cout << "reflect() still rotating" << std::endl;
         // Monitor how far the rover has turned in relation to its desired heading
-        this->reflection.reflect_angle -=
-                (this->reflection.reflect_angle - angles::shortest_angular_distance(currentLocation.theta, this->reflection.desired_heading));
+        this->reflection.reflect_angle -= fabs(angles::shortest_angular_distance(currentLocation.theta, this->reflection.desired_heading));
         std::cout << "reflect() radians left: " << this->reflection.reflect_angle << std::endl;
     }
 }
