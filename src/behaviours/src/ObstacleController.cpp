@@ -8,6 +8,7 @@ ObstacleController::ObstacleController() {
      */
     this->acceptDetections = true;
 
+    collection_zone_seen = false;
     obstacleAvoided = true;
 //    this->detection_declaration = NO_OBSTACLE;
     obstacleDetected = false;
@@ -33,8 +34,8 @@ ObstacleController::ObstacleController() {
     /*
      * Create reflection structure
      */
-    this->reflection.can_start = false;
-    this->reflection.can_end = true;
+    this->reflection.should_start = true;
+    this->reflection.should_end = false;
 }
 
 
@@ -89,22 +90,23 @@ void ObstacleController::avoidObstacle() {
 void ObstacleController::avoidCollectionZone() {
     logicMessage(current_time, ClassName, __func__);
 
-//    std::cout << "HOME DETECTED: avoidCollectionZone()" << std::endl;
+    std::cout << "HOME DETECTED: avoidCollectionZone()" << std::endl;
 
     result.type = precisionDriving;
     result.pd.cmdVel = 0.0;
 
-    // Decide which side of the rover sees the most april tags and turn away
-    // from that side
-//    if (count_left_collection_zone_tags < count_right_collection_zone_tags) {
-    if (this->x_home_tag_orientation > 0) {
+    /*
+     * Decide which side of the rover is closer to april tags
+     * Left (Positive) | Right (Negative)
+     */
+    if (this->x_home_tag_orientation > 0) { // Home tags on left
          this->reflect({LC_LOW, LC_HIGH});
-         result.pd.cmdAngular = K_angular; // Home on the right; turn left
-//         std::cout << "LEFT TURN!! LEFT TURN!!" << std::endl;
-    } else {
+         result.pd.cmdAngular = K_angular; // Turn right
+         std::cout << "LEFT TURN!! LEFT TURN!!" << std::endl;
+    } else { // Home tages on right
          this->reflect({RC_LOW, RC_HIGH});
-         result.pd.cmdAngular = -K_angular; // Home on the left; turn right
-//         std::cout << "RIGHT TURN!! RIGHT TURN!!" << std::endl;
+         result.pd.cmdAngular = -K_angular; // Turn Left
+         std::cout << "RIGHT TURN!! RIGHT TURN!!" << std::endl;
     }
     result.pd.setPointVel = 0.0;
     result.pd.cmdVel = 0.0;
@@ -120,7 +122,6 @@ Result ObstacleController::DoWork() {
     result.PIDMode = CONST_PID;
     string msg;
 
-//    if (this->detection_declaration != NO_OBSTACLE) {
     if (obstacleDetected) {
         /*
          * Update "/logger" publisher -> Starting avoidance
@@ -135,7 +136,8 @@ Result ObstacleController::DoWork() {
          * The obstacle is an april tag marking the collection zone
          * HOME retains highest priority since it is checked first
          */
-        if (collection_zone_seen) {
+        std::cout << "Do Work. Detections is " << this->detection_declaration << std::endl;
+        if (this->detection_declaration == HOME) {
             avoidCollectionZone();
         } else {
             avoidObstacle();
@@ -229,20 +231,6 @@ void ObstacleController::ProcessData() {
     for (auto monitor : monitor_map) {
         this->resetDetections(monitor.first);
     }
-
-    /*
-     * TODO: Not sure if this is needed
-     * Can't find the trigger that checks whether the rover can see home,
-     * then flags 'obstacleDetected'.
-     */
-//    if (collection_zone_seen) {
-//        obstacleDetected = true;
-//        this->detection_declaration = HOME;
-//    }
-//    else {
-//        obstacleDetected = false;
-//    }
-
 
     /*
      * Stagger the start of the declared monitors
@@ -343,43 +331,38 @@ void ObstacleController::ProcessData() {
         }
     }
     // Check if we're listening to detections
-    if (can_see_obs && acceptDetections) {
-        if (this->reflection.can_end) {
-            // Declare detection
+    if (can_see_obs && acceptDetections && this->reflection.should_start) {
+        // Declare detection, but `HOME` detection should always have priority TODO:
+        if (this->detection_declaration != HOME) {
             this->detection_declaration = this->monitor_map.at(INIT).type;
-            std::cout << "LISTENER CONTROLLER: processData() detection made: " << this->detection_declaration << std::endl;
+            std::cout << "LISTENER CONTROLLER: processData() detection made: " << this->detection_declaration
+                      << std::endl;
         }
         for (auto monitor : this->monitor_map) {
             resetObstacle(monitor.first);
         }
     }
 
-    // TODO: debugging
-//    if (this->reflection.can_start)
-//        std::cout << "Can Start" << std::endl;
-
     // Set flow control variables
-    if (this->detection_declaration != NO_OBSTACLE) {
-        if (collection_zone_seen) {
-            std::cout << "Collection Zone Seen" << std::endl;
-            this->detection_declaration = HOME;
-
-        }
-        phys = true;
-        timeSinceTags = current_time;
-        obstacleDetected = true;
-        obstacleAvoided = false;
-        can_set_waypoint = false;
-    }
-    else {
-        // Verify that we've completed the reflection off the obstacle
-        if (this->reflection.can_end) {
-            // std::cout << "processData() obstacle avoided" << std::endl;
-            obstacleAvoided = true;
-            collection_zone_seen = false;
+    if (this->reflection.should_start) {
+        if (this->detection_declaration != NO_OBSTACLE) {
             phys = true;
-            obstacleDetected = false;
-            can_set_waypoint = true;
+            timeSinceTags = current_time;
+            obstacleDetected = true;
+            obstacleAvoided = false;
+            can_set_waypoint = false;
+        }
+    } else if (this->reflection.should_end) {
+        // Verify that we've completed the reflection off the obstacle
+        obstacleAvoided = true;
+        phys = true;
+        obstacleDetected = false;
+        can_set_waypoint = true;
+        this->reflection.should_start = true;
+        this->reflection.should_end = false;
+        if (this->detection_declaration == HOME) {
+            this->detection_declaration = NO_OBSTACLE;
+            collection_zone_seen = false;
         }
     }
 
@@ -399,7 +382,6 @@ void ObstacleController::ProcessData() {
 // If the top of the tags are away from the rover then treat them as obstacles.
 void ObstacleController::setTagData(vector <Tag> tags) {
     if (!collection_zone_seen) {
-        collection_zone_seen = false;
         count_left_collection_zone_tags = 0;
         count_right_collection_zone_tags = 0;
         x_home_tag_orientation = 0; // Todo:
@@ -514,7 +496,7 @@ void ObstacleController::setTargetHeldClear() {
  */
 void ObstacleController::reflect(std::vector<double> bounds) {
     std::cout << "LISTENER CONTROLLER: reflect" << std::endl; // Only want to deal with positive values
-    if (!this->reflection.can_start) {
+    if (this->reflection.should_start) {
         std::cout << "reflect() create angle" << std::endl;
         int rand();
         double range = bounds.at(1) - bounds.at(0);
@@ -523,16 +505,11 @@ void ObstacleController::reflect(std::vector<double> bounds) {
         std::cout << "Current Location Theta: " << currentLocation.theta << std::endl;
         // Create a reference to guage how far rover has turned
         this->reflection.reflect_angle = angles::shortest_angular_distance(currentLocation.theta, this->reflection.desired_heading);
-        this->reflection.can_start = true;
-        this->reflection.can_end = false;
+        this->reflection.should_start = false;
     }
     else if (this->reflection.reflect_angle <= 0) {
         std::cout << "reflect() rotation complete" << std::endl;
-        if (collection_zone_seen) {
-            collection_zone_seen = false;
-        }
-        this->reflection.can_start = false;
-        this->reflection.can_end = true;
+        this->reflection.should_end = true;
     }
     else {
         std::cout << "reflect() still rotating" << std::endl;
@@ -709,11 +686,9 @@ void ObstacleController::resetObstacle(DELAY_TYPE delay_type) {
 void ObstacleController::resetDetections(DELAY_TYPE delay_type) {
     this->monitor_map.at(delay_type).type = NO_OBSTACLE;
     // Only reset main detection after previous reflection has finished
-    if (this->reflection.can_end) {
-        if (!collection_zone_seen) {
-            this->detection_declaration = NO_OBSTACLE;
-            obstacleAvoided = true;
-        }
+    if (this->reflection.should_start && this->detection_declaration != HOME) {
+        this->detection_declaration = NO_OBSTACLE;
+        obstacleAvoided = true;
     }
 }
 

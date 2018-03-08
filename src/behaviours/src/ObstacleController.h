@@ -65,8 +65,8 @@ typedef struct {
  * Reflection
  */
 typedef struct {
-    bool can_start;
-    bool can_end;
+    bool should_start;
+    bool should_end;
     double desired_heading;
     double reflect_angle;
 } REFLECTION;
