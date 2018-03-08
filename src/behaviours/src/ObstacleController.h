@@ -4,9 +4,11 @@
 #include "Controller.h"
 #include "Tag.h"
 #include "ObstacleAssistant.h"
+
+#define _USE_MATH_DEFINES
 #include <map>
 #include <cstdlib>
-
+#include <cmath>
 /*
  * Sonar has the most accurate readings at a range less than 2 meters
  * Calculated % Error:
@@ -49,6 +51,8 @@
 #define LC_HIGH ((4 * M_PI) / 5)
 
 #define DELAY_ITERATION 2
+
+#define EXIT_ROTATE 0.25
 
 
 

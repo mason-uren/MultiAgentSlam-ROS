@@ -1,6 +1,7 @@
-#include <angles/angles.h>
 #include "ObstacleController.h"
-#include "ObstacleAssistant.h"
+#include <cmath>
+#include <angles/angles.h>
+
 
 ObstacleController::ObstacleController() {
     /*
@@ -518,27 +519,33 @@ void ObstacleController::reflect(std::vector<double> bounds) {
         // Keep `desired_heading` positive
         this->reflection.desired_heading = fmod(rand(), range) + bounds.at(0) + currentLocation.theta;
         std::cout << "Current Location Theta: " << currentLocation.theta << std::endl;
+        std::cout << "Old Desired Heading " << this->reflection.desired_heading << std::endl;
 
         // Bounds checking
-        double remainder = this->reflection.desired_heading % M_PI;
+
         if (this->reflection.desired_heading <= -M_PI) {
+            double remainder = fmod(this->reflection.desired_heading, M_PI);
             this->reflection.desired_heading = M_PI + remainder;
         }
         else if (this->reflection.desired_heading >= M_PI) {
-            this->reflection.desired_heading = remainder - M_PI;
+            double remainder = fmod(this->reflection.desired_heading, M_PI);
+            this->reflection.desired_heading = M_PI - remainder;
         }
+        std::cout << "New Desired Heading " << this->reflection.desired_heading << std::endl;
         // Create a reference to guage how far rover has turned
         this->reflection.reflect_angle = fabs(angles::shortest_angular_distance(currentLocation.theta, this->reflection.desired_heading));
+        std::cout << "Reflection Distance " << this->reflection.reflect_angle << std::endl;
         this->reflection.should_start = false;
     }
-    else if (this->reflection.reflect_angle <= 0) {
+    else if (this->reflection.reflect_angle <= EXIT_ROTATE || this->reflection.reflect_angle >= 3) {
         std::cout << "reflect() rotation complete" << std::endl;
         this->reflection.should_end = true;
     }
     else {
         std::cout << "reflect() still rotating" << std::endl;
         // Monitor how far the rover has turned in relation to its desired heading
-        this->reflection.reflect_angle -= fabs(angles::shortest_angular_distance(currentLocation.theta, this->reflection.desired_heading));
+        std::cout << "Reflection angle " << this->reflection.desired_heading << std::endl;
+        this->reflection.reflect_angle -= this->reflection.reflect_angle - fabs(angles::shortest_angular_distance(currentLocation.theta, this->reflection.desired_heading));
         std::cout << "reflect() radians left: " << this->reflection.reflect_angle << std::endl;
     }
 }
