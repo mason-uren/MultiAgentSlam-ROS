@@ -237,7 +237,7 @@ void ObstacleController::ProcessData() {
      */
     for (auto monitor : this->monitor_map) {
         // Every even iteration will start another monitor if one is available and hasn't been started
-        if (!monitor.second.allowed && this->stag % DELAY_ITERATION == 0) {
+        if (!monitor.second.allowed && ((int) monitor.first + this->stag) % DELAY_ITERATION == 0) {
             monitor.second.allowed = true;
             this->monitor_map.at(monitor.first) = monitor.second;
             break;
