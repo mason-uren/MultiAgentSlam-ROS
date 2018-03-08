@@ -4,6 +4,7 @@
 #include "PID.h"
 #include "Controller.h"
 #include <angles/angles.h>
+#include "Utilities.h"
 
 extern void logicMessage(long int currentTime, string component, string message);
 

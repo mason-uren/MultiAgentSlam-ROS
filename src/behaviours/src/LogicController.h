@@ -98,10 +98,6 @@ public:
 
     void setVirtualFenceOff();
 
-    Point GetLastCubeLocation() {return whereWasTheCube;}
-
-    void SetLastCubeLocation() {whereWasTheCube.x = 0; whereWasTheCube.y = 0; whereWasTheCube.theta = 0;}
-
 protected:
     void ProcessData();
 
@@ -140,8 +136,6 @@ private:
 
     long int current_time = 0;
     bool loggerSwitch = false; //When true, logger messages for Logic Controller are active
-
-    Point whereWasTheCube;
 
     string ClassName = "LogicController";
 };

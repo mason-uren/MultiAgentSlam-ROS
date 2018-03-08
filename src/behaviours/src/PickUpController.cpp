@@ -1,5 +1,5 @@
 #include "PickUpController.h"
-#include "LogicController.h"
+#include "Utilities.h"
 #include <limits> // For numeric limits
 #include <cmath> // For hypot
 
@@ -15,7 +15,6 @@ PickUpController::PickUpController() {
     blockDistanceFromCamera = 0;
     blockBlock = false;
     current_time = 0;
-    SetLastCubeLocation();
 
     targetFound = false;
 
@@ -309,10 +308,9 @@ Result PickUpController::DoWork() {
             result.pd.cmdVel = -0.15;
             result.pd.cmdAngularError = 0.0;
             result.wristAngle = 0;
-            whereWasTheCube.x = 1;
-            whereWasTheCube.y = 1;
-            whereWasTheCube.theta = 0;
-            cout << "cube? picked up at: " << whereWasTheCube.x << " " << whereWasTheCube.y << " " << whereWasTheCube.theta << endl;
+            SetLastCubeLocation(1.0,1.0,0);
+            Point temp = GetLastCubeLocation();
+            cout << "cube? picked up at: " << temp.x << " " << temp.y << " " << temp.theta << endl;
         } else if (Td > grasp_time_begin) //close the fingers and stop driving
         {
             result.pd.cmdVel = 0.0;

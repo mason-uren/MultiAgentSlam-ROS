@@ -1,5 +1,4 @@
 #include "DriveController.h"
-#include "Utilities.h"
 
 DriveController::DriveController() {
 
@@ -88,7 +87,7 @@ Result DriveController::DoWork()
             //while we have waypoints and they are tooClose to drive to
             while (!waypoints.empty() && tooClose) {
                 //check next waypoint for distance
-                if (Utilities::distance_between_points(waypoints.back(),currentLocation) < waypointTolerance) {
+                if (distance_between_points(waypoints.back(),currentLocation) < waypointTolerance) {
                     //if too close remove it
                     waypoints.pop_back();
                 } else {
@@ -106,7 +105,7 @@ Result DriveController::DoWork()
             } else {
                 //select setpoint for heading and begin driving to the next waypoint
                 stateMachineState = STATE_MACHINE_ROTATE;
-                waypoints.back().theta = Utilities::angle_between_points(waypoints.back(),currentLocation);
+                waypoints.back().theta = angle_between_points(waypoints.back(),currentLocation);
                 result.pd.setPointYaw = waypoints.back().theta;
 
                 //cout << "**************************************************************************" << endl; //DEBUGGING CODE
@@ -121,10 +120,10 @@ Result DriveController::DoWork()
             // Rotate left or right depending on sign of angle
             // Stay in this state until angle is minimized
 
-            waypoints.back().theta = Utilities::angle_between_points(waypoints.back(),currentLocation);
+            waypoints.back().theta = angle_between_points(waypoints.back(),currentLocation);
 
             // Calculate the diffrence between current and desired heading in radians.
-            float errorYaw = Utilities::difference_between_angles(currentLocation,waypoints.back());
+            float errorYaw = difference_between_angles(currentLocation,waypoints.back());
 
             //cout << "ROTATE Error yaw:  " << errorYaw << " target heading : " << waypoints.back().theta << " current heading : " << currentLocation.theta << endl; //DEBUGGING CODE
             //cout << "Waypoint x : " << waypoints.back().x << " y : " << waypoints.back().y << " currentLoc x : " << currentLocation.x << " y : " << currentLocation.y << endl; //DEBUGGING CODE
@@ -132,7 +131,7 @@ Result DriveController::DoWork()
             result.pd.setPointVel = 0.0;
             //Calculate absolute value of angle
 
-            float abs_error = fabs(Utilities::difference_between_angles(currentLocation,waypoints.back()));
+            float abs_error = fabs(difference_between_angles(currentLocation,waypoints.back()));
 
             // If angle > rotateOnlyAngleTolerance radians rotate but dont drive forward.
             if (abs_error > rotateOnlyAngleTolerance) {
@@ -156,9 +155,9 @@ Result DriveController::DoWork()
             // Stay in this state until angle is at least PI/2
 
             // calculate the distance between current and desired heading in radians
-            waypoints.back().theta = Utilities::angle_between_points(waypoints.back(),currentLocation);
-            float errorYaw = Utilities::difference_between_angles(currentLocation,waypoints.back());
-            float distance = Utilities::distance_between_points(waypoints.back(),currentLocation);
+            waypoints.back().theta = angle_between_points(waypoints.back(),currentLocation);
+            float errorYaw = difference_between_angles(currentLocation,waypoints.back());
+            float distance = distance_between_points(waypoints.back(),currentLocation);
 
             //cout << "Skid steer, Error yaw:  " << errorYaw << " target heading : " << waypoints.back().theta << " current heading : " << currentLocation.theta << " error distance : " << distance << endl; //DEBUGGING CODE
             //cout << "Waypoint x : " << waypoints.back().x << " y : " << waypoints.back().y << " currentLoc x : " << currentLocation.x << " y : " << currentLocation.y << endl; //DEBUGGING CODE
@@ -413,6 +412,8 @@ void DriveController::outputValidation(float velOut, float yawOut) {
     //prevent combine output from going over tihs value
     int sat = 180;
     
-    this->left = Utilities::saturation_check(left,sat);
-    this->right = Utilities::saturation_check(right,sat);
+    this->left = saturation_check(left,sat);
+    this->left = saturation_check(left,sat);
+    this->right = saturation_check(right,sat);
+    this->right = saturation_check(right,sat);
 }

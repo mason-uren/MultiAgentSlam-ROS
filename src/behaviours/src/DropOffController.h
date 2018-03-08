@@ -7,6 +7,7 @@
 #include <math.h>
 #include <ros/ros.h>
 #include <std_msgs/String.h>
+#include "Utilities.h"
 
 extern void logMessage(long int currentTime, string component, string message);
 extern void logicMessage(long int currentTime, string component, string message);

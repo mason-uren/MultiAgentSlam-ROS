@@ -1,6 +1,5 @@
 #include "SearchController.h"
 #include <angles/angles.h>
-#include "Utilities.h"
 
 SearchController::SearchController() {
     rng = new random_numbers::RandomNumberGenerator();
@@ -35,7 +34,7 @@ Result SearchController::DoWork() {
     extern void logicMessage(long int currentTime, string component, string message);
 
     if (!result.waypoints.empty()) {
-        if (Utilities::distance_between_points(result.waypoints[0], currentLocation) < 0.15) {
+        if (distance_between_points(result.waypoints[0], currentLocation) < 0.15) {
             attemptCount = 0;
         }
     }
