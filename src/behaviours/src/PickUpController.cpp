@@ -36,22 +36,23 @@ void PickUpController::SetTagData(vector<Tag> tags) {
         //we saw a target, set target_timer
         target_timer = current_time;
 
-        double closest = std::numeric_limits<double>::max();
+        double maxPriority = std::numeric_limits<double>::min();
         int target = 0;
 
-        //this loop selects the block closest to the center of the camera and makes goals for it
         for (int i = 0; i < tags.size(); i++) {
 
             if (tags[i].getID() == 0) {
 
                 targetFound = true;
 
-                //absolute distance to block x from center of camera FOV
-                double test = fabs(tags[i].getPositionX() + PickUpController::CAMERA_OFFSET_CORRECTION);
+                double distance = hypot(hypot(tags[target].getPositionX(), tags[target].getPositionY()),
+                                        tags[target].getPositionZ());
+                double priority = PickUpController::calculateTargetPriority(
+                        tags[i].getPositionX() + PickUpController::CAMERA_OFFSET_CORRECTION, distance);
 
-                if (closest > test) {
+                if (priority > maxPriority) {
                     target = i;
-                    closest = test;
+                    maxPriority = priority;
                 }
             } else {
                 // If the center is seen, then don't try to pick up the cube.
@@ -87,8 +88,9 @@ void PickUpController::SetTagData(vector<Tag> tags) {
 
         //cout << "blockDistance  TAGDATA:  " << blockDistance << endl;
 
-        blockYawError = atan((tags[target].getPositionX() + PickUpController::CAMERA_OFFSET_CORRECTION) / blockDistance) *
-                        1.05; //angle to block from bottom center of chassis on the horizontal.
+        blockYawError =
+                atan((tags[target].getPositionX() + PickUpController::CAMERA_OFFSET_CORRECTION) / blockDistance) *
+                1.05; //angle to block from bottom center of chassis on the horizontal.
 
         cout << "blockYawError TAGDATA:  " << blockYawError << endl;
 
@@ -368,4 +370,15 @@ void PickUpController::SetUltraSoundData(bool blockBlock) {
 
 void PickUpController::SetCurrentTimeInMilliSecs(long int time) {
     current_time = time;
+}
+
+double PickUpController::calculateTargetPriority(double xPos, double distance) {
+    // How much to weight each value when computing the priority
+    // These only have significance relative to each other
+    static const double xPosWt = 1;
+    static const double dstWt = .5;
+    // Absolute distance to block x from center of camera FOV
+    double absXPos = fabs(xPos);
+
+    return xPosWt * -absXPos + dstWt * -distance;
 }

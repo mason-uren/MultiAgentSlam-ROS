@@ -98,6 +98,16 @@ private:
 
     string ClassName = "PickUp Controller";
 
+    /**
+     * Takes the target's x position in camera FOV and distance from lens, weights them, and returns a priority value
+     * for the target.
+     *
+     * @param xPos Target position x in camera FOV
+     * @param distance Distance from camera lens to the target
+     * @return Priority value (higher is better)
+     */
+    static double calculateTargetPriority(double xPos, double distance);
+
 };
 
 #endif // end header define
