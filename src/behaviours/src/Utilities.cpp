@@ -34,6 +34,6 @@ Point GetLastCubeLocation() {
     return whereWasTheCube;
 }
 
-void SetLastCubeLocation(float x, float y, float theta) {
-    whereWasTheCube.x = x; whereWasTheCube.y = y; whereWasTheCube.theta = theta;
+void SetLastCubeLocation(Point lastKnownLocation) {
+    whereWasTheCube = lastKnownLocation;
 }

@@ -311,6 +311,7 @@ void LogicController::SetPositionData(Point currentLocation) {
     obstacleController.setCurrentLocation(currentLocation);
     driveController.SetCurrentLocation(currentLocation);
     manualWaypointController.SetCurrentLocation(currentLocation);
+    pickUpController.SetCurrentLocation(currentLocation);
 }
 
 // Recieves position in the world frame with global data (GPS)

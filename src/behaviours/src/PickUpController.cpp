@@ -308,9 +308,7 @@ Result PickUpController::DoWork() {
             result.pd.cmdVel = -0.15;
             result.pd.cmdAngularError = 0.0;
             result.wristAngle = 0;
-            SetLastCubeLocation(1.0,1.0,0);
-            Point temp = GetLastCubeLocation();
-            cout << "cube? picked up at: " << temp.x << " " << temp.y << " " << temp.theta << endl;
+            SetLastCubeLocation(currentLocation);
         } else if (Td > grasp_time_begin) //close the fingers and stop driving
         {
             result.pd.cmdVel = 0.0;
@@ -387,4 +385,8 @@ void PickUpController::SetUltraSoundData(bool blockBlock) {
 
 void PickUpController::SetCurrentTimeInMilliSecs(long int time) {
     current_time = time;
+}
+
+void PickUpController::SetCurrentLocation(Point current) {
+    this->currentLocation = current;
 }

@@ -45,6 +45,8 @@ public:
 
     void SetCurrentTimeInMilliSecs(long int time);
 
+    void SetCurrentLocation(Point current);
+
 protected:
 
     void ProcessData();
@@ -96,6 +98,8 @@ private:
     bool has_control = false;
 
     string ClassName = "PickUp Controller";
+
+    Point currentLocation;
 
 };
 

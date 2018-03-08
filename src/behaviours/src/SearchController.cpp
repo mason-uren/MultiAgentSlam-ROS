@@ -33,6 +33,16 @@ Result SearchController::DoWork() {
 
     extern void logicMessage(long int currentTime, string component, string message);
 
+    Point searchLocation = GetLastCubeLocation();
+    if(searchLocation.x != 0 && searchLocation.y != 0)
+    {
+        result.type = waypoint;
+        Point searchLocation = GetLastCubeLocation();
+        result.waypoints.clear();
+        result.waypoints.insert(result.waypoints.begin(), searchLocation);
+        return result;
+    }
+
     if (!result.waypoints.empty()) {
         if (distance_between_points(result.waypoints[0], currentLocation) < 0.15) {
             attemptCount = 0;

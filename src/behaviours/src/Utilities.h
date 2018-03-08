@@ -17,7 +17,7 @@ float infinity_norm(Point);
 
 Point GetLastCubeLocation();
 
-void SetLastCubeLocation(float x, float y, float theta);
+void SetLastCubeLocation(Point lastKnownLocation);
 
 
 #endif
