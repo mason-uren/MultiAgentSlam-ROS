@@ -347,7 +347,7 @@ void ObstacleController::ProcessData() {
     if (this->reflection.should_start) {
         if (this->detection_declaration != NO_OBSTACLE) {
             phys = true;
-            timeSinceTags = current_time;
+//            timeSinceTags = current_time;
             obstacleDetected = true;
             obstacleAvoided = false;
             can_set_waypoint = false;
@@ -387,45 +387,60 @@ void ObstacleController::setTagData(vector <Tag> tags) {
         x_home_tag_orientation = 0; // Todo:
 
         // this loop is to get the number of center tags
+//        if (!targetHeld) {
+//            for (int i = 0; i < tags.size(); i++) { //redundant for loop
+//                if (tags[i].getID() == 256) {
+//                    collection_zone_seen = checkForCollectionZoneTags(tags);
+//                    if (collection_zone_seen) {
+//                        std::cout << "HOME HOME HOME HOME" << std::endl;
+//                        this->detection_declaration = HOME;
+//                    }
+//                    timeSinceTags = current_time;
+//                }
+//            }
+//        }
+
         if (!targetHeld) {
-            for (int i = 0; i < tags.size(); i++) { //redundant for loop
-                if (tags[i].getID() == 256) {
-                    collection_zone_seen = checkForCollectionZoneTags(tags);
-                    if (collection_zone_seen) {
-                        std::cout << "HOME HOME HOME HOME" << std::endl;
-                        this->detection_declaration = HOME;
-                    }
-                    timeSinceTags = current_time;
-                }
+            collection_zone_seen = checkForCollectionZoneTags(tags);
+            if (collection_zone_seen) {
+                std::cout << "HOME HOME HOME HOME" << std::endl;
+                this->detection_declaration = HOME;
             }
         }
     }
 }
 
 bool ObstacleController::checkForCollectionZoneTags(vector<Tag> tags) {
+    bool home_seen = false;
     for (auto &tag : tags) {
 
         // Check the orientation of the tag. If we are outside the collection zone the yaw will be positive so treat the collection zone as an obstacle.
         //If the yaw is negative the robot is inside the collection zone and the boundary should not be treated as an obstacle.
         //This allows the robot to leave the collection zone after dropping off a target.
-        if (tag.calcYaw() > 0) {
+//        if (tag.calcYaw() > 0) {
+//
+//            // TODO: this only counts the number of detection on the left or right side
+//            // TODO: consider checking if we see any tags that have positive yaw
+//            // TODO: distance calculations can be made else where
+//
+//            // checks if tag is on the right or left side of the image
+//            if (tag.getPositionX() + camera_offset_correction > 0) {
+//                count_right_collection_zone_tags++;
+//            } else {
+//                count_left_collection_zone_tags++;
+//            }
+//            this->x_home_tag_orientation += tag.getPositionX() + camera_offset_correction;
+//        }
 
-            // TODO: this only counts the number of detection on the left or right side
-            // TODO: consider checking if we see any tags that have positive yaw
-            // TODO: distance calculations can be made else where
-
-            // checks if tag is on the right or left side of the image
-            if (tag.getPositionX() + camera_offset_correction > 0) {
-                count_right_collection_zone_tags++;
-            } else {
-                count_left_collection_zone_tags++;
-            }
+        if (tag.getID() == 256 && tag.calcYaw() > 0) {
             this->x_home_tag_orientation += tag.getPositionX() + camera_offset_correction;
+            home_seen = true;
+            break;
         }
     }
-    this->x_home_tag_orientation /= tags.size();
     // Did any tags indicate that the robot is inside the collection zone?
-    return count_left_collection_zone_tags + count_right_collection_zone_tags > 0;
+//    return count_left_collection_zone_tags + count_right_collection_zone_tags > 0;
+    return home_seen;
 
 }
 

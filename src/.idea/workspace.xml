@@ -132,8 +132,8 @@
       <file leaf-file-name="ObstacleController.cpp" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/behaviours/src/ObstacleController.cpp">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="223">
-              <caret line="239" column="73" lean-forward="false" selection-start-line="239" selection-start-column="73" selection-end-line="239" selection-end-column="73" />
+            <state relative-caret-position="446">
+              <caret line="436" column="29" lean-forward="false" selection-start-line="436" selection-start-column="29" selection-end-line="436" selection-end-column="29" />
               <folding />
             </state>
           </provider>
@@ -164,7 +164,6 @@
   <component name="FindInProjectRecents">
     <findStrings>
       <find>camera_off</find>
-      <find>timeSinceTags</find>
       <find>STATE_M</find>
       <find>ROTATE</find>
       <find>ROT</find>
@@ -176,6 +175,7 @@
       <find>collection_zone</find>
       <find>can_start</find>
       <find>should_start</find>
+      <find>timeSinceTags</find>
     </findStrings>
   </component>
   <component name="IdeDocumentHistory">
@@ -249,6 +249,7 @@
   </component>
   <component name="PropertiesComponent">
     <property name="WebServerToolWindowFactoryState" value="false" />
+    <property name="settings.editor.selected.configurable" value="preferences.lookFeel" />
   </component>
   <component name="RunDashboard">
     <option name="ruleStates">
@@ -691,12 +692,12 @@
       <workItem from="1520381633884" duration="1869000" />
       <workItem from="1520449197500" duration="1991000" />
       <workItem from="1520464466209" duration="5541000" />
-      <workItem from="1520487225241" duration="594000" />
+      <workItem from="1520487225241" duration="1333000" />
     </task>
     <servers />
   </component>
   <component name="TimeTrackingManager">
-    <option name="totallyTimeSpent" value="23868000" />
+    <option name="totallyTimeSpent" value="24607000" />
   </component>
   <component name="ToolWindowManager">
     <frame x="0" y="23" width="1440" height="822" extended-state="6" />
@@ -926,8 +927,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/behaviours/src/ObstacleController.cpp">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="223">
-          <caret line="239" column="73" lean-forward="false" selection-start-line="239" selection-start-column="73" selection-end-line="239" selection-end-column="73" />
+        <state relative-caret-position="446">
+          <caret line="436" column="29" lean-forward="false" selection-start-line="436" selection-start-column="29" selection-end-line="436" selection-end-column="29" />
           <folding />
         </state>
       </provider>
