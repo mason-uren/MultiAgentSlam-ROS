@@ -47,7 +47,7 @@ void PickUpController::SetTagData(vector<Tag> tags) {
                 targetFound = true;
 
                 //absolute distance to block x from center of camera FOV
-                double test = fabs(tags[i].getPositionX());
+                double test = fabs(tags[i].getPositionX() + PickUpController::CAMERA_OFFSET_CORRECTION);
 
                 if (closest > test) {
                     target = i;
@@ -69,8 +69,6 @@ void PickUpController::SetTagData(vector<Tag> tags) {
             }
         }
 
-        float cameraOffsetCorrection = 0.023; //meters;
-
         // using a^2 + b^2 = c^2 to find the distance to the block
         // 0.195 is the height of the camera lens above the ground in cm.
         //
@@ -89,7 +87,7 @@ void PickUpController::SetTagData(vector<Tag> tags) {
 
         //cout << "blockDistance  TAGDATA:  " << blockDistance << endl;
 
-        blockYawError = atan((tags[target].getPositionX() + cameraOffsetCorrection) / blockDistance) *
+        blockYawError = atan((tags[target].getPositionX() + PickUpController::CAMERA_OFFSET_CORRECTION) / blockDistance) *
                         1.05; //angle to block from bottom center of chassis on the horizontal.
 
         cout << "blockYawError TAGDATA:  " << blockYawError << endl;
