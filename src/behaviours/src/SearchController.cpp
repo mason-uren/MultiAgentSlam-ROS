@@ -32,6 +32,7 @@ void SearchController::SetCurrentTimeInMilliSecs(long int time) {
 Result SearchController::DoWork() {
 
     extern void logicMessage(long int currentTime, string component, string message);
+<<<<<<< HEAD
 
     Point searchLocation = GetLastCubeLocation();
     if(searchLocation.x != 0 && searchLocation.y != 0)
@@ -81,6 +82,12 @@ Result SearchController::DoWork() {
         return result;
     }
 
+=======
+    result.type = vectorDriving;
+    result.desired_heading = GetNewHeading(currentLocation.theta,true); //bool value is search_mode
+    printf("search Controller new heading: %f\n",result.desired_heading);
+    return result;
+>>>>>>> SWAR-79
 }
 
 void SearchController::SetCenterLocation(Point centerLocation) {
@@ -117,16 +124,11 @@ void SearchController::SetSuccesfullPickup() {
     succesfullPickup = true;
 }
 
-float GetNewHeading(float beta, bool search_mode) {
+float SearchController::GetNewHeading(float beta, bool search_mode) {
   std::default_random_engine generator;
-  std::uniform_real_distribution<float> distribution(0.0,M_PI);
+  std::uniform_real_distribution<float> distribution(-2.355,-3.928);
   float theta = 0;
-  if(search_mode == false) {
-    theta = beta - M_PI/2 + (distribution(generator));
-  }
-  else {
-    theta = beta - M_PI/2 - (distribution(generator));
-  }
+    theta = currentLocation.theta;// + (distribution(generator));
   return theta;
 }
 

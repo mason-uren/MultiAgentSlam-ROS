@@ -38,7 +38,7 @@ public:
     void SetCurrentTimeInMilliSecs(long int time);
 
 
-  float GetNewHeading(float beta, bool search_mode);
+    float GetNewHeading(float beta, bool search_mode);
 
 protected:
 
