@@ -42,6 +42,7 @@ Result LogicController::DoWork() {
         }
     }
 
+    cout << "where logic: " << whereWasTheCube.x << whereWasTheCube.y << endl;
 // string message will print out the 3 logic state: waiting, interrupt, and precision
     string message;
 
@@ -62,6 +63,7 @@ Result LogicController::DoWork() {
 
             //Reset the control queue
             control_queue = priority_queue<PrioritizedController>();
+
 
             //check what controllers have work to do all that say yes will be added to the priority queue.
             for (PrioritizedController cntrlr : prioritizedControllers) {
@@ -93,6 +95,7 @@ Result LogicController::DoWork() {
 
                 //ask for an external reset so the state of the controller is preserved untill after it has returned a result and
                 //gotten a chance to communicate with other controllers
+
                 if (result.reset) {
                     controllerInterconnect(); //allow controller to communicate state data before it is reset
                     control_queue.top().controller->Reset();

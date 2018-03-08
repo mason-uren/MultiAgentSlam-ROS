@@ -51,9 +51,14 @@ Result DropOffController::DoWork() {
             if (finalInterrupt) {
                 result.type = behavior;
                 result.behaviourType = nextProcess;
-                result.reset = true;
                 string message = "Exiting DropOff";
                 logMessage(current_time, "DROPOFF", message);
+
+                cout << "result probably 0 here: " << result.type << endl;
+                cout << "backwaypoint before: " << result.waypoints.back().x << result.waypoints.back().y << endl;
+                cout << "back waypoint after: " << result.waypoints.back().x << result.waypoints.back().y << endl;
+
+                result.reset = true;
                 return result;
             } else {
                 finalInterrupt = true;
