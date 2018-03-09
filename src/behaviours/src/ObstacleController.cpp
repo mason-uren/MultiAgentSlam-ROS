@@ -11,7 +11,6 @@ ObstacleController::ObstacleController() {
 
     collection_zone_seen = false;
     obstacleAvoided = true;
-//    this->detection_declaration = NO_OBSTACLE;
     obstacleDetected = false;
     obstacleInterrupt = false;
     result.PIDMode = CONST_PID; //use the const PID to turn at a constant speed
@@ -44,7 +43,6 @@ ObstacleController::ObstacleController() {
 //resets the interupt and knowledge of an obstacle or obstacle avoidance only.
 void ObstacleController::Reset() {
     obstacleAvoided =  true;
-//    this->detection_declaration = NO_OBSTACLE;
     obstacleDetected = false;
     obstacleInterrupt = false;
     delay = current_time;
@@ -69,7 +67,7 @@ void ObstacleController::avoidObstacle() {
         case OBS_LEFT:
             this->reflect({R_LOW, R_HIGH});
             result.pd.cmdAngular = -K_angular;
-        case OBS_LEFT_CENTER: case OBS_CENTER:
+        case OBS_LEFT_CENTER: case OBS_CENTER: // OBS_CENTER left in but currently will not be set
             this->reflect({RC_LOW, RC_HIGH});
             result.pd.cmdAngular = -K_angular; // Turn Right
             break;
@@ -202,21 +200,6 @@ void ObstacleController::setCurrentLocation(Point currentLocation) {
 }
 
 void ObstacleController::ProcessData() {
-    //timeout timer for no tag messages
-    //this is used to set collection zone seen to false beacuse
-    //there is no report of 0 tags seen
-//    long int Tdifference = current_time - timeSinceTags;
-//    float Td = Tdifference / 1e3;
-//    if (Td >= 0.5) {
-//        std::cout << "Reset Collection Zone Seen" << std::endl;
-//        collection_zone_seen = false;
-//        phys = false;
-//        if (!obstacleAvoided) {
-////        if (this->detection_declaration != NO_OBSTACLE) {
-//            can_set_waypoint = true;
-//        }
-//    }
-
     //If we are ignoring the center sonar
     if (ignore_center_sonar) {
         //If the center distance is longer than the reactivation threshold
@@ -327,9 +310,7 @@ void ObstacleController::ProcessData() {
             // Drop temp monitor mapping
             accepted_monitor_map->clear();
         }
-
     }
-
 
     /* 5)
      * Only accept a detection if all monitors agree that there is an obstacle. If one flags but not the other
@@ -361,7 +342,6 @@ void ObstacleController::ProcessData() {
     if (this->reflection.should_start) {
         if (this->detection_declaration != NO_OBSTACLE) {
             phys = true;
-//            timeSinceTags = current_time;
             obstacleDetected = true;
             obstacleAvoided = false;
             can_set_waypoint = false;
@@ -420,8 +400,6 @@ bool ObstacleController::checkForCollectionZoneTags(vector<Tag> tags) {
             break;
         }
     }
-    // Did any tags indicate that the robot is inside the collection zone?
-//    return count_left_collection_zone_tags + count_right_collection_zone_tags > 0;
     return home_seen;
 
 }
@@ -486,8 +464,11 @@ void ObstacleController::setTargetHeldClear() {
     }
 }
 
-void ObstacleController::
-traversal() {
+/*
+ * Traverse an obstacle
+ * NOTE: this is base code traversal methods
+ */
+void ObstacleController::traversal() {
     result.type = precisionDriving;
     result.pd.setPointVel = 0.0;
     result.pd.cmdVel = 0.0;
@@ -520,33 +501,31 @@ traversal() {
  * @param bounds : the lower and upper bounds of the generate angle
  */
 void ObstacleController::reflect(std::vector<double> bounds) {
-    std::cout << "LISTENER CONTROLLER: reflect" << std::endl; // Only want to deal with positive values
+    /*
+     * Generate a random rotation angle based on how it encountered the obstacle
+     */
     if (this->reflection.should_start) {
-        std::cout << "reflect() create angle" << std::endl;
-        double range = bounds.at(1) - bounds.at(0);
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_real_distribution<> distribution(bounds.at(0), bounds.at(1));
         double random_angle = distribution(gen);
-        std::cout << "Range " << range << " Random angle " << random_angle << std::endl;
         this->reflection.desired_heading = angles::normalize_angle(random_angle + currentLocation.theta);
-        std::cout << "Current Location Theta: " << currentLocation.theta << std::endl;
-        std::cout << "New Desired Heading " << this->reflection.desired_heading << std::endl;
         // Create a reference to guage how far rover has turned
         this->reflection.reflect_angle = fabs(angles::shortest_angular_distance(currentLocation.theta, this->reflection.desired_heading));
-        std::cout << "Reflection Distance " << this->reflection.reflect_angle << std::endl;
         this->reflection.should_start = false;
     }
+    /*
+     * If the rover has rotated to the desired reflection angle, EXIT
+     */
     else if (this->reflection.reflect_angle <= EXIT_ROTATE) {
-        std::cout << "reflect() rotation complete" << std::endl;
         this->reflection.should_end = true;
     }
+    /*
+     * Subtract off the amount rotated 
+     */
     else {
-        std::cout << "reflect() still rotating" << std::endl;
         // Monitor how far the rover has turned in relation to its desired heading
-        std::cout << "Reflection angle " << this->reflection.desired_heading << std::endl;
         this->reflection.reflect_angle = fabs(angles::shortest_angular_distance(currentLocation.theta, this->reflection.desired_heading));
-        std::cout << "reflect() radians left: " << this->reflection.reflect_angle << std::endl;
     }
 }
 
@@ -599,19 +578,10 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
         }
     }
     if (admit) {
-//        if (left_assist && center_assist && right_assist) {
-//            // Base Case: if the rover meets a flat object head-on
-//            if (left_assist->detections.smallest_detection == center_assist->detections.smallest_detection &&
-//                center_assist->detections.smallest_detection == right_assist->detections.smallest_detection) {
-//                obstacle.type = OBS_CENTER;
-//            }
-//            else if (left_assist->detections.smallest_detection <= right_assist->detections.smallest_detection) {
-//                obstacle.type = OBS_LEFT_CENTER;
-//            }
-//            else {
-//                obstacle.type = OBS_RIGHT_CENTER;
-//            }
-//        } else
+        /*
+         * Sonar overlap is too large to consider the CENTER as anything more than
+         * a distinction value for declaring OBS_TYPEs
+         */
         if (center_assist && left_assist) {
             obstacle.type = OBS_LEFT_CENTER;
         } else if (center_assist && right_assist) {
