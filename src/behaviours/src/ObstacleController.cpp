@@ -58,6 +58,7 @@ void ObstacleController::avoidObstacle() {
     result.pd.setPointVel = 0.0;
     result.pd.cmdVel = 0.0;
     result.pd.setPointYaw = 0;
+
     /*
      * Based on detection location reflect off of obstacle in
      * opposing direction.
@@ -138,10 +139,22 @@ Result ObstacleController::DoWork() {
          * HOME retains highest priority since it is checked first
          */
         std::cout << "Do Work. Detections is " << this->detection_declaration << std::endl;
-        if (this->detection_declaration == HOME) {
-            avoidCollectionZone();
-        } else {
-            avoidObstacle();
+        /*
+         * When the rover is not holding a cube, reflect off of obstacles
+         */
+        if (!targetHeld) {
+            if (this->detection_declaration == HOME) {
+                avoidCollectionZone();
+            } else {
+                avoidObstacle();
+            }
+        }
+        /*
+         * When the rover is holding a cube, traverse obstacles
+         */
+        else {
+            std::cout << "Begin traversal" << std::endl;
+            this->traversal();
         }
     }
 
@@ -356,7 +369,7 @@ void ObstacleController::ProcessData() {
     } else if (this->reflection.should_end) {
         // Verify that we've completed the reflection off the obstacle
         obstacleAvoided = true;
-        phys = true;
+        phys = false;
         obstacleDetected = false;
         can_set_waypoint = true;
         this->reflection.should_start = true;
@@ -387,20 +400,6 @@ void ObstacleController::setTagData(vector <Tag> tags) {
         count_right_collection_zone_tags = 0;
         x_home_tag_orientation = 0; // Todo:
 
-        // this loop is to get the number of center tags
-//        if (!targetHeld) {
-//            for (int i = 0; i < tags.size(); i++) { //redundant for loop
-//                if (tags[i].getID() == 256) {
-//                    collection_zone_seen = checkForCollectionZoneTags(tags);
-//                    if (collection_zone_seen) {
-//                        std::cout << "HOME HOME HOME HOME" << std::endl;
-//                        this->detection_declaration = HOME;
-//                    }
-//                    timeSinceTags = current_time;
-//                }
-//            }
-//        }
-
         if (!targetHeld) {
             collection_zone_seen = checkForCollectionZoneTags(tags);
             if (collection_zone_seen) {
@@ -414,24 +413,6 @@ void ObstacleController::setTagData(vector <Tag> tags) {
 bool ObstacleController::checkForCollectionZoneTags(vector<Tag> tags) {
     bool home_seen = false;
     for (auto &tag : tags) {
-
-        // Check the orientation of the tag. If we are outside the collection zone the yaw will be positive so treat the collection zone as an obstacle.
-        //If the yaw is negative the robot is inside the collection zone and the boundary should not be treated as an obstacle.
-        //This allows the robot to leave the collection zone after dropping off a target.
-//        if (tag.calcYaw() > 0) {
-//
-//            // TODO: this only counts the number of detection on the left or right side
-//            // TODO: consider checking if we see any tags that have positive yaw
-//            // TODO: distance calculations can be made else where
-//
-//            // checks if tag is on the right or left side of the image
-//            if (tag.getPositionX() + camera_offset_correction > 0) {
-//                count_right_collection_zone_tags++;
-//            } else {
-//                count_left_collection_zone_tags++;
-//            }
-//            this->x_home_tag_orientation += tag.getPositionX() + camera_offset_correction;
-//        }
 
         if (tag.getID() == 256 && tag.calcYaw() > 0) {
             this->x_home_tag_orientation += tag.getPositionX() + camera_offset_correction;
@@ -489,7 +470,6 @@ void ObstacleController::setTargetHeld() {
     //adjust current state on transition from no cube held to cube held
     if (previousTargetState == false) {
         obstacleAvoided = true;
-//        this->detection_declaration = NO_OBSTACLE;
         obstacleInterrupt = false;
         obstacleDetected = false;
         previousTargetState = true;
@@ -506,6 +486,35 @@ void ObstacleController::setTargetHeldClear() {
     }
 }
 
+void ObstacleController::
+traversal() {
+    result.type = precisionDriving;
+    result.pd.setPointVel = 0.0;
+    result.pd.cmdVel = 0.0;
+    result.pd.setPointYaw = 0;
+    switch (this->detection_declaration) {
+        case NO_OBSTACLE:
+            result.type = waypoint;
+            obstacleAvoided = true;
+            phys = false;
+            obstacleDetected = false;
+            can_set_waypoint = true;
+            break;
+        case OBS_LEFT:
+        case OBS_LEFT_CENTER:
+        case OBS_CENTER:
+            result.pd.cmdAngular = -K_angular;
+            break;
+        case OBS_RIGHT_CENTER:
+        case OBS_RIGHT:
+            result.pd.cmdAngular = K_angular;
+            break;
+        default:
+        std::cout << "ERROR: OBSTACLE CONTROLLER: traversal() hit default" << std::endl;
+            break;
+    }
+}
+
 /**
  * Generates a random reflection angle that is bounded by how the rover encounters the obstacle.
  * @param bounds : the lower and upper bounds of the generate angle
@@ -514,30 +523,21 @@ void ObstacleController::reflect(std::vector<double> bounds) {
     std::cout << "LISTENER CONTROLLER: reflect" << std::endl; // Only want to deal with positive values
     if (this->reflection.should_start) {
         std::cout << "reflect() create angle" << std::endl;
-        int rand();
         double range = bounds.at(1) - bounds.at(0);
-        // Keep `desired_heading` positive
-        this->reflection.desired_heading = fmod(rand(), range) + bounds.at(0) + currentLocation.theta;
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_real_distribution<> distribution(bounds.at(0), bounds.at(1));
+        double random_angle = distribution(gen);
+        std::cout << "Range " << range << " Random angle " << random_angle << std::endl;
+        this->reflection.desired_heading = angles::normalize_angle(random_angle + currentLocation.theta);
         std::cout << "Current Location Theta: " << currentLocation.theta << std::endl;
-        std::cout << "Old Desired Heading " << this->reflection.desired_heading << std::endl;
-
-        // Bounds checking
-
-        if (this->reflection.desired_heading <= -M_PI) {
-            double remainder = fmod(this->reflection.desired_heading, M_PI);
-            this->reflection.desired_heading = M_PI + remainder;
-        }
-        else if (this->reflection.desired_heading >= M_PI) {
-            double remainder = fmod(this->reflection.desired_heading, M_PI);
-            this->reflection.desired_heading = M_PI - remainder;
-        }
         std::cout << "New Desired Heading " << this->reflection.desired_heading << std::endl;
         // Create a reference to guage how far rover has turned
         this->reflection.reflect_angle = fabs(angles::shortest_angular_distance(currentLocation.theta, this->reflection.desired_heading));
         std::cout << "Reflection Distance " << this->reflection.reflect_angle << std::endl;
         this->reflection.should_start = false;
     }
-    else if (this->reflection.reflect_angle <= EXIT_ROTATE || this->reflection.reflect_angle >= 3) {
+    else if (this->reflection.reflect_angle <= EXIT_ROTATE) {
         std::cout << "reflect() rotation complete" << std::endl;
         this->reflection.should_end = true;
     }
@@ -545,7 +545,7 @@ void ObstacleController::reflect(std::vector<double> bounds) {
         std::cout << "reflect() still rotating" << std::endl;
         // Monitor how far the rover has turned in relation to its desired heading
         std::cout << "Reflection angle " << this->reflection.desired_heading << std::endl;
-        this->reflection.reflect_angle -= this->reflection.reflect_angle - fabs(angles::shortest_angular_distance(currentLocation.theta, this->reflection.desired_heading));
+        this->reflection.reflect_angle = fabs(angles::shortest_angular_distance(currentLocation.theta, this->reflection.desired_heading));
         std::cout << "reflect() radians left: " << this->reflection.reflect_angle << std::endl;
     }
 }
@@ -599,19 +599,20 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
         }
     }
     if (admit) {
-        if (left_assist && center_assist && right_assist) {
-            // Base Case: if the rover meets a flat object head-on
-            if (left_assist->detections.smallest_detection == center_assist->detections.smallest_detection &&
-                center_assist->detections.smallest_detection == right_assist->detections.smallest_detection) {
-                obstacle.type = OBS_CENTER;
-            }
-            else if (left_assist->detections.smallest_detection <= right_assist->detections.smallest_detection) {
-                obstacle.type = OBS_LEFT_CENTER;
-            }
-            else {
-                obstacle.type = OBS_RIGHT_CENTER;
-            }
-        } else if (center_assist && left_assist) {
+//        if (left_assist && center_assist && right_assist) {
+//            // Base Case: if the rover meets a flat object head-on
+//            if (left_assist->detections.smallest_detection == center_assist->detections.smallest_detection &&
+//                center_assist->detections.smallest_detection == right_assist->detections.smallest_detection) {
+//                obstacle.type = OBS_CENTER;
+//            }
+//            else if (left_assist->detections.smallest_detection <= right_assist->detections.smallest_detection) {
+//                obstacle.type = OBS_LEFT_CENTER;
+//            }
+//            else {
+//                obstacle.type = OBS_RIGHT_CENTER;
+//            }
+//        } else
+        if (center_assist && left_assist) {
             obstacle.type = OBS_LEFT_CENTER;
         } else if (center_assist && right_assist) {
             obstacle.type = OBS_RIGHT_CENTER;
@@ -627,7 +628,6 @@ void ObstacleController::obstacleContactDir(std::map<SONAR, ObstacleAssistant> a
     else {
         this->resetDetections(delay_type);
     }
-    std::cout << "End of obstacleContactDir()" << std::endl;
 }
 
 

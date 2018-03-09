@@ -9,6 +9,7 @@
 #include <map>
 #include <cstdlib>
 #include <cmath>
+#include <random>
 /*
  * Sonar has the most accurate readings at a range less than 2 meters
  * Calculated % Error:
@@ -38,21 +39,24 @@
 /*
  * Reflection bounds
  */
-#define R_LOW (-(M_PI) / 4)
-#define R_HIGH (-(7 * M_PI) / 6)
+#define R_LOW (-(M_PI) / 6)
+#define R_HIGH (-(M_PI_2))
 
-#define L_LOW ((M_PI) / 4)
-#define L_HIGH ((7 * M_PI) / 6)
+#define L_LOW ((M_PI) / 6)
+#define L_HIGH ((M_PI_2))
 
-#define RC_LOW (-(7 * M_PI) / 12)
-#define RC_HIGH (-(4 * M_PI) / 5)
+#define RC_LOW (-(M_PI_2))
+#define RC_HIGH (-(3 * M_PI) / 5)
 
-#define LC_LOW ((7 * M_PI) / 12)
-#define LC_HIGH ((4 * M_PI) / 5)
+#define LC_LOW ((M_PI_2))
+#define LC_HIGH ((3 * M_PI) / 5)
+
+#define LOW (M_PI_2)
+#define HIGH ((3 * M_PI) / 2)
 
 #define DELAY_ITERATION 2
 
-#define EXIT_ROTATE 0.25
+#define EXIT_ROTATE 0.15
 
 
 
@@ -123,12 +127,13 @@ protected:
 
     void sonarMonitor(DELAY_TYPE, float, SONAR);
 
-//    void sonarAnalysis(ObstacleAssistant, DELAY_TYPE);
     void sonarAnalysis(DELAY_TYPE);
 
     void obstacleContactDir(std::map<SONAR, ObstacleAssistant>, DELAY_TYPE);
 
     void reflect(std::vector<double>);
+
+    void traversal();
 
     void resetObstacle(DELAY_TYPE);
 

@@ -23,6 +23,7 @@
 #include <std_msgs/Float32MultiArray.h>
 #include "swarmie_msgs/Waypoint.h"
 
+
 // Include Controllers
 #include "LogicController.h"
 #include <vector>
@@ -36,6 +37,8 @@
 #include <signal.h>
 
 #include <exception> // For exception handling
+
+#include <angles/angles.h>
 
 using namespace std;
 
@@ -253,6 +256,17 @@ int main(int argc, char **argv) {
   ss << "Rover start delay set to " << startDelayInSeconds << " seconds";
   msg.data = ss.str();
   infoLogPublisher.publish(msg);
+
+
+//  double angle1 = angles::shortest_angular_distance((5 * M_PI)/ 6 + 2 * M_PI, -(5 * M_PI) / 6); // Positive
+//    double angle2 = angles::shortest_angular_distance(-(5 * M_PI) / 6 , (5 * M_PI)/ 6); // Negative
+//    double angle3 = angles::shortest_angular_distance(0, M_PI / 2);
+//    double angle4 = angles::shortest_angular_distance(M_PI / 2, 0);
+//
+//    std::cout << "Bound1 " << angle1 << std::endl;
+//    std::cout << "Bound2 " << angle2 << std::endl;
+//    std::cout << "Norm1 " << angle3 << std::endl;
+//    std::cout << "Norm2" << angle4 << std::endl;
 
   if(currentMode != 2 && currentMode != 3)
   {
