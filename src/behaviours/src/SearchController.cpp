@@ -32,62 +32,19 @@ void SearchController::SetCurrentTimeInMilliSecs(long int time) {
 Result SearchController::DoWork() {
 
     extern void logicMessage(long int currentTime, string component, string message);
-<<<<<<< HEAD
-
     Point searchLocation = GetLastCubeLocation();
     if(searchLocation.x != 0 && searchLocation.y != 0)
     {
+        cout << "searhccontroller has a known location: " << searchLocation.x << searchLocation.y << endl;
         result.type = waypoint;
-        Point searchLocation = GetLastCubeLocation();
-        result.waypoints.clear();
-        result.waypoints.insert(result.waypoints.begin(), searchLocation);
-        return result;
-    }
-
-    if (!result.waypoints.empty()) {
-        if (distance_between_points(result.waypoints[0], currentLocation) < 0.15) {
-            attemptCount = 0;
-        }
-    }
-    if (attemptCount > 0 && attemptCount < 5) {
-        attemptCount++;
-        if (succesfullPickup) {
-            succesfullPickup = false;
-            attemptCount = 1;
-        }
-        return result;
-    } else if (attemptCount >= 5 || attemptCount == 0) {
-        attemptCount = 1;
-
-
-        result.type = waypoint;
-        Point searchLocation;
-
-        //select new position 50 cm from current location
-        if (first_waypoint) {
-            first_waypoint = false;
-            searchLocation.theta = currentLocation.theta + M_PI;
-            searchLocation.x = currentLocation.x + (0.5 * cos(searchLocation.theta));
-            searchLocation.y = currentLocation.y + (0.5 * sin(searchLocation.theta));
-        } else {
-            //select new heading from Gaussian distribution around current heading
-            searchLocation.theta = rng->gaussian(currentLocation.theta, 0.785398); //45 degrees in radians
-            searchLocation.x = currentLocation.x + (0.5 * cos(searchLocation.theta));
-            searchLocation.y = currentLocation.y + (0.5 * sin(searchLocation.theta));
-        }
-
         result.waypoints.clear();
         result.waypoints.insert(result.waypoints.begin(), searchLocation);
 
-        return result;
+    } else {
+        result.type = vectorDriving;
     }
-
-=======
-    result.type = vectorDriving;
-    result.desired_heading = GetNewHeading(currentLocation.theta,true); //bool value is search_mode
-    printf("search Controller new heading: %f\n",result.desired_heading);
     return result;
->>>>>>> SWAR-79
+
 }
 
 void SearchController::SetCenterLocation(Point centerLocation) {

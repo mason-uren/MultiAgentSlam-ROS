@@ -308,7 +308,11 @@ Result PickUpController::DoWork() {
             result.pd.cmdVel = -0.15;
             result.pd.cmdAngularError = 0.0;
             result.wristAngle = 0;
-            SetLastCubeLocation(currentLocation);
+            //set a flag for the last cube found
+            Point cubeLocation = currentLocation;
+            cubeLocation.x + .3*cos(currentLocation.theta);
+            cubeLocation.y + .3*sin(currentLocation.theta);
+            SetLastCubeLocation(cubeLocation);
         } else if (Td > grasp_time_begin) //close the fingers and stop driving
         {
             result.pd.cmdVel = 0.0;

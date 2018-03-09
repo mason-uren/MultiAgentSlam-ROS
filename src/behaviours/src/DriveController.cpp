@@ -87,10 +87,19 @@ Result DriveController::DoWork()
 
             bool tooClose = true;
             //while we have waypoints and they are tooClose to drive to
+
+
+
             while (!waypoints.empty() && tooClose) {
                 //check next waypoint for distance
                 if (distance_between_points(waypoints.back(),currentLocation) < waypointTolerance) {
                     //if too close remove it
+                    Point searchLocation = GetLastCubeLocation();
+                    if (waypoints.back().x  == searchLocation.x && waypoints.back().y  == searchLocation.y) {
+                        searchLocation.x = 0;
+                        searchLocation.y = 0;
+                        SetLastCubeLocation(searchLocation);
+                    }
                     waypoints.pop_back();
                 } else {
                     //this waypoint is far enough to be worth driving to
@@ -106,6 +115,7 @@ Result DriveController::DoWork()
                 return result;
             } else {
                 //select setpoint for heading and begin driving to the next waypoint
+
                 stateMachineState = STATE_MACHINE_ROTATE;
                 waypoints.back().theta = angle_between_points(waypoints.back(),currentLocation);
                 result.pd.setPointYaw = waypoints.back().theta;
@@ -129,40 +139,28 @@ Result DriveController::DoWork()
                 if (abs_error > .5) {
                     // rotate but dont drive.
                     printf("rotate: desired heading: %f\n", result.desired_heading);
-                    outputValidation(velPID(fastVelPID,0,0),yawPID(constYawPID,errorYaw,result.desired_heading));
+                    outputValidation(velPID(fastVelPID, 0, 0), yawPID(constYawPID, errorYaw, result.desired_heading));
                     //constPID(0.0, errorYaw, result.pd.setPointVel, result.desired_heading);
                     //move to differential drive step
                     break;
-                }
-                else{
+                } else {
                     stateMachineState = STATE_MACHINE_SKID_STEER;
                 }
-                    //fall through on purpose.
-
-<<<<<<< HEAD
-            waypoints.back().theta = angle_between_points(waypoints.back(),currentLocation);
-
-            // Calculate the diffrence between current and desired heading in radians.
-            float errorYaw = difference_between_angles(currentLocation,waypoints.back());
-=======
+                //fall through on purpose.
             } else {
-                waypoints.back().theta = Utilities::angle_between_points(waypoints.back(),currentLocation);
+                // Calculate the diffrence between current and desired heading in radians.
+                float errorYaw = difference_between_angles(currentLocation,waypoints.back());
+                waypoints.back().theta = angle_between_points(waypoints.back(),currentLocation);
 
                 // Calculate the diffrence between current and desired heading in radians.
-                float errorYaw = Utilities::difference_between_angles(currentLocation,waypoints.back());
->>>>>>> SWAR-79
-
                 //cout << "ROTATE Error yaw:  " << errorYaw << " target heading : " << waypoints.back().theta << " current heading : " << currentLocation.theta << endl; //DEBUGGING CODE
                 //cout << "Waypoint x : " << waypoints.back().x << " y : " << waypoints.back().y << " currentLoc x : " << currentLocation.x << " y : " << currentLocation.y << endl; //DEBUGGING CODE
 
                 result.pd.setPointVel = 0.0;
                 //Calculate absolute value of angle
 
-<<<<<<< HEAD
-            float abs_error = fabs(difference_between_angles(currentLocation,waypoints.back()));
-=======
-                float abs_error = fabs(Utilities::difference_between_angles(currentLocation,waypoints.back()));
->>>>>>> SWAR-79
+                float abs_error = fabs(difference_between_angles(currentLocation,waypoints.back()));
+
 
                 // If angle > rotateOnlyAngleTolerance radians rotate but dont drive forward.
                 if (abs_error > rotateOnlyAngleTolerance) {
@@ -187,11 +185,6 @@ Result DriveController::DoWork()
             // Stay in this state until angle is at least PI/2
 
             // calculate the distance between current and desired heading in radians
-<<<<<<< HEAD
-            waypoints.back().theta = angle_between_points(waypoints.back(),currentLocation);
-            float errorYaw = difference_between_angles(currentLocation,waypoints.back());
-            float distance = distance_between_points(waypoints.back(),currentLocation);
-=======
             printf("\nskid %d\n", result.type);
             if (result.type == vectorDriving) {
                 //fastPID(.3,0,5,0);
@@ -200,10 +193,9 @@ Result DriveController::DoWork()
                 break;
             }
             else {
-                waypoints.back().theta = Utilities::angle_between_points(waypoints.back(), currentLocation);
-                float errorYaw = Utilities::difference_between_angles(currentLocation, waypoints.back());
-                float distance = Utilities::distance_between_points(waypoints.back(), currentLocation);
->>>>>>> SWAR-79
+                waypoints.back().theta = angle_between_points(waypoints.back(), currentLocation);
+                float errorYaw = difference_between_angles(currentLocation, waypoints.back());
+                float distance = distance_between_points(waypoints.back(), currentLocation);
 
                 //cout << "Skid steer, Error yaw:  " << errorYaw << " target heading : " << waypoints.back().theta << " current heading : " << currentLocation.theta << " error distance : " << distance << endl; //DEBUGGING CODE
                 //cout << "Waypoint x : " << waypoints.back().x << " y : " << waypoints.back().y << " currentLoc x : " << currentLocation.x << " y : " << currentLocation.y << endl; //DEBUGGING CODE
@@ -462,17 +454,9 @@ void DriveController::outputValidation(float velOut, float yawOut) {
 
     //prevent combine output from going over tihs value
     int sat = 180;
-<<<<<<< HEAD
-    
-    this->left = saturation_check(left,sat);
-    this->left = saturation_check(left,sat);
-    this->right = saturation_check(right,sat);
-    this->right = saturation_check(right,sat);
-=======
 
-    this->left = Utilities::saturation_check(left,sat);
-    this->right = Utilities::saturation_check(right,sat);
+    this->left = saturation_check(left,sat);
+    this->right = saturation_check(right,sat);
     printf("left %f\n", this->left);
     printf("right %f\n", this->right);
->>>>>>> SWAR-79
 }

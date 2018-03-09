@@ -165,11 +165,14 @@ Result ObstacleController::DoWork() {
             result.type = vectorDriving;
         //result.desired_heading = currentLocation.theta;
         result.PIDMode = FAST_PID; //use fast pid for waypoints
-        Point forward;            //waypoint is directly ahead of current heading
-        forward.x = currentLocation.x + (0.5 * cos(currentLocation.theta));
-        forward.y = currentLocation.y + (0.5 * sin(currentLocation.theta));
-        result.waypoints.clear();
-        result.waypoints.push_back(forward);
+
+        Point lastLocation = GetLastCubeLocation();            //waypoint is directly ahead of current heading
+        if (lastLocation.x != 0 && lastLocation.y != 0) {
+            result.type = waypoint;
+            result.waypoints.clear();
+            result.waypoints.push_back(lastLocation);
+        }
+
     }
 
     return result;

@@ -65,12 +65,6 @@ Result LogicController::DoWork() {
 
             //Reset the control queue
             control_queue = priority_queue<PrioritizedController>();
-<<<<<<< HEAD
-
-
-=======
-            
->>>>>>> SWAR-79
             //check what controllers have work to do all that say yes will be added to the priority queue.
             for (PrioritizedController cntrlr : prioritizedControllers) {
                 if (cntrlr.controller->HasWork()) {
@@ -93,7 +87,6 @@ Result LogicController::DoWork() {
             }
 
             //take the top member of the priority queue and run their do work function.
-            printf("before pop logic\n");
             result = control_queue.top().controller->DoWork();
             printf("after pop logic %d\n",result.type);
             //anaylyze the result that was returned and do state changes accordingly
