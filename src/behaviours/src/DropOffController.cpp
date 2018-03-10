@@ -35,6 +35,8 @@ DropOffController::DropOffController() {
     alternateDeliver = false;
     homeFound = false;
     startDeliverTimer = false;
+    noLeft = false;
+    noRight = false;
 
 }
 
@@ -141,15 +143,36 @@ bool DropOffController::Align()
     //still need to add condition where yaw is +-1.5
     if(tagYaw >= 0.07)// turn right
     {
-        result.pd.cmdAngular = 0.7;
-        result.pd.cmdAngularError = -0.12;
-        dropOffMessage(ClassName, "Align right");
+//        if(countCenter <= 1)
+//        {
+//            noRight = true;
+//            result.pd.cmdAngular = 0;
+//            result.pd.cmdAngularError = 0;
+//            dropOffMessage(ClassName, "Align- Lost center Tags right");
+//        }
+//        else
+//        {
+            result.pd.cmdAngular = 0.7;
+            result.pd.cmdAngularError = -0.12;
+            dropOffMessage(ClassName, "Align right");
+//        }
+
     }
     else if(tagYaw <= -0.07)//turn left
     {
-        result.pd.cmdAngular = 0.7;
-        result.pd.cmdAngularError = 0.12;
-        dropOffMessage(ClassName, "Align left");
+//        if(countCenter <= 1)
+//        {
+//            noLeft = true;
+//            result.pd.cmdAngular = 0;
+//            result.pd.cmdAngularError = 0;
+//            dropOffMessage(ClassName, "Align- Lost center Tags left");
+//        }
+//        else
+//        {
+            result.pd.cmdAngular = 0.7;
+            result.pd.cmdAngularError = 0.12;
+            dropOffMessage(ClassName, "Align left");
+//        }
     }
 
     if((tagYaw > -0.06 && tagYaw < 0.08)) {
@@ -172,7 +195,7 @@ void DropOffController::DeliverCube()
 
     if(countCenter <= 0)
     {
-        if(timerTimeElapsed - deliverTimer >= 2)
+        if(timerTimeElapsed - deliverTimer >= deliveryTimeThreshold)
         {
             result.pd.cmdVel = 0.0;
             result.pd.cmdAngularError = 0.0;
