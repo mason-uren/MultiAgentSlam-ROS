@@ -61,7 +61,6 @@ private:
     void SearchForHome();
     void DeliverCube();
     void BackUp();
-    void ReAlign();
     void AltDeliver();
 
     /**
@@ -102,6 +101,7 @@ private:
     bool alternateDeliver;
     bool edgeCase;
     bool homeFound; //to prevent going into waypoint or home search during delivery
+    bool startDeliverTimer; //trigger for starting delivery timer
 
     //Instance Variables
 
@@ -142,8 +142,7 @@ private:
     //Time since modeTimer was started, in seconds
     float timerTimeElapsed;
 
-    float alignTimer;
-    float realignTimer;
+    float deliverTimer;
 
     //The amount over initialSpinSize we've gotten to
     float spinSizeIncrease;
