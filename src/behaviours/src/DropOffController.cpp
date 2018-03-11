@@ -39,7 +39,8 @@ DropOffController::DropOffController() {
     startDeliverTimer = false;
     noLeft = false;
     noRight = false;
-    altAlign = false;
+    altAlignCorner = false;
+    altAlignEdge = false;
 
 }
 
@@ -70,9 +71,10 @@ Result DropOffController::DoWork() {
         // Check if we have backed far enough away from the dropoff zone
         bool clearOfCircle = timerTimeElapsed > minimumBackupThreshold
                              && closestTagDistance > centerClearedDistanceThreshold;
-        logicMessage(current_time, ClassName, "reached collection point");
+        dropOffMessage(ClassName, "reached collection point");
 
         if (clearOfCircle) {
+            dropOffMessage(ClassName, "clear of circle");
             if (finalInterrupt) {
                 result.type = behavior;
                 result.behaviourType = nextProcess;
@@ -84,7 +86,7 @@ Result DropOffController::DoWork() {
                 finalInterrupt = true;
             }
         } else if (timerTimeElapsed >= 0.1) {
-
+            dropOffMessage(ClassName, "about to call Backup()");
             BackUp();
         }
 
@@ -111,10 +113,6 @@ Result DropOffController::DoWork() {
     else if(isAligned)
     {
         DeliverCube();
-    }
-    else if(altAlign)
-    {
-        altAlign = false;
     }
     else if(centerSeen)
     {
@@ -143,53 +141,120 @@ void DropOffController::Align()
 {
     dropOffMessage(ClassName, __func__);
     //still need to add condition where yaw is +-1.5
-    if(tagYaw >= 0.07)// turn right
+    if(altAlignEdge)
     {
-        result.pd.cmdAngular = 0.7;
-        result.pd.cmdAngularError = -0.12;
-        alignAngleSumRight += -0.12;
-        dropOffMessage(ClassName, "Align right");
-
-        if(abs(alignAngleSumRight) >= 0.48 && countCenter == 0)
+        dropOffMessage(ClassName, "Aligned edge");
+        if(abs(tagYaw) > 1.6)// turn right
         {
-            dropOffMessage(ClassName, "Align no right tags");
-            noRight = true;
+            result.pd.cmdAngular = 0.7;
+            result.pd.cmdAngularError = -0.12;
+            alignAngleSumRight += -0.12;
+            dropOffMessage(ClassName, "Align edge right");
         }
-        else
+        else if(abs(tagYaw) < 1.4)//turn left
         {
-            noRight = false;
+            result.pd.cmdAngular = 0.7;
+            result.pd.cmdAngularError = 0.12;
+            alignAngleSumLeft += 0.12;
+            dropOffMessage(ClassName, "Align edge left");
+        }
+
+        if((abs(tagYaw) >= 1.4 && abs(tagYaw) <= 1.6)) {
+            result.pd.cmdAngular = 0.0;
+            prevYaw = tagYaw;
+            isAligned = true;
+            alignAngleSumLeft = 0;
+            alignAngleSumRight = 0;
+        }
+        else if(abs(alignAngleSumRight) > 2.2 || alignAngleSumLeft > 2.2 || (alignAngleSumLeft + abs(alignAngleSumRight)) > 4.0)
+        {
+            dropOffMessage(ClassName, "Aligned dead end");
+            altAlignEdge = false;
+            altAlignCorner = false;
+            alignAngleSumLeft = 0;
+            alignAngleSumRight = 0;
         }
     }
-    else if(tagYaw <= -0.07)//turn left
+    else if(altAlignCorner)
     {
-        result.pd.cmdAngular = 0.7;
-        result.pd.cmdAngularError = 0.12;
-        alignAngleSumLeft += 0.12;
-        dropOffMessage(ClassName, "Align left");
-
-        if(alignAngleSumLeft >= 0.35 && countCenter == 0)
+        dropOffMessage(ClassName, "Aligned corner");
+        if(abs(tagYaw) < 0.4)// turn right
         {
-            dropOffMessage(ClassName, "Align no left tags");
-            noLeft = true;
+            result.pd.cmdAngular = 0.7;
+            result.pd.cmdAngularError = -0.12;
+            alignAngleSumRight += -0.12;
+            dropOffMessage(ClassName, "Align corner right");
         }
-        else
+        else if(abs(tagYaw) > 0.6)//turn left
         {
-            noLeft = false;
+            result.pd.cmdAngular = 0.7;
+            result.pd.cmdAngularError = 0.12;
+            alignAngleSumLeft += 0.12;
+            dropOffMessage(ClassName, "Align corner left");
         }
 
+        if((abs(tagYaw) <= 0.6 && abs(tagYaw) >= 0.4)) {
+            result.pd.cmdAngular = 0.0;
+            prevYaw = tagYaw;
+            isAligned = true;
+            alignAngleSumLeft = 0;
+            alignAngleSumRight = 0;
+        }
+        else if(abs(alignAngleSumRight) > 2.2 || alignAngleSumLeft > 2.2 || (alignAngleSumLeft + abs(alignAngleSumRight)) > 4.0)
+        {
+            dropOffMessage(ClassName, "Aligned failed, time for something else");
+            altAlignEdge = true;
+            alignAngleSumLeft = 0;
+            alignAngleSumRight = 0;
+        }
     }
-
-    if((tagYaw > -0.06 && tagYaw < 0.08)) {
-        result.pd.cmdAngular = 0.0;
-        prevYaw = tagYaw;
-        isAligned = true;
-        alignAngleSumLeft = 0;
-        alignAngleSumRight = 0;
-    }
-    else if(abs(alignAngleSumRight) > 2.35 || alignAngleSumLeft > 2.35 || (alignAngleSumLeft + abs(alignAngleSumRight)) > 6.28)
+    else
     {
-        dropOffMessage(ClassName, "Aligned failed, time for something else");
-        altAlign = true;
+        if (tagYaw >= 0.07)// turn right
+        {
+            result.pd.cmdAngular = 0.7;
+            result.pd.cmdAngularError = -0.12;
+            alignAngleSumRight += -0.12;
+            dropOffMessage(ClassName, "Align right");
+
+            if (abs(alignAngleSumRight) >= 0.48 && countCenter == 0) {
+                dropOffMessage(ClassName, "Align no right tags");
+                noRight = true;
+            } else {
+                noRight = false;
+            }
+        } else if (tagYaw <= -0.07)//turn left
+        {
+            result.pd.cmdAngular = 0.7;
+            result.pd.cmdAngularError = 0.12;
+            alignAngleSumLeft += 0.12;
+            dropOffMessage(ClassName, "Align left");
+
+            if (alignAngleSumLeft >= 0.35 && countCenter == 0) {
+                dropOffMessage(ClassName, "Align no left tags");
+                noLeft = true;
+            } else {
+                noLeft = false;
+            }
+
+        }
+
+        if ((tagYaw > -0.06 && tagYaw < 0.08)) {
+            result.pd.cmdAngular = 0.0;
+            prevYaw = tagYaw;
+            isAligned = true;
+            alignAngleSumLeft = 0;
+            alignAngleSumRight = 0;
+        }
+        else if ((abs(alignAngleSumRight) > 3 || alignAngleSumLeft > 3 ||(alignAngleSumLeft + abs(alignAngleSumRight)) > 5)) {
+            dropOffMessage(ClassName, "Aligned failed, time for something else");
+            if(tagYaw > -0.2 && tagYaw > 0.2)
+            {
+                altAlignCorner = true;
+            }
+            alignAngleSumLeft = 0;
+            alignAngleSumRight = 0;
+        }
     }
 }
 
@@ -198,16 +263,18 @@ void DropOffController::Align()
 void DropOffController::DeliverCube()
 {
     dropOffMessage(ClassName, __func__);
-    if(startDeliverTimer)
-    {
-        deliverTimer = timerTimeElapsed;
-        startDeliverTimer = false;
-    }
 
     if(countCenter <= 0)
     {
-        if(timerTimeElapsed - deliverTimer >= deliveryTimeThreshold)
+        dropOffMessage(ClassName, "Deliver - no tags seen");
+        if(startDeliverTimer)
         {
+            deliverTimer = timerTimeElapsed;
+            startDeliverTimer = false;
+        }
+        else if(timerTimeElapsed - deliverTimer >= deliveryTimeThreshold)
+        {
+            dropOffMessage(ClassName, "Deliver - time up");
             result.pd.cmdVel = 0.0;
             result.pd.cmdAngularError = 0.0;
             reachedCollectionPoint = true; //will trigger releasing cube and backing out
@@ -215,35 +282,37 @@ void DropOffController::DeliverCube()
         }
         else
         {
+            dropOffMessage(ClassName, "Deliver - drive forward but no tags seen");
             result.pd.cmdVel = 0.2;
             result.pd.cmdAngularError = 0.0;
         }
     }
+    else if((abs(centerYaw) - abs(prevYaw) > 0.75 || abs(centerYaw) - abs(prevYaw) < -0.75))
+    {
+        dropOffMessage(ClassName, "Deliver - seen funky tags. sending to altDeliver");
+        alternateDeliver = true;
+    }
     else//while tags are still seen
     {
+        dropOffMessage(ClassName, "Deliver - drive forward");
         result.pd.cmdVel = 0.2;
         result.pd.cmdAngularError = 0.0;
-    }
-
-    if(abs(centerYaw) - prevYaw > 0.5 || abs(centerYaw) - prevYaw < -0.5)
-    {
-        alternateDeliver = true;
     }
 }
 
 void DropOffController::AltDeliver()
 {
     dropOffMessage(ClassName, __func__);
-    if(centerYaw >= 0 && tagCount > 0) //rotate right
+    if((centerYaw >= 0 || countRight <= 1) && tagCount > 0) //rotate right
     {
         result.pd.cmdVel = 0;
         result.pd.cmdAngular = 0.7;
-        result.pd.cmdAngularError = -0.07;
+        result.pd.cmdAngularError = -0.12;
     }
-    else if(centerYaw < 0 && tagCount > 0) //rotate left
+    else if((centerYaw < 0 || countLeft <= 1) && tagCount > 0) //rotate left
     {
         result.pd.cmdVel = 0.0;
-        result.pd.cmdAngular = 0.7;
+        result.pd.cmdAngular = 0.12;
         result.pd.cmdAngularError = 0.07;
     }
     else
@@ -266,6 +335,7 @@ void DropOffController::BackUp()
 {
     logicMessage(current_time, ClassName, __func__);
     logMessage(current_time, ClassName, "Resource released and exiting home");
+    dropOffMessage(ClassName, __func__);
 
     isPrecisionDriving = true;
     result.type = precisionDriving;
@@ -364,7 +434,8 @@ void DropOffController::Reset() {
     alternateDeliver = false;
     homeFound = false;
     startDeliverTimer = false;
-    altAlign = false;
+    altAlignCorner = false;
+    altAlignEdge = false;
 }
 
 void DropOffController::SetTargetData(vector<Tag> tags) {

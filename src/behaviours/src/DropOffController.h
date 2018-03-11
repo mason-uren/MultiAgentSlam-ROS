@@ -90,7 +90,7 @@ private:
     const float dropDelay = 0.5; //delay in seconds for dropOff
     const double centerClearedDistanceThreshold = .25; // Distance we must be from the center to consider it cleared
     const double minimumBackupThreshold = 2; // Minimum time to spend backing up
-    const double deliveryTimeThreshold = 2; //Amount of time to drive forward after no tags are seen
+    const double deliveryTimeThreshold = 0.4; //Amount of time to drive forward after no tags are seen
 
     //New globals
     double tagYaw; //yaw of closest tag
@@ -107,7 +107,8 @@ private:
     bool startDeliverTimer; //trigger for starting delivery timer
     bool noLeft; //triggers AltAlignmentTagCheck
     bool noRight; //triggers AltAlignmentTagCheck
-    bool altAlign;
+    bool altAlignEdge;
+    bool altAlignCorner;
 
     //Instance Variables
 
