@@ -21,6 +21,8 @@ DropOffController::DropOffController() {
     countRight = 0;
     countCenter = 0;
     tagCount = 0; //total home tag count
+    alignAngleSumLeft = 0;
+    alignAngleSumRight = 0;
 
     isPrecisionDriving = false;
     startWaypoint = false;
@@ -37,6 +39,7 @@ DropOffController::DropOffController() {
     startDeliverTimer = false;
     noLeft = false;
     noRight = false;
+    altAlign = false;
 
 }
 
@@ -51,6 +54,9 @@ Result DropOffController::DoWork() {
 
     logicMessage(current_time, ClassName, __func__);
 
+    bool centerSeen = tagCount > 0;
+    double distanceToCenter = Utilities::distance_between_points(centerLocation, currentLocation);
+
     //Starts the timer
     if (timerTimeElapsed > -1) {
         long int elapsed = current_time - returnTimer;
@@ -64,6 +70,7 @@ Result DropOffController::DoWork() {
         // Check if we have backed far enough away from the dropoff zone
         bool clearOfCircle = timerTimeElapsed > minimumBackupThreshold
                              && closestTagDistance > centerClearedDistanceThreshold;
+        logicMessage(current_time, ClassName, "reached collection point");
 
         if (clearOfCircle) {
             if (finalInterrupt) {
@@ -84,8 +91,6 @@ Result DropOffController::DoWork() {
         return result;
     }
 
-    double distanceToCenter = Utilities::distance_between_points(centerLocation, currentLocation);
-
     //check to see if we are driving to the center location or if we need to drive in a circle and look.
     if (distanceToCenter > collectionPointVisualDistance && !circularCenterSearching && (tagCount == 0) && !homeFound) {
 
@@ -99,21 +104,18 @@ Result DropOffController::DoWork() {
         SearchForHome(); //currently spin search
     }
 
-    bool centerSeen = tagCount > 0;
-
     if(alternateDeliver)
     {
         AltDeliver();
-    }
-    else if(edgeCase) //currently never gets called
-    {
-
     }
     else if(isAligned)
     {
         DeliverCube();
     }
-
+    else if(altAlign)
+    {
+        altAlign = false;
+    }
     else if(centerSeen)
     {
 
@@ -122,15 +124,14 @@ Result DropOffController::DoWork() {
             result.type = behavior;
             result.reset = false;
             result.behaviourType = nextProcess;
-            return result;
         }
+        else {
+            result.type = precisionDriving;
+            homeFound = true;
 
-        result.type = precisionDriving;
-        homeFound = true;
-
-        if(!isAligned)
-        {
-            isAligned = Align();
+            if (!isAligned) {
+                Align();
+            }
         }
     }
 
@@ -138,55 +139,65 @@ Result DropOffController::DoWork() {
 }
 
 //Rotates bot to better align with home tags
-bool DropOffController::Align()
+void DropOffController::Align()
 {
+    dropOffMessage(ClassName, __func__);
     //still need to add condition where yaw is +-1.5
     if(tagYaw >= 0.07)// turn right
     {
-//        if(countCenter <= 1)
-//        {
-//            noRight = true;
-//            result.pd.cmdAngular = 0;
-//            result.pd.cmdAngularError = 0;
-//            dropOffMessage(ClassName, "Align- Lost center Tags right");
-//        }
-//        else
-//        {
-            result.pd.cmdAngular = 0.7;
-            result.pd.cmdAngularError = -0.12;
-            dropOffMessage(ClassName, "Align right");
-//        }
+        result.pd.cmdAngular = 0.7;
+        result.pd.cmdAngularError = -0.12;
+        alignAngleSumRight += -0.12;
+        dropOffMessage(ClassName, "Align right");
 
+        if(abs(alignAngleSumRight) >= 0.48 && countCenter == 0)
+        {
+            dropOffMessage(ClassName, "Align no right tags");
+            noRight = true;
+        }
+        else
+        {
+            noRight = false;
+        }
     }
     else if(tagYaw <= -0.07)//turn left
     {
-//        if(countCenter <= 1)
-//        {
-//            noLeft = true;
-//            result.pd.cmdAngular = 0;
-//            result.pd.cmdAngularError = 0;
-//            dropOffMessage(ClassName, "Align- Lost center Tags left");
-//        }
-//        else
-//        {
-            result.pd.cmdAngular = 0.7;
-            result.pd.cmdAngularError = 0.12;
-            dropOffMessage(ClassName, "Align left");
-//        }
+        result.pd.cmdAngular = 0.7;
+        result.pd.cmdAngularError = 0.12;
+        alignAngleSumLeft += 0.12;
+        dropOffMessage(ClassName, "Align left");
+
+        if(alignAngleSumLeft >= 0.35 && countCenter == 0)
+        {
+            dropOffMessage(ClassName, "Align no left tags");
+            noLeft = true;
+        }
+        else
+        {
+            noLeft = false;
+        }
+
     }
 
     if((tagYaw > -0.06 && tagYaw < 0.08)) {
         result.pd.cmdAngular = 0.0;
-        return true;
+        prevYaw = tagYaw;
+        isAligned = true;
+        alignAngleSumLeft = 0;
+        alignAngleSumRight = 0;
     }
-
-    return false;
+    else if(abs(alignAngleSumRight) > 2.35 || alignAngleSumLeft > 2.35 || (alignAngleSumLeft + abs(alignAngleSumRight)) > 6.28)
+    {
+        dropOffMessage(ClassName, "Aligned failed, time for something else");
+        altAlign = true;
+    }
 }
 
 //drives forward until no tags seen
 //sets reachedCollectionPoint which triggers next action
 void DropOffController::DeliverCube()
 {
+    dropOffMessage(ClassName, __func__);
     if(startDeliverTimer)
     {
         deliverTimer = timerTimeElapsed;
@@ -210,12 +221,11 @@ void DropOffController::DeliverCube()
     }
     else//while tags are still seen
     {
-        dropOffMessage(ClassName, __func__);
         result.pd.cmdVel = 0.2;
         result.pd.cmdAngularError = 0.0;
     }
 
-    if(abs(centerYaw) > 1.0)
+    if(abs(centerYaw) - prevYaw > 0.5 || abs(centerYaw) - prevYaw < -0.5)
     {
         alternateDeliver = true;
     }
@@ -241,7 +251,7 @@ void DropOffController::AltDeliver()
         result.pd.cmdAngular = 0.0;
         result.pd.cmdAngularError = 0.0;
         reachedCollectionPoint = true;
-        alternateDeliver = false;
+        //alternateDeliver = false;
     }
 }
 
@@ -333,6 +343,9 @@ void DropOffController::Reset() {
     closestTagDistance = 0;
     tagCount = 0;
 
+    alignAngleSumLeft = 0;
+    alignAngleSumRight = 0;
+
     //reset flags
     reachedCollectionPoint = false;
     seenEnoughCenterTags = false;
@@ -351,6 +364,7 @@ void DropOffController::Reset() {
     alternateDeliver = false;
     homeFound = false;
     startDeliverTimer = false;
+    altAlign = false;
 }
 
 void DropOffController::SetTargetData(vector<Tag> tags) {

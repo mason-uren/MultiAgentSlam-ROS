@@ -55,7 +55,7 @@ public:
 private:
 
     void ProcessData();
-    bool Align();
+    void Align();
     void DropCube();
     void WaypointNav();
     void SearchForHome();
@@ -96,6 +96,8 @@ private:
     double tagYaw; //yaw of closest tag
     double prevYaw;
     double centerYaw;
+    double alignAngleSumLeft;
+    double alignAngleSumRight;
     bool isAligned; //aligned to tag based on 0 orientation of home tag yaw
     bool firstAlign;
     bool firstReAlign;
@@ -105,6 +107,7 @@ private:
     bool startDeliverTimer; //trigger for starting delivery timer
     bool noLeft; //triggers AltAlignmentTagCheck
     bool noRight; //triggers AltAlignmentTagCheck
+    bool altAlign;
 
     //Instance Variables
 
