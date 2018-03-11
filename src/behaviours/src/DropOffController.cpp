@@ -85,7 +85,8 @@ Result DropOffController::DoWork() {
                 logMessage(current_time, "DROPOFF", "Clear of circle, entering final interrupt");
                 finalInterrupt = true;
             }
-        } else if (timerTimeElapsed >= 0.1) {
+        } else// if (timerTimeElapsed >= 0.1)
+        {
             dropOffMessage(ClassName, "about to call Backup()");
             BackUp();
         }
@@ -305,21 +306,22 @@ void DropOffController::AltDeliver()
     dropOffMessage(ClassName, __func__);
     if((centerYaw >= 0 || countRight <= 1) && tagCount > 0) //rotate right
     {
-        result.pd.cmdVel = 0;
+        result.pd.cmdVel = 0.1;
         result.pd.cmdAngular = 0.7;
         result.pd.cmdAngularError = -0.12;
     }
     else if((centerYaw < 0 || countLeft <= 1) && tagCount > 0) //rotate left
     {
-        result.pd.cmdVel = 0.0;
-        result.pd.cmdAngular = 0.12;
-        result.pd.cmdAngularError = 0.07;
+        result.pd.cmdVel = 0.1;
+        result.pd.cmdAngular = 0.7;
+        result.pd.cmdAngularError = 0.12;
     }
     else
     {
         result.pd.cmdAngular = 0.0;
         result.pd.cmdAngularError = 0.0;
         reachedCollectionPoint = true;
+        returnTimer = current_time;
         //alternateDeliver = false;
     }
 }
