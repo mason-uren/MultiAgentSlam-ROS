@@ -136,11 +136,11 @@ Result ObstacleController::DoWork() {
          * The obstacle is an april tag marking the collection zone
          * HOME retains highest priority since it is checked first
          */
-        std::cout << "Do Work. Detections is " << this->detection_declaration << std::endl;
         /*
          * When the rover is not holding a cube, reflect off of obstacles
          */
         if (!targetHeld) {
+            std::cout << "Do Work. Detections is " << this->detection_declaration << std::endl;
             if (this->detection_declaration == HOME) {
                 avoidCollectionZone();
             } else {
@@ -151,6 +151,7 @@ Result ObstacleController::DoWork() {
          * When the rover is holding a cube, traverse obstacles
          */
         else {
+            std::cout << "Holding Cube" << std::endl;
             std::cout << "Begin traversal" << std::endl;
             this->traversal();
         }
@@ -339,6 +340,7 @@ void ObstacleController::ProcessData() {
     }
 
     // Set flow control variables
+    std::cout << "Detection Dec: " << this->detection_declaration << std::endl;
     if (this->reflection.should_start) {
         if (this->detection_declaration != NO_OBSTACLE) {
             phys = true;
@@ -375,7 +377,9 @@ void ObstacleController::ProcessData() {
 // top of the AprilTag is pointing towards the rover or away.
 // If the top of the tags are away from the rover then treat them as obstacles.
 void ObstacleController::setTagData(vector <Tag> tags) {
+    std::cout << "Inside setTageData()" << std::endl;
     if (!collection_zone_seen) {
+        std::cout << "Collection zone not seen" << std::endl;
         count_left_collection_zone_tags = 0;
         count_right_collection_zone_tags = 0;
         x_home_tag_orientation = 0; // Todo:
@@ -519,9 +523,10 @@ void ObstacleController::reflect(std::vector<double> bounds) {
      */
     else if (this->reflection.reflect_angle <= EXIT_ROTATE) {
         this->reflection.should_end = true;
+
     }
     /*
-     * Subtract off the amount rotated 
+     * Subtract off the amount rotated
      */
     else {
         // Monitor how far the rover has turned in relation to its desired heading

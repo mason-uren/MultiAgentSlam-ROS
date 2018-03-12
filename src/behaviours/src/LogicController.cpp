@@ -324,6 +324,7 @@ void LogicController::SetMapVelocityData(float linearVelocity, float angularVelo
 void LogicController::SetAprilTags(vector <Tag> tags) {
     pickUpController.SetTagData(tags);
     obstacleController.setTagData(tags);
+    std::cout << "After setTagData() call in SetAprilTags()" << std::endl;
     dropOffController.SetTargetData(tags);
 }
 
