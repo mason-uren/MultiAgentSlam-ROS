@@ -27,6 +27,8 @@ DropOffController::DropOffController() {
     isPrecisionDriving = false;
     startWaypoint = false;
     timerTimeElapsed = -1;
+    alignTimer = -1;
+    realignTimer = -1;
     deliverTimer = -1;
 
     //new globals
@@ -69,8 +71,8 @@ Result DropOffController::DoWork() {
     if (reachedCollectionPoint) {
 
         // Check if we have backed far enough away from the dropoff zone
-        bool clearOfCircle = timerTimeElapsed > minimumBackupThreshold
-                             && closestTagDistance > centerClearedDistanceThreshold;
+        bool clearOfCircle = timerTimeElapsed > minimumBackupThreshold && tagCount == 0;
+//                             && closestTagDistance > centerClearedDistanceThreshold;
         dropOffMessage(ClassName, "reached collection point");
 
         if (clearOfCircle) {
@@ -85,7 +87,7 @@ Result DropOffController::DoWork() {
                 logMessage(current_time, "DROPOFF", "Clear of circle, entering final interrupt");
                 finalInterrupt = true;
             }
-        } else// if (timerTimeElapsed >= 0.1)
+        } else if (timerTimeElapsed >= 0.1)
         {
             dropOffMessage(ClassName, "about to call Backup()");
             BackUp();
@@ -123,14 +125,16 @@ Result DropOffController::DoWork() {
             result.type = behavior;
             result.reset = false;
             result.behaviourType = nextProcess;
+            cout << "STEP 1: Weird mystery code" << endl;
+            return result;
         }
-        else {
-            result.type = precisionDriving;
-            homeFound = true;
 
-            if (!isAligned) {
-                Align();
-            }
+        result.type = precisionDriving;
+        homeFound = true;
+
+        if (!isAligned)
+        {
+            Align();
         }
     }
 
@@ -141,122 +145,97 @@ Result DropOffController::DoWork() {
 void DropOffController::Align()
 {
     dropOffMessage(ClassName, __func__);
-    //still need to add condition where yaw is +-1.5
-    if(altAlignEdge)
-    {
-        dropOffMessage(ClassName, "Aligned edge");
-        if(abs(tagYaw) > 1.6)// turn right
-        {
-            result.pd.cmdAngular = 0.7;
-            result.pd.cmdAngularError = -0.12;
-            alignAngleSumRight += -0.12;
-            dropOffMessage(ClassName, "Align edge right");
-        }
-        else if(abs(tagYaw) < 1.4)//turn left
-        {
-            result.pd.cmdAngular = 0.7;
-            result.pd.cmdAngularError = 0.12;
-            alignAngleSumLeft += 0.12;
-            dropOffMessage(ClassName, "Align edge left");
-        }
 
-        if((abs(tagYaw) >= 1.4 && abs(tagYaw) <= 1.6)) {
-            result.pd.cmdAngular = 0.0;
-            prevYaw = tagYaw;
-            isAligned = true;
-            alignAngleSumLeft = 0;
-            alignAngleSumRight = 0;
-        }
-        else if(abs(alignAngleSumRight) > 2.2 || alignAngleSumLeft > 2.2 || (alignAngleSumLeft + abs(alignAngleSumRight)) > 4.0)
-        {
-            dropOffMessage(ClassName, "Aligned dead end");
-            altAlignEdge = false;
-            altAlignCorner = false;
-            alignAngleSumLeft = 0;
-            alignAngleSumRight = 0;
-        }
+    float blockDistanceFromCamera;
+
+    float blockYawError = 0.0;
+    // using a^2 + b^2 = c^2 to find the distance to the block
+    // 0.195 is the height of the camera lens above the ground in cm.
+    //
+    // a is the linear distance from the robot to the block, c is the
+    // distance from the camera lens, and b is the height of the
+    // camera above the ground.
+    blockDistanceFromCamera = hypot(hypot(average_center_tag.getPositionX(), average_center_tag.getPositionY()), average_center_tag.getPositionZ());
+
+
+    if ((blockDistanceFromCamera * blockDistanceFromCamera - 0.195 * 0.195) > 0) {
+        blockDistance = sqrt(blockDistanceFromCamera * blockDistanceFromCamera - 0.195 * 0.195);
+    } else {
+        float epsilon = 0.00001; // A small non-zero positive number
+        blockDistance = epsilon;
     }
-    else if(altAlignCorner)
+
+    blockYawError = atan((average_center_tag.getPositionX() + cameraOffsetCorrection) / blockDistance) * 1.05; //angle to block from bottom center of chassis on the horizontal.
+    // cout << average_center_tag.getPositionX() << endl;
+    if(abs(average_center_tag.getPositionX()) < 0.02)
     {
-        dropOffMessage(ClassName, "Aligned corner");
-        if(abs(tagYaw) < 0.4)// turn right
-        {
-            result.pd.cmdAngular = 0.7;
-            result.pd.cmdAngularError = -0.12;
-            alignAngleSumRight += -0.12;
-            dropOffMessage(ClassName, "Align corner right");
-        }
-        else if(abs(tagYaw) > 0.6)//turn left
-        {
-            result.pd.cmdAngular = 0.7;
-            result.pd.cmdAngularError = 0.12;
-            alignAngleSumLeft += 0.12;
-            dropOffMessage(ClassName, "Align corner left");
-        }
-
-        if((abs(tagYaw) <= 0.6 && abs(tagYaw) >= 0.4)) {
-            result.pd.cmdAngular = 0.0;
-            prevYaw = tagYaw;
-            isAligned = true;
-            alignAngleSumLeft = 0;
-            alignAngleSumRight = 0;
-        }
-        else if(abs(alignAngleSumRight) > 2.2 || alignAngleSumLeft > 2.2 || (alignAngleSumLeft + abs(alignAngleSumRight)) > 4.0)
-        {
-            dropOffMessage(ClassName, "Aligned failed, time for something else");
-            altAlignEdge = true;
-            alignAngleSumLeft = 0;
-            alignAngleSumRight = 0;
-        }
+        cout << "STEP2: Stopping Rotation." << endl;
+        startDeliveryTime = current_time;
+        result.type = precisionDriving;
+        result.pd.cmdVel = 0.00;
+        result.pd.cmdAngular = 0.0;
+        result.pd.cmdAngularError = 0.0;
+        // result.pd.cmdAngular = -200*average_center_tag.getPositionX();
+        result.pd.setPointVel = 0.0;
+        result.pd.setPointYaw = 0.0;
+        prevYaw = tagYaw;
+        isAligned = true;
     }
-    else
-    {
-        if (tagYaw >= 0.07)// turn right
-        {
-            result.pd.cmdAngular = 0.7;
-            result.pd.cmdAngularError = -0.12;
-            alignAngleSumRight += -0.12;
-            dropOffMessage(ClassName, "Align right");
+    result.type = precisionDriving;
+    result.pd.cmdVel = 0.10;
+    result.pd.cmdAngular = 0.0;
+    result.pd.cmdAngularError = -2.0*average_center_tag.getPositionX();
+    // result.pd.cmdAngular = -200*average_center_tag.getPositionX();
+    result.pd.setPointVel = 0.0;
+    result.pd.setPointYaw = 0.0;
 
-            if (abs(alignAngleSumRight) >= 0.48 && countCenter == 0) {
-                dropOffMessage(ClassName, "Align no right tags");
-                noRight = true;
-            } else {
-                noRight = false;
-            }
-        } else if (tagYaw <= -0.07)//turn left
-        {
-            result.pd.cmdAngular = 0.7;
-            result.pd.cmdAngularError = 0.12;
-            alignAngleSumLeft += 0.12;
-            dropOffMessage(ClassName, "Align left");
 
-            if (alignAngleSumLeft >= 0.35 && countCenter == 0) {
-                dropOffMessage(ClassName, "Align no left tags");
-                noLeft = true;
-            } else {
-                noLeft = false;
-            }
 
-        }
-
-        if ((tagYaw > -0.06 && tagYaw < 0.08)) {
-            result.pd.cmdAngular = 0.0;
-            prevYaw = tagYaw;
-            isAligned = true;
-            alignAngleSumLeft = 0;
-            alignAngleSumRight = 0;
-        }
-        else if ((abs(alignAngleSumRight) > 3 || alignAngleSumLeft > 3 ||(alignAngleSumLeft + abs(alignAngleSumRight)) > 5)) {
-            dropOffMessage(ClassName, "Aligned failed, time for something else");
-            if(tagYaw > -0.2 && tagYaw > 0.2)
-            {
-                altAlignCorner = true;
-            }
-            alignAngleSumLeft = 0;
-            alignAngleSumRight = 0;
-        }
-    }
+//    if (tagYaw >= 0.07)// turn right
+//    {
+//        result.pd.cmdAngular = 0.7;
+//        result.pd.cmdAngularError = -0.12;
+//        alignAngleSumRight += -0.12;
+//        dropOffMessage(ClassName, "Align right");
+//
+//        if (abs(alignAngleSumRight) >= 0.48 && countCenter == 0) {
+//            dropOffMessage(ClassName, "Align no right tags");
+//            noRight = true;
+//        } else {
+//            noRight = false;
+//        }
+//    }
+//    else if (tagYaw <= -0.07)//turn left
+//    {
+//        result.pd.cmdAngular = 0.7;
+//        result.pd.cmdAngularError = 0.12;
+//        alignAngleSumLeft += 0.12;
+//        dropOffMessage(ClassName, "Align left");
+//
+//        if (alignAngleSumLeft >= 0.35 && countCenter == 0) {
+//            dropOffMessage(ClassName, "Align no left tags");
+//            noLeft = true;
+//        } else {
+//            noLeft = false;
+//        }
+//    }
+//
+//    if ((tagYaw > -0.06 && tagYaw < 0.08)) {
+//        result.pd.cmdAngular = 0.0;
+//        prevYaw = tagYaw;
+//        isAligned = true;
+//        alignAngleSumLeft = 0;
+//        alignAngleSumRight = 0;
+//    }
+//    else if ((abs(alignAngleSumRight) > 3 || alignAngleSumLeft > 3 ||(alignAngleSumLeft + abs(alignAngleSumRight)) > 5)) {
+//        dropOffMessage(ClassName, "Aligned failed, time for something else");
+//        if(tagYaw > -0.2 && tagYaw > 0.2)
+//        {
+//            altAlignCorner = true;
+//        }
+//        alignAngleSumLeft = 0;
+//        alignAngleSumRight = 0;
+//    }
 }
 
 //drives forward until no tags seen
@@ -265,39 +244,39 @@ void DropOffController::DeliverCube()
 {
     dropOffMessage(ClassName, __func__);
 
-    if(countCenter <= 0)
+    deliverTimer = (current_time - startDeliveryTime) / 1e3;
+    if(countCenter > 0) //while tags are still seen
     {
-        dropOffMessage(ClassName, "Deliver - no tags seen");
-        if(startDeliverTimer)
-        {
-            deliverTimer = timerTimeElapsed;
-            startDeliverTimer = false;
+        //cout << deliveryTimer << endl;
+        //cout << ((blockDistance+0.3)/0.2) << endl;
+        if(deliverTimer < ((blockDistance+0.3)/0.2)){
+            dropOffMessage(ClassName, __func__);
+            result.pd.cmdVel = 0.2;
+            result.pd.cmdAngularError = 0.0;
         }
-        else if(timerTimeElapsed - deliverTimer >= deliveryTimeThreshold)
+//        if((abs(centerYaw) - abs(prevYaw) > 0.75 || abs(centerYaw) - abs(prevYaw) < -0.75))
+//        {
+//            dropOffMessage(ClassName, "Deliver - seen funky tags. sending to altDeliver");
+//            cout << "STEP Plan B: Alternate deliver" << endl;
+//            alternateDeliver = true;
+//        }
+        else
         {
-            dropOffMessage(ClassName, "Deliver - time up");
             result.pd.cmdVel = 0.0;
             result.pd.cmdAngularError = 0.0;
             reachedCollectionPoint = true; //will trigger releasing cube and backing out
             returnTimer = current_time;
-        }
-        else
-        {
-            dropOffMessage(ClassName, "Deliver - drive forward but no tags seen");
-            result.pd.cmdVel = 0.2;
-            result.pd.cmdAngularError = 0.0;
+            cout << "STEP3: Delivering Cube and moved desired distance." << endl;
         }
     }
-    else if((abs(centerYaw) - abs(prevYaw) > 0.75 || abs(centerYaw) - abs(prevYaw) < -0.75))
+    else
     {
-        dropOffMessage(ClassName, "Deliver - seen funky tags. sending to altDeliver");
-        alternateDeliver = true;
-    }
-    else//while tags are still seen
-    {
-        dropOffMessage(ClassName, "Deliver - drive forward");
-        result.pd.cmdVel = 0.2;
+        dropOffMessage(ClassName, "deliver should stop");
+        result.pd.cmdVel = 0.0;
         result.pd.cmdAngularError = 0.0;
+        reachedCollectionPoint = true; //will trigger releasing cube and backing out
+        returnTimer = current_time;
+        cout << "STEP3: Delivering Cube and not longer see home tags." << endl;
     }
 }
 
@@ -322,7 +301,6 @@ void DropOffController::AltDeliver()
         result.pd.cmdAngularError = 0.0;
         reachedCollectionPoint = true;
         returnTimer = current_time;
-        //alternateDeliver = false;
     }
 }
 
@@ -395,6 +373,7 @@ void DropOffController::SearchForHome()
 
 void DropOffController::Reset() {
     dropOffMessage(ClassName, __func__);
+    cout << "STEP4: Dropoff Reset has been called." << endl;
     result.type = behavior;
     result.behaviourType = wait;
     result.pd.cmdVel = 0;
@@ -441,12 +420,16 @@ void DropOffController::Reset() {
 }
 
 void DropOffController::SetTargetData(vector<Tag> tags) {
+
     countRight = 0;
     countLeft = 0;
     countCenter = 0;
     tagCount = 0;
     double roll, pitch;
     double tagDistance;
+    float sum_x = 0.0;
+    float sum_y = 0.0;
+    float sum_z = 0.0;
 
     int closestIdx = getClosestCenterTagIdx(tags);
 
@@ -478,8 +461,14 @@ void DropOffController::SetTargetData(vector<Tag> tags) {
                 } else {
                     countLeft++;
                 }
+                sum_x = sum_x + tag.getPositionX();
+                sum_y = sum_y + tag.getPositionY();
+                sum_z = sum_z + tag.getPositionZ();
             }
         }
+        average_center_tag.setPositionX(sum_x / (countLeft + countRight + countCenter));
+        average_center_tag.setPositionY(sum_y / (countLeft + countRight + countCenter));
+        average_center_tag.setPositionZ(sum_z / (countLeft + countRight + countCenter));
     }
     tagCount = countLeft + countRight; //total home tags
     tagMessage(tags);

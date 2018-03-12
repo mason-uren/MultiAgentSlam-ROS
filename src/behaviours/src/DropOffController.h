@@ -89,7 +89,7 @@ private:
     const float searchVelocity = 0.15; //in meters per second
     const float dropDelay = 0.5; //delay in seconds for dropOff
     const double centerClearedDistanceThreshold = .25; // Distance we must be from the center to consider it cleared
-    const double minimumBackupThreshold = 2; // Minimum time to spend backing up
+    const double minimumBackupThreshold = 2.5; // Minimum time to spend backing up
     const double deliveryTimeThreshold = 0.4; //Amount of time to drive forward after no tags are seen
 
     //New globals
@@ -151,6 +151,9 @@ private:
 
     float deliverTimer;
 
+    float alignTimer;
+    float realignTimer;
+
     //The amount over initialSpinSize we've gotten to
     float spinSizeIncrease;
 
@@ -178,6 +181,11 @@ private:
 
     //Flag to indicate that we're starting to follow waypoints
     bool startWaypoint;
+
+    Tag average_center_tag;
+    float blockDistance;
+    float startDeliveryTime;
+    float deliveryTimer;
 
     Result result;
 
