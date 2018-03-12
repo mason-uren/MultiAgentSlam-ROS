@@ -88,7 +88,6 @@ Result LogicController::DoWork() {
 
             //take the top member of the priority queue and run their do work function.
             result = control_queue.top().controller->DoWork();
-            printf("after pop logic %d\n",result.type);
             //anaylyze the result that was returned and do state changes accordingly
             //behavior types are used to indicate behavior changes of some form
             if (result.type == behavior) {
