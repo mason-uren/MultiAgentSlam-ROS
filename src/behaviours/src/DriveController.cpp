@@ -61,6 +61,12 @@ Result DriveController::DoWork()
 
     } else if (result.type == waypoint) {
         //interpret input result as new waypoints to add into the queue
+        Point lastLocation = GetLastCubeLocation();
+        if (lastLocation.x == 0 && lastLocation.y == 0) //check if the waypoint was erased, and look around you
+        {
+            //add waypoints around you using theta%something or set a boolean lock so that it only happens once when a value for lastLocaiotn is set once
+            result.type = vectorDriving;
+        }
         ProcessData();
 
     } else if (result.type == vectorDriving) {
@@ -100,6 +106,7 @@ Result DriveController::DoWork()
                         searchLocation.y = 0;
                         SetLastCubeLocation(searchLocation);
                         cout << "drive line 102 close current and search were close " << endl;
+                        //add waypoints around location theta%something
                     }
                     waypoints.pop_back();
                 } else {
