@@ -13,7 +13,7 @@ extern void logicMessage(long int currentTime, string component, string message)
 
 class PickUpController : virtual Controller {
 public:
-    static const float CAMERA_OFFSET_CORRECTION = 0.023;
+    static constexpr float CAMERA_OFFSET_CORRECTION = 0.023;
 
     PickUpController();
 
