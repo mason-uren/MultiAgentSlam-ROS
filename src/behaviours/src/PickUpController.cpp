@@ -23,11 +23,12 @@ PickUpController::PickUpController() {
     result.fingerAngle = -1;
     result.wristAngle = -1;
     result.PIDMode = SLOW_PID;
+    this->controller = PICK_UP;
 }
 
 PickUpController::~PickUpController() { /*Destructor*/  }
 
-void PickUpController::SetTagData(vector <Tag> tags) {
+void PickUpController::SetTagData(vector<Tag> tags) {
 
     if (tags.size() > 0) {
 
@@ -49,17 +50,13 @@ void PickUpController::SetTagData(vector <Tag> tags) {
                 //absolute distance to block from camera lens
                 double test = hypot(hypot(tags[i].getPositionX(), tags[i].getPositionY()), tags[i].getPositionZ());
 
-        if (closest > test)
-        {
-          target = i;
-          closest = test;
-        }
-      }
-    else
-      {
-        // If the center is seen, then don't try to pick up the cube.
-        if(tags[i].getID() == 256)
-        {
+                if (closest > test) {
+                    target = i;
+                    closest = test;
+                }
+            } else {
+                // If the center is seen, then don't try to pick up the cube.
+                if (tags[i].getID() == 256) {
 
                     Reset();
 
@@ -75,13 +72,14 @@ void PickUpController::SetTagData(vector <Tag> tags) {
 
         float cameraOffsetCorrection = 0.023; //meters;
 
-    // using a^2 + b^2 = c^2 to find the distance to the block
-    // 0.195 is the height of the camera lens above the ground in cm.
-    //
-    // a is the linear distance from the robot to the block, c is the
-    // distance from the camera lens, and b is the height of the
-    // camera above the ground.
-    blockDistanceFromCamera = hypot(hypot(tags[target].getPositionX(), tags[target].getPositionY()), tags[target].getPositionZ());
+        // using a^2 + b^2 = c^2 to find the distance to the block
+        // 0.195 is the height of the camera lens above the ground in cm.
+        //
+        // a is the linear distance from the robot to the block, c is the
+        // distance from the camera lens, and b is the height of the
+        // camera above the ground.
+        blockDistanceFromCamera = hypot(hypot(tags[target].getPositionX(), tags[target].getPositionY()),
+                                        tags[target].getPositionZ());
 
         if ((blockDistanceFromCamera * blockDistanceFromCamera - 0.195 * 0.195) > 0) {
             blockDistance = sqrt(blockDistanceFromCamera * blockDistanceFromCamera - 0.195 * 0.195);

@@ -4,7 +4,9 @@
 #include <angles/angles.h> // for hypot()
 #include "Utilities.h"
 
-ManualWaypointController::ManualWaypointController() {}
+ManualWaypointController::ManualWaypointController() {
+  this->controller = MANUAL;
+}
 
 ManualWaypointController::~ManualWaypointController() {}
 

@@ -33,6 +33,19 @@ protected:
   //Looks at external data and determines if an interrupt must be thrown
   //or if the controller should be polled
   virtual void ProcessData() = 0;
+
+  /*
+   * TODO: correctly made enum that depicts current state
+   */
+  enum ControllerName {
+      SEARCH = 0,
+      PICK_UP,
+      DROP_OFF,
+      OBSTACLE,
+      MANUAL,
+      RANGE
+  };
+  ControllerName controller;
 };
 
 #endif // CONTROLLER_H

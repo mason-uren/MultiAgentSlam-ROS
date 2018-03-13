@@ -9,6 +9,11 @@ ObstacleController::ObstacleController() {
      */
     this->acceptDetections = true;
 
+    /*
+     * TODO: For testing purposes
+     */
+    this->controller = OBSTACLE;
+
     collection_zone_seen = false;
     obstacleAvoided = true;
     obstacleDetected = false;
@@ -42,6 +47,7 @@ ObstacleController::ObstacleController() {
 //note, not a full reset as this could cause a bad state
 //resets the interupt and knowledge of an obstacle or obstacle avoidance only.
 void ObstacleController::Reset() {
+    std::cout << "OBSTACLE CONTROLLER: reset" << std::endl;
     obstacleAvoided =  true;
     obstacleDetected = false;
     obstacleInterrupt = false;

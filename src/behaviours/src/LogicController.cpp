@@ -8,7 +8,6 @@ LogicController::LogicController() {
     ProcessData();
 
     control_queue = priority_queue<PrioritizedController>();
-
 }
 
 
@@ -51,7 +50,6 @@ Result LogicController::DoWork() {
         //when an interrupt has been thorwn or there are no pending control_queue.top().actions logic controller is in this state.
         case LOGIC_STATE_INTERRUPT: {
 
-
             if(loggerSwitch) {
                 // The previous state will be the previous line in the logger
                 message = "Logic State: Interupt ";
@@ -83,6 +81,11 @@ Result LogicController::DoWork() {
                 //default result state if someone has work this safe gaurds against faulty result types
                 result.behaviourType = noChange;
             }
+
+            /*
+             * TODO: always reset obstacle detection with each call to INTERUPT
+             */
+
 
             //take the top member of the priority queue and run their do work function.
             printf("before pop logic\n");

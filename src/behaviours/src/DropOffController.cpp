@@ -44,6 +44,8 @@ DropOffController::DropOffController() {
     altAlignCorner = false;
     altAlignEdge = false;
 
+    this->controller = DROP_OFF;
+
 }
 
 DropOffController::~DropOffController() {

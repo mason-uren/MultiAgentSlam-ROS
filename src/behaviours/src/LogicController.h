@@ -118,6 +118,8 @@ private:
         PROCESS_STATE_MANUAL // robot is under manual control
     };
 
+
+
     LogicState logicState;
     ProcessState processState;
 

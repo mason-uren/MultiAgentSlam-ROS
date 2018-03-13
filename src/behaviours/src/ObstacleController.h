@@ -136,6 +136,8 @@ protected:
 
     void resetDetections(DELAY_TYPE);
 
+    void onExit();
+
 private:
 
     // Try not to run over the collection zone

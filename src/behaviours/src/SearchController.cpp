@@ -15,6 +15,11 @@ SearchController::SearchController() {
 
     result.fingerAngle = M_PI / 2;
     result.wristAngle = M_PI / 4;
+
+    /*
+     * TODO:
+     */
+    this->controller = SEARCH;
 }
 
 void SearchController::Reset() {
