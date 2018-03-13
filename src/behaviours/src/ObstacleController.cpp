@@ -45,6 +45,17 @@ void ObstacleController::Reset() {
     obstacleAvoided =  true;
     obstacleDetected = false;
     obstacleInterrupt = false;
+    collection_zone_seen = false;
+    phys = false;
+    can_set_waypoint = true;
+    this->reflection.should_start = true;
+    this->reflection.should_end = false;
+    this->detection_declaration = NO_OBSTACLE;
+    for (auto monitor : monitor_map) {
+        this->resetObstacle(monitor.first);
+    }
+
+
     delay = current_time;
 }
 
@@ -349,6 +360,7 @@ void ObstacleController::ProcessData() {
             can_set_waypoint = false;
         }
     } else if (this->reflection.should_end) {
+        std::cout << "SHOULD END: reset detection besides HOME" << std::endl;
         // Verify that we've completed the reflection off the obstacle
         obstacleAvoided = true;
         phys = false;
@@ -357,6 +369,7 @@ void ObstacleController::ProcessData() {
         this->reflection.should_start = true;
         this->reflection.should_end = false;
         if (this->detection_declaration == HOME) {
+            std::cout << "RESET HOME" << std::endl;
             this->detection_declaration = NO_OBSTACLE;
             collection_zone_seen = false;
         }
@@ -389,6 +402,7 @@ void ObstacleController::setTagData(vector <Tag> tags) {
             if (collection_zone_seen) {
                 std::cout << "HOME HOME HOME HOME" << std::endl;
                 this->detection_declaration = HOME;
+                this->reflection.should_start;
             }
         }
     }
@@ -413,13 +427,12 @@ bool ObstacleController::ShouldInterrupt() {
 
     //if we see and obstacle and havent thrown an interrupt yet
     if (obstacleDetected && !obstacleInterrupt) {
-//    if ((this->detection_declaration != NO_OBSTACLE) && !obstacleInterrupt) {
         obstacleInterrupt = true;
         return true;
     } else {
         //if the obstacle has been avoided and we had previously detected one interrupt to change to waypoints
-        if ((obstacleAvoided) && obstacleDetected) {
-//        if (obstacleAvoided && (this->detection_declaration != NO_OBSTACLE)) {
+        if (obstacleAvoided && obstacleDetected) {
+            std::cout << "OBSTACLE CONTROLLER: ShouldInterupt() -> reset" << std::endl;
             Reset();
             return true;
         } else {
@@ -509,6 +522,7 @@ void ObstacleController::reflect(std::vector<double> bounds) {
      * Generate a random rotation angle based on how it encountered the obstacle
      */
     if (this->reflection.should_start) {
+        std::cout << "Start Reflect" << std::endl;
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_real_distribution<> distribution(bounds.at(0), bounds.at(1));
@@ -522,6 +536,7 @@ void ObstacleController::reflect(std::vector<double> bounds) {
      * If the rover has rotated to the desired reflection angle, EXIT
      */
     else if (this->reflection.reflect_angle <= EXIT_ROTATE) {
+        std::cout << "END REFLECT" << std::endl;
         this->reflection.should_end = true;
 
     }
@@ -530,6 +545,7 @@ void ObstacleController::reflect(std::vector<double> bounds) {
      */
     else {
         // Monitor how far the rover has turned in relation to its desired heading
+        std::cout << "Reflecting" << std::endl;
         this->reflection.reflect_angle = fabs(angles::shortest_angular_distance(currentLocation.theta, this->reflection.desired_heading));
     }
 }
