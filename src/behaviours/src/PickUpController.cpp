@@ -36,7 +36,8 @@ void PickUpController::SetTagData(vector<Tag> tags) {
         //we saw a target, set target_timer
         target_timer = current_time;
 
-        double maxPriority = std::numeric_limits<double>::min();
+        // Set to some small number, numeric_limits<double>::min() seems to fail
+        double maxPriority = -1000000;
         int target = 0;
 
         for (int i = 0; i < tags.size(); i++) {
