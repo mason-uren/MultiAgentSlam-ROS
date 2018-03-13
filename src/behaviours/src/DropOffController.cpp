@@ -263,12 +263,12 @@ void DropOffController::DeliverCube()
         cout << "STEP3: Delivering Cube and moved desired distance." << endl;
     }
 
-    if((abs(centerYaw) - abs(prevYaw) > 0.75 || abs(centerYaw) - abs(prevYaw) < -0.75))
-    {
-        dropOffMessage(ClassName, "Deliver - seen funky tags. sending to altDeliver");
-        cout << "STEP Plan B: Alternate deliver" << endl;
-        alternateDeliver = true;
-    }
+//    if((abs(centerYaw) - abs(prevYaw) > 0.75 || abs(centerYaw) - abs(prevYaw) < -0.75))
+//    {
+//        dropOffMessage(ClassName, "Deliver - seen funky tags. sending to altDeliver");
+//        cout << "STEP Plan B: Alternate deliver" << endl;
+//        alternateDeliver = true;
+//    }
 }
 
 void DropOffController::AltDeliver()
@@ -468,7 +468,7 @@ void DropOffController::SetTargetData(vector<Tag> tags) {
 }
 
 void DropOffController::ProcessData() {
-    if ((countLeft + countRight) > 0) {
+    if ((tagCount) > 0) {
         isPrecisionDriving = true;
     } else {
         startWaypoint = true;
