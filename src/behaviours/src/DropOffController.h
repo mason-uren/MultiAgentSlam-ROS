@@ -7,9 +7,14 @@
 #include <math.h>
 #include <ros/ros.h>
 #include <std_msgs/String.h>
+#include <tf/transform_datatypes.h>
+#include <tf/transform_listener.h>
 
 extern void logMessage(long int currentTime, string component, string message);
+
 extern void logicMessage(long int currentTime, string component, string message);
+extern void tagMessage(vector <Tag> tags);
+extern void dropOffMessage(string component, string message);
 
 class DropOffController : virtual Controller {
 public:
@@ -35,13 +40,13 @@ public:
 
     void SetBlockBlockingUltrasound(bool blockBlock);
 
-    void SetTargetData(vector <Tag> tags);
+    void SetTargetData(vector<Tag> tags);
 
     bool HasTarget() { return targetHeld; }
 
     float GetSpinner() { return spinner; }
 
-    void UpdateData(vector <Tag> tags);
+    void UpdateData(vector<Tag> tags);
 
     void SetCurrentTimeInMilliSecs(long int time);
 
@@ -50,6 +55,27 @@ public:
 private:
 
     void ProcessData();
+    void Align();
+    void DropCube();
+    void WaypointNav();
+    void SearchForHome();
+    void DeliverCube();
+    void BackUp();
+    void AltDeliver();
+
+    /**
+     * Get the index of the center tag closest to the camera
+     * @param tags Vector of tags to search
+     * @return The index of the closest tag, or -1 if none found
+     */
+    int getClosestCenterTagIdx(const vector<Tag> &tags);
+
+    /**
+     * Gets the distance from the camera to a tag
+     * @param tag The tag to get the distance to
+     * @return The distance (presumably in meters)
+     */
+    double tagDistanceFromCamera(const Tag &tag);
 
     //Constants
 
@@ -62,8 +88,27 @@ private:
     const float spinSizeIncrement = 0.50; //in meters
     const float searchVelocity = 0.15; //in meters per second
     const float dropDelay = 0.5; //delay in seconds for dropOff
+    const double centerClearedDistanceThreshold = .25; // Distance we must be from the center to consider it cleared
+    const double minimumBackupThreshold = 2.5; // Minimum time to spend backing up
+    const double deliveryTimeThreshold = 0.4; //Amount of time to drive forward after no tags are seen
 
-
+    //New globals
+    double tagYaw; //yaw of closest tag
+    double prevYaw;
+    double centerYaw;
+    double alignAngleSumLeft;
+    double alignAngleSumRight;
+    bool isAligned; //aligned to tag based on 0 orientation of home tag yaw
+    bool firstAlign;
+    bool firstReAlign;
+    bool alternateDeliver;
+    bool edgeCase;
+    bool homeFound; //to prevent going into waypoint or home search during delivery
+    bool startDeliverTimer; //trigger for starting delivery timer
+    bool noLeft; //triggers AltAlignmentTagCheck
+    bool noRight; //triggers AltAlignmentTagCheck
+    bool altAlignEdge;
+    bool altAlignCorner;
 
     //Instance Variables
 
@@ -91,6 +136,11 @@ private:
     //Count of tags on the left and right, respectively
     int countLeft;
     int countRight;
+    int tagCount;
+    int countCenter;
+
+    // Distance from the camera of the closest tag
+    double closestTagDistance;
 
     //Center and current locations as of the last call to setLocationData
     Point centerLocation;
@@ -98,6 +148,11 @@ private:
 
     //Time since modeTimer was started, in seconds
     float timerTimeElapsed;
+
+    float deliverTimer;
+
+    float alignTimer;
+    float realignTimer;
 
     //The amount over initialSpinSize we've gotten to
     float spinSizeIncrease;
@@ -127,10 +182,15 @@ private:
     //Flag to indicate that we're starting to follow waypoints
     bool startWaypoint;
 
+    Tag average_center_tag;
+    float blockDistance;
+    float startDeliveryTime;
+    float deliveryTimer;
+
     Result result;
 
-  //current ROS time from the RosAdapter
-  long int current_time;
+    //current ROS time from the RosAdapter
+    long int current_time;
 
     bool interrupt = false;
     bool precisionInterrupt = false;

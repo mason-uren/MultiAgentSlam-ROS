@@ -55,7 +55,7 @@ void PickUpController::SetTagData(vector <Tag> tags) {
           closest = test;
         }
       }
-      else
+    else
       {
         // If the center is seen, then don't try to pick up the cube.
         if(tags[i].getID() == 256)
