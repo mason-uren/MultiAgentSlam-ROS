@@ -37,6 +37,7 @@ Result SearchController::DoWork() {
     {
         cout << "searhccontroller has a known location: " << searchLocation.x << searchLocation.y << endl;
         result.type = waypoint;
+        result.waypoints.clear();
         result.waypoints.insert(result.waypoints.begin(), searchLocation);
 
     } else {
