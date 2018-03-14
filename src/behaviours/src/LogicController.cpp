@@ -37,6 +37,7 @@ Result LogicController::DoWork() {
     for (PrioritizedController cntrlr : prioritizedControllers) {
         if (cntrlr.controller->ShouldInterrupt() && cntrlr.priority >= 0) {
             logicState = LOGIC_STATE_INTERRUPT;
+            //TODO: add comments about state logic
             //do not break all shouldInterupts may need calling in order to properly pre-proccess data.
         }
     }
