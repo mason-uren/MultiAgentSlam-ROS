@@ -189,6 +189,7 @@ void parse() {
     else {
       Serial.println();
     }
+    delay(33);
 
     Serial.print("USC,");
     int centerUSValue = centerUS.ping_cm();
@@ -199,6 +200,7 @@ void parse() {
     else {
       Serial.println();
     }
+    delay(33);
 
     Serial.print("USR,");
     int rightUSValue = rightUS.ping_cm();
@@ -209,6 +211,7 @@ void parse() {
     else {
       Serial.println();
     }
+    delay(33);
   }
   else if (rxBuffer == "f") {
     float radianAngle = Serial.parseFloat();
