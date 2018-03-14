@@ -49,13 +49,25 @@ Result LogicController::DoWork() {
 
         //when an interrupt has been thorwn or there are no pending control_queue.top().actions logic controller is in this state.
         case LOGIC_STATE_INTERRUPT: {
-
+            std::cout << "Made it" << std::endl;
             if(loggerSwitch) {
                 // The previous state will be the previous line in the logger
                 message = "Logic State: Interupt ";
 
                 logMessage(current_time, ClassName, message);
             }
+            /*
+             * TODO: save previous state
+             */
+            std::cout << "Before grabbing top" << std::endl;
+            ControllerName prev_controller = SEARCH; // Default
+            PrioritizedController obs_temp(-1, NULL); // Default; will not be use if queue isn't empty
+            if (!control_queue.empty()) {
+                obs_temp = control_queue.top();
+                prev_controller = control_queue.top().controller->controller;
+                std::cout << "Previous State: " << prev_controller << std::endl;
+            }
+            std::cout << "After grabbing top" << std::endl;
 
 
             //Reset the control queue
@@ -85,7 +97,13 @@ Result LogicController::DoWork() {
             /*
              * TODO: always reset obstacle detection with each call to INTERUPT
              */
-
+            if (prev_controller == OBSTACLE && control_queue.top().controller->controller != OBSTACLE) {
+                std::cout << "Attempting to swap queue positions" << std::endl;
+                PrioritizedController top_of_queue = control_queue.top();
+                swap(obs_temp, top_of_queue);
+                obs_temp.controller->Reset();
+                swap(top_of_queue, obs_temp);
+            }
 
             //take the top member of the priority queue and run their do work function.
             printf("before pop logic\n");
@@ -327,7 +345,6 @@ void LogicController::SetMapVelocityData(float linearVelocity, float angularVelo
 void LogicController::SetAprilTags(vector <Tag> tags) {
     pickUpController.SetTagData(tags);
     obstacleController.setTagData(tags);
-    std::cout << "After setTagData() call in SetAprilTags()" << std::endl;
     dropOffController.SetTargetData(tags);
 }
 

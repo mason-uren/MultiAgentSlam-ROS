@@ -27,16 +27,9 @@ public:
 
   //Returns whether or not a controller should be polled for a Result
   virtual bool HasWork() = 0;
-
-protected:
-
-  //Looks at external data and determines if an interrupt must be thrown
-  //or if the controller should be polled
-  virtual void ProcessData() = 0;
-
   /*
-   * TODO: correctly made enum that depicts current state
-   */
+  * TODO: correctly made enum that depicts current state
+  */
   enum ControllerName {
       SEARCH = 0,
       PICK_UP,
@@ -46,6 +39,13 @@ protected:
       RANGE
   };
   ControllerName controller;
+
+protected:
+
+  //Looks at external data and determines if an interrupt must be thrown
+  //or if the controller should be polled
+  virtual void ProcessData() = 0;
+
 };
 
 #endif // CONTROLLER_H
