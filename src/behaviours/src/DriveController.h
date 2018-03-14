@@ -111,6 +111,7 @@ private:
     long int current_time;
     string ClassName = "Drive Controller";
 
+    bool spun = false;
 
 };
 

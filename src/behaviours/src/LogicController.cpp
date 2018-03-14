@@ -42,9 +42,6 @@ Result LogicController::DoWork() {
         }
     }
 
-    Point temp = GetLastCubeLocation();
-    cout << "logic picked up at: " << temp.x << " " << temp.y << " " << temp.theta << endl;
-
 // string message will print out the 3 logic state: waiting, interrupt, and precision
     string message;
 
