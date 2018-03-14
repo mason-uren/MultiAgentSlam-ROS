@@ -180,7 +180,7 @@ void DropOffController::Align()
         // result.pd.cmdAngular = -200*average_center_tag.getPositionX();
         result.pd.setPointVel = 0.0;
         result.pd.setPointYaw = 0.0;
-        prevYaw = tagYaw;
+        prevYaw = centerYaw;
         isAligned = true;
     }
     result.type = precisionDriving;
@@ -247,38 +247,29 @@ void DropOffController::DeliverCube()
     dropOffMessage(ClassName, __func__);
 
     deliverTimer = (current_time - startDeliveryTime) / 1e3;
-    if(countCenter > 0) //while tags are still seen
+
+    bool needMoreTime = deliverTimer < ((blockDistance+0.3)/0.2);
+
+    if(needMoreTime)
     {
-        //cout << deliveryTimer << endl;
-        //cout << ((blockDistance+0.3)/0.2) << endl;
-        if(deliverTimer < ((blockDistance+0.3)/0.2)){
-            dropOffMessage(ClassName, __func__);
-            result.pd.cmdVel = 0.2;
-            result.pd.cmdAngularError = 0.0;
-        }
-//        if((abs(centerYaw) - abs(prevYaw) > 0.75 || abs(centerYaw) - abs(prevYaw) < -0.75))
-//        {
-//            dropOffMessage(ClassName, "Deliver - seen funky tags. sending to altDeliver");
-//            cout << "STEP Plan B: Alternate deliver" << endl;
-//            alternateDeliver = true;
-//        }
-        else
-        {
-            result.pd.cmdVel = 0.0;
-            result.pd.cmdAngularError = 0.0;
-            reachedCollectionPoint = true; //will trigger releasing cube and backing out
-            returnTimer = current_time;
-            cout << "STEP3: Delivering Cube and moved desired distance." << endl;
-        }
+        dropOffMessage(ClassName, __func__);
+        result.pd.cmdVel = 0.2;
+        result.pd.cmdAngularError = 0.0;
     }
     else
     {
-        dropOffMessage(ClassName, "deliver should stop");
         result.pd.cmdVel = 0.0;
         result.pd.cmdAngularError = 0.0;
         reachedCollectionPoint = true; //will trigger releasing cube and backing out
         returnTimer = current_time;
-        cout << "STEP3: Delivering Cube and not longer see home tags." << endl;
+        cout << "STEP3: Delivering Cube and moved desired distance." << endl;
+    }
+
+    if((abs(centerYaw) - abs(prevYaw) > 0.75 || abs(centerYaw) - abs(prevYaw) < -0.75))
+    {
+        dropOffMessage(ClassName, "Deliver - seen funky tags. sending to altDeliver");
+        cout << "STEP Plan B: Alternate deliver" << endl;
+        alternateDeliver = true;
     }
 }
 
@@ -472,7 +463,9 @@ void DropOffController::SetTargetData(vector<Tag> tags) {
         average_center_tag.setPositionY(sum_y / (countLeft + countRight + countCenter));
         average_center_tag.setPositionZ(sum_z / (countLeft + countRight + countCenter));
     }
-    tagCount = countLeft + countRight; //total home tags
+    tagCount = countLeft + countCenter + countRight; //total home tags
+
+    cout << "Total Tag Count: " << tagCount << endl;
     tagMessage(tags);
 }
 
