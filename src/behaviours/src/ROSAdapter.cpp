@@ -114,6 +114,8 @@ float hoursTime = 0;
 
 float drift_tolerance = 0.5; // meters
 
+bool tagTesting = true; //Allows tag detection while in manual mode
+
 Result result;
 
 std_msgs::String msg;
@@ -141,6 +143,9 @@ ros::Publisher loggerPublish;
 ros::Publisher loggerPublisher;
 ros::Publisher sonarPublisher;
 ros::Publisher logicPublish;
+ros::Publisher tagDataPublish;
+ros::Publisher tagQuadPublish;
+ros::Publisher dropOffPublish;
 
 // Subscribers
 ros::Subscriber joySubscriber;
@@ -236,6 +241,9 @@ int main(int argc, char **argv) {
   loggerPublish = mNH.advertise<std_msgs::String>((publishedName + "/logger"), 1, true);
   sonarPublisher = mNH.advertise<std_msgs::String>((publishedName + "/detections"), 1, true);
   logicPublish = mNH.advertise<std_msgs::String>((publishedName + "/logic"), 1, true);
+  tagDataPublish = mNH.advertise<std_msgs::String>((publishedName + "/tagData"), 1, true);
+  tagQuadPublish = mNH.advertise<std_msgs::String>((publishedName + "/tagQuad"), 1, true);
+  dropOffPublish = mNH.advertise<std_msgs::String>((publishedName + "/dropOff"), 1, true);
 
   publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
   stateMachineTimer = mNH.createTimer(ros::Duration(behaviourLoopTimeStep), behaviourStateMachine);
@@ -471,11 +479,11 @@ void sendDriveCommand(double left, double right)
 void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& message) {
 
   // Don't pass April tag data to the logic controller if the robot is not in autonomous mode.
-  // This is to make sure autonomous behaviours are not triggered while the rover is in manual mode.
-//  if(currentMode == 0 || currentMode == 1)
-//  {
-//    return;
-//  }
+  // This is to make sure autonomous behaviours are not triggered while the rover is in manual mode. 
+  if(!tagTesting && (currentMode == 0 || currentMode == 1))
+  {
+    return;
+  }
 
   if (message->detections.size() > 0) {
     vector<Tag> tags;
@@ -793,3 +801,41 @@ void logicMessage(long int currentTime, string component, string message) {
   messageToPublish.data = "[" + std::to_string(currentTime) + " " + component + "] " + message;
   logicPublish.publish(messageToPublish);
 }
+
+void tagMessage(vector <Tag> tags) {
+  double tagYaw;
+  double tagRoll;
+  double tagPitch;
+  float xPos;
+  float yPos;
+  float zPos;
+  std_msgs::String messageToPublish;
+  messageToPublish.data = "New Frame:---------------------------------------------------";
+  tagDataPublish.publish(messageToPublish);
+  for (int i = 0; i < tags.size(); i++) {
+    // if (tags[i].getID() == 256) {
+      tf::Quaternion tagOrien(tags[0].getOrientationX(), tags[0].getOrientationY(), tags[0].getOrientationZ(), tags[0].getOrientationW());
+      tf::Matrix3x3 rotMartrix(tagOrien);
+      rotMartrix.getRPY(tagRoll, tagPitch, tagYaw);
+      xPos = tags[i].getPositionX();
+      yPos = tags[i].getPositionY();
+      zPos = tags[i].getPositionZ();                 
+      messageToPublish.data = "X: " + std::to_string(xPos) + " Y: " + std::to_string(yPos) + " Z: " + std::to_string(zPos) + " yaw: " + std::to_string(tagYaw);
+      tagDataPublish.publish(messageToPublish);
+    // }
+  }
+  tagDataPublish.publish(messageToPublish);
+}
+
+void tagQuadMessage(int upL, int upR, int lowL, int lowR) {
+  std_msgs::String messageToPublish;
+  messageToPublish.data = "UpL : " + std::to_string(upL) + " UpR : " + std::to_string(upR) + "LowL: " + std::to_string(lowL) + " lowR: " + std::to_string(lowR);
+  tagQuadPublish.publish(messageToPublish);
+}
+
+void dropOffMessage(string component, string message) {
+  std_msgs::String messageToPublish;
+  messageToPublish.data = "[ " + component + "] " + message;
+  dropOffPublish.publish(messageToPublish);
+}
+
