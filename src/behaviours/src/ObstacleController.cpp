@@ -9,6 +9,11 @@ ObstacleController::ObstacleController() {
      */
     this->acceptDetections = true;
 
+    /*
+     * TODO: For testing purposes
+     */
+    this->controller = OBSTACLE;
+
     collection_zone_seen = false;
     obstacleAvoided = true;
     obstacleDetected = false;
@@ -42,9 +47,21 @@ ObstacleController::ObstacleController() {
 //note, not a full reset as this could cause a bad state
 //resets the interupt and knowledge of an obstacle or obstacle avoidance only.
 void ObstacleController::Reset() {
+    std::cout << "OBSTACLE CONTROLLER: reset" << std::endl;
     obstacleAvoided =  true;
     obstacleDetected = false;
     obstacleInterrupt = false;
+    collection_zone_seen = false;
+    phys = false;
+    can_set_waypoint = true;
+    this->reflection.should_start = true;
+    this->reflection.should_end = false;
+    this->detection_declaration = NO_OBSTACLE;
+    for (auto monitor : monitor_map) {
+        this->resetObstacle(monitor.first);
+    }
+
+
     delay = current_time;
 }
 
@@ -136,11 +153,11 @@ Result ObstacleController::DoWork() {
          * The obstacle is an april tag marking the collection zone
          * HOME retains highest priority since it is checked first
          */
-        std::cout << "Do Work. Detections is " << this->detection_declaration << std::endl;
         /*
          * When the rover is not holding a cube, reflect off of obstacles
          */
         if (!targetHeld) {
+            std::cout << "Do Work. Detections is " << this->detection_declaration << std::endl;
             if (this->detection_declaration == HOME) {
                 avoidCollectionZone();
             } else {
@@ -151,6 +168,7 @@ Result ObstacleController::DoWork() {
          * When the rover is holding a cube, traverse obstacles
          */
         else {
+            std::cout << "Holding Cube" << std::endl;
             std::cout << "Begin traversal" << std::endl;
             this->traversal();
         }
@@ -348,6 +366,7 @@ void ObstacleController::ProcessData() {
     }
 
     // Set flow control variables
+    std::cout << "Detection Dec: " << this->detection_declaration << std::endl;
     if (this->reflection.should_start) {
         if (this->detection_declaration != NO_OBSTACLE) {
             phys = true;
@@ -356,6 +375,7 @@ void ObstacleController::ProcessData() {
             can_set_waypoint = false;
         }
     } else if (this->reflection.should_end) {
+        std::cout << "SHOULD END: reset detection besides HOME" << std::endl;
         // Verify that we've completed the reflection off the obstacle
         obstacleAvoided = true;
         phys = false;
@@ -364,6 +384,7 @@ void ObstacleController::ProcessData() {
         this->reflection.should_start = true;
         this->reflection.should_end = false;
         if (this->detection_declaration == HOME) {
+            std::cout << "RESET HOME" << std::endl;
             this->detection_declaration = NO_OBSTACLE;
             collection_zone_seen = false;
         }
@@ -384,7 +405,9 @@ void ObstacleController::ProcessData() {
 // top of the AprilTag is pointing towards the rover or away.
 // If the top of the tags are away from the rover then treat them as obstacles.
 void ObstacleController::setTagData(vector <Tag> tags) {
+    std::cout << "Inside setTageData()" << std::endl;
     if (!collection_zone_seen) {
+        std::cout << "Collection zone not seen" << std::endl;
         count_left_collection_zone_tags = 0;
         count_right_collection_zone_tags = 0;
         x_home_tag_orientation = 0; // Todo:
@@ -394,6 +417,7 @@ void ObstacleController::setTagData(vector <Tag> tags) {
             if (collection_zone_seen) {
                 std::cout << "HOME HOME HOME HOME" << std::endl;
                 this->detection_declaration = HOME;
+                this->reflection.should_start;
             }
         }
     }
@@ -418,13 +442,12 @@ bool ObstacleController::ShouldInterrupt() {
 
     //if we see and obstacle and havent thrown an interrupt yet
     if (obstacleDetected && !obstacleInterrupt) {
-//    if ((this->detection_declaration != NO_OBSTACLE) && !obstacleInterrupt) {
         obstacleInterrupt = true;
         return true;
     } else {
         //if the obstacle has been avoided and we had previously detected one interrupt to change to waypoints
-        if ((obstacleAvoided) && obstacleDetected) {
-//        if (obstacleAvoided && (this->detection_declaration != NO_OBSTACLE)) {
+        if (obstacleAvoided && obstacleDetected) {
+            std::cout << "OBSTACLE CONTROLLER: ShouldInterupt() -> reset" << std::endl;
             Reset();
             return true;
         } else {
@@ -514,6 +537,7 @@ void ObstacleController::reflect(std::vector<double> bounds) {
      * Generate a random rotation angle based on how it encountered the obstacle
      */
     if (this->reflection.should_start) {
+        std::cout << "Start Reflect" << std::endl;
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_real_distribution<> distribution(bounds.at(0), bounds.at(1));
@@ -527,13 +551,16 @@ void ObstacleController::reflect(std::vector<double> bounds) {
      * If the rover has rotated to the desired reflection angle, EXIT
      */
     else if (this->reflection.reflect_angle <= EXIT_ROTATE) {
+        std::cout << "END REFLECT" << std::endl;
         this->reflection.should_end = true;
+
     }
     /*
-     * Subtract off the amount rotated 
+     * Subtract off the amount rotated
      */
     else {
         // Monitor how far the rover has turned in relation to its desired heading
+        std::cout << "Reflecting" << std::endl;
         this->reflection.reflect_angle = fabs(angles::shortest_angular_distance(currentLocation.theta, this->reflection.desired_heading));
     }
 }

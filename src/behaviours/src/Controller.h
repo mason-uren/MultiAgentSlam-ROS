@@ -3,6 +3,16 @@
 
 #include "Result.h"
 
+enum ControllerName {
+    SEARCH = 0,
+    PICK_UP,
+    DROP_OFF,
+    OBSTACLE,
+    MANUAL,
+    RANGE,
+    NO_STATE
+};
+
 /*
  * This class is meant to serve as a template for all Controllers,
  * including new Controllers defined by each team.
@@ -27,12 +37,18 @@ public:
 
   //Returns whether or not a controller should be polled for a Result
   virtual bool HasWork() = 0;
+  /*
+  * TODO: correctly made enum that depicts current state
+  */
+
+  ControllerName controller;
 
 protected:
 
   //Looks at external data and determines if an interrupt must be thrown
   //or if the controller should be polled
   virtual void ProcessData() = 0;
+
 };
 
 #endif // CONTROLLER_H

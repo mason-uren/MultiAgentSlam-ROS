@@ -7,6 +7,7 @@
 #include <ros/ros.h>
 #include "Utilities.h"
 
+#define IGNORE_TAGS 10
 
 extern void logMessage(long int currentTime, string component, string message);
 
@@ -100,6 +101,9 @@ private:
     string ClassName = "PickUp Controller";
 
     Point currentLocation;
+
+    int spins = 0;
+    bool stop = false;
 
 };
 

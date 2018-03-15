@@ -10,6 +10,8 @@
 #include "RangeController.h"
 #include "ManualWaypointController.h"
 
+#include "LogicAssistant.h"
+
 #include <vector>
 #include <queue>
 
@@ -117,6 +119,8 @@ private:
         _LAST,
         PROCESS_STATE_MANUAL // robot is under manual control
     };
+
+
 
     LogicState logicState;
     ProcessState processState;
