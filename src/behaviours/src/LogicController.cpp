@@ -273,8 +273,10 @@ void LogicController::controllerInterconnect() {
     if (processState == PROCCESS_STATE_SEARCHING) {
 
         //obstacle needs to know if the center ultrasound should be ignored
+        cout << "ignore center: " << pickUpController.GetIgnoreCenter() << endl;
         if (pickUpController.GetIgnoreCenter()) {
             obstacleController.setIgnoreCenterSonar();
+
         }
 
         //pickup controller annouces it has pickedup a target

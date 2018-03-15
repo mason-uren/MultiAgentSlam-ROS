@@ -99,50 +99,51 @@ Result DriveController::DoWork()
                 //check next waypoint for distance
                 if (distance_between_points(waypoints.back(),currentLocation) < waypointTolerance) {
                     //if too close remove it
-                    waypoints.pop_back();
                     Point lastLocation = GetLastCubeLocation();
                     if (distance_between_points(lastLocation, currentLocation) < waypointTolerance) {
-                        if (spun) {
+                        //if (spun) {
                             lastLocation.x = 0;
                             lastLocation.y = 0;
                             SetLastCubeLocation(lastLocation);
                             cout << "reset the lastLocation " << endl;
-                            result.waypoints.clear();
-                            spun = false;
-                        } else {
-                            cout << "setting spin points****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************** " << endl;
-                            cout << "lastLocation: " << lastLocation.x << " " << lastLocation.y << endl;
-
-                            result.waypoints.clear();
-                            Point spinPoint;
-
-                                //make 4 waypoints around the location of the last cube that was picked up
-                            spinPoint.x = lastLocation.x - 3*cos(lastLocation.theta);
-                            spinPoint.y = lastLocation.y;
-                            result.waypoints.insert(result.waypoints.begin(), spinPoint);
-//                            result.waypoints.push_back(spinPoint);
-                            cout << "spinPoint: " << spinPoint.x << " " << spinPoint.y << endl;
-
-                            spinPoint.x = lastLocation.x;
-                            spinPoint.y = lastLocation.y - 3*sin(lastLocation.theta);
-                            result.waypoints.insert(result.waypoints.begin(), spinPoint);
-//                            result.waypoints.push_back(spinPoint);
-                            cout << "spinPoint: " << spinPoint.x << " " << spinPoint.y << endl;
-
-                            spinPoint.x = lastLocation.x + 3*cos(lastLocation.theta);
-                            spinPoint.y = lastLocation.y;
-                            result.waypoints.insert(result.waypoints.begin(), spinPoint);
-//                            result.waypoints.push_back(spinPoint);
-                            cout << "spinPoint: " << spinPoint.x << " " << spinPoint.y << endl;
-
-                            spinPoint.x = lastLocation.x;
-                            spinPoint.y = lastLocation.y + 3*sin(lastLocation.theta);
-                            result.waypoints.insert(result.waypoints.begin(), spinPoint);
-//                            result.waypoints.push_back(spinPoint);
-                            cout << "spinPoint: " << spinPoint.x << " " << spinPoint.y << endl;
-                        }
+                            //spun = false;
+                        //}
+//                        else{
+//                            spun = true;
+//                            cout << "setting spin points****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************** " << endl;
+//                            cout << "lastLocation: " << lastLocation.x << " " << lastLocation.y << endl;
+//
+//                            result.waypoints.clear();
+//                            Point spinPoint;
+//
+//                                //make 4 waypoints around the location of the last cube that was picked up
+//                            spinPoint.x = lastLocation.x - 3*cos(lastLocation.theta);
+//                            spinPoint.y = lastLocation.y;
+//                            result.waypoints.insert(result.waypoints.begin(), spinPoint);
+////                            result.waypoints.push_back(spinPoint);
+//                            cout << "spinPoint: " << spinPoint.x << " " << spinPoint.y << endl;
+//
+//                            spinPoint.x = lastLocation.x;
+//                            spinPoint.y = lastLocation.y - 3*sin(lastLocation.theta);
+//                            result.waypoints.insert(result.waypoints.begin(), spinPoint);
+////                            result.waypoints.push_back(spinPoint);
+//                            cout << "spinPoint: " << spinPoint.x << " " << spinPoint.y << endl;
+//
+//                            spinPoint.x = lastLocation.x + 3*cos(lastLocation.theta);
+//                            spinPoint.y = lastLocation.y;
+//                            result.waypoints.insert(result.waypoints.begin(), spinPoint);
+////                            result.waypoints.push_back(spinPoint);
+//                            cout << "spinPoint: " << spinPoint.x << " " << spinPoint.y << endl;
+//
+//                            spinPoint.x = lastLocation.x;
+//                            spinPoint.y = lastLocation.y + 3*sin(lastLocation.theta);
+//                            result.waypoints.insert(result.waypoints.begin(), spinPoint);
+////                            result.waypoints.push_back(spinPoint);
+//                            cout << "spinPoint: " << spinPoint.x << " " << spinPoint.y << endl;
+//                        }
                         //add waypoints around location theta%something
                     }
+                    waypoints.pop_back();
                 } else {
                     //this waypoint is far enough to be worth driving to
                     tooClose = false;
@@ -151,11 +152,9 @@ Result DriveController::DoWork()
 
             //if we are out of waypoints then interupt and return to logic controller
             if (waypoints.empty()) {
-                spun = true;
-                result.type = vectorDriving;
-//                stateMachineState = STATE_MACHINE_WAITING;
-//                result.type = behavior;
-//                interupt = true;
+                stateMachineState = STATE_MACHINE_WAITING;
+                result.type = behavior;
+                interupt = true;
                 return result;
             } else {
                 //select setpoint for heading and begin driving to the next waypoint
@@ -175,6 +174,7 @@ Result DriveController::DoWork()
             // Calculate angle between currentLocation.theta and waypoints.front().theta
             // Rotate left or right depending on sign of angle
             // Stay in this state until angle is minimized
+            printf("rotate\n");
             if (result.type == vectorDriving) {
                 float errorYaw = angles::shortest_angular_distance(result.desired_heading, currentLocation.theta);
                 result.pd.setPointVel = 0.0;
@@ -246,7 +246,7 @@ Result DriveController::DoWork()
                     // stopno change
                     left = 0.0;
                     right = 0.0;
-                    // move back to transform step
+                        // move back to transform step
                     stateMachineState = STATE_MACHINE_WAYPOINTS;
                 }
                 break;

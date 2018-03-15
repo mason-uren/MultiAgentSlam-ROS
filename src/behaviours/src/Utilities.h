@@ -19,5 +19,4 @@ Point GetLastCubeLocation();
 
 void SetLastCubeLocation(Point lastKnownLocation);
 
-
 #endif
