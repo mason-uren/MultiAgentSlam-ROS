@@ -63,8 +63,10 @@ Result DriveController::DoWork()
         Point lastLocation = GetLastCubeLocation();
         if (lastLocation.x == 0 && lastLocation.y == 0) //check if the waypoint was erased, and look around you
         {
+            cout << "no known last location, clearing waypoints and going to vector " << endl;
             //add waypoints around you using theta%something or set a boolean lock so that it only happens once when a value for lastLocaiotn is set once
             spun = false;
+            result.waypoints.clear();
             result.type = vectorDriving;
         }
         ProcessData();
@@ -101,47 +103,11 @@ Result DriveController::DoWork()
                     //if too close remove it
                     Point lastLocation = GetLastCubeLocation();
                     if (distance_between_points(lastLocation, currentLocation) < waypointTolerance) {
-                        //if (spun) {
                             lastLocation.x = 0;
                             lastLocation.y = 0;
                             SetLastCubeLocation(lastLocation);
                             cout << "reset the lastLocation " << endl;
-                            //spun = false;
-                        //}
-//                        else{
-//                            spun = true;
-//                            cout << "setting spin points****************************************************************************************************************************************************************************************************************************************************************************************************************************************************************** " << endl;
-//                            cout << "lastLocation: " << lastLocation.x << " " << lastLocation.y << endl;
-//
-//                            result.waypoints.clear();
-//                            Point spinPoint;
-//
-//                                //make 4 waypoints around the location of the last cube that was picked up
-//                            spinPoint.x = lastLocation.x - 3*cos(lastLocation.theta);
-//                            spinPoint.y = lastLocation.y;
-//                            result.waypoints.insert(result.waypoints.begin(), spinPoint);
-////                            result.waypoints.push_back(spinPoint);
-//                            cout << "spinPoint: " << spinPoint.x << " " << spinPoint.y << endl;
-//
-//                            spinPoint.x = lastLocation.x;
-//                            spinPoint.y = lastLocation.y - 3*sin(lastLocation.theta);
-//                            result.waypoints.insert(result.waypoints.begin(), spinPoint);
-////                            result.waypoints.push_back(spinPoint);
-//                            cout << "spinPoint: " << spinPoint.x << " " << spinPoint.y << endl;
-//
-//                            spinPoint.x = lastLocation.x + 3*cos(lastLocation.theta);
-//                            spinPoint.y = lastLocation.y;
-//                            result.waypoints.insert(result.waypoints.begin(), spinPoint);
-////                            result.waypoints.push_back(spinPoint);
-//                            cout << "spinPoint: " << spinPoint.x << " " << spinPoint.y << endl;
-//
-//                            spinPoint.x = lastLocation.x;
-//                            spinPoint.y = lastLocation.y + 3*sin(lastLocation.theta);
-//                            result.waypoints.insert(result.waypoints.begin(), spinPoint);
-////                            result.waypoints.push_back(spinPoint);
-//                            cout << "spinPoint: " << spinPoint.x << " " << spinPoint.y << endl;
-//                        }
-                        //add waypoints around location theta%something
+                            result.waypoints.clear();
                     }
                     waypoints.pop_back();
                 } else {
@@ -152,6 +118,7 @@ Result DriveController::DoWork()
 
             //if we are out of waypoints then interupt and return to logic controller
             if (waypoints.empty()) {
+                cout << " waypoints are empty " << endl;
                 stateMachineState = STATE_MACHINE_WAITING;
                 result.type = behavior;
                 interupt = true;

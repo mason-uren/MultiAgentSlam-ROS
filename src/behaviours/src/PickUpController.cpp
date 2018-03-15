@@ -310,8 +310,8 @@ Result PickUpController::DoWork() {
             result.wristAngle = 0;
             //set a flag for the last cube found
             Point cubeLocation = currentLocation;
-            cubeLocation.x + .3*cos(currentLocation.theta);
-            cubeLocation.y + .3*sin(currentLocation.theta);
+            cubeLocation.x + .2*cos(currentLocation.theta);
+            cubeLocation.y + .2*sin(currentLocation.theta);
             SetLastCubeLocation(cubeLocation);
         } else if (Td > grasp_time_begin) //close the fingers and stop driving
         {

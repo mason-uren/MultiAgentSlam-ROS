@@ -33,10 +33,10 @@ Result SearchController::DoWork() {
 
     extern void logicMessage(long int currentTime, string component, string message);
     Point searchLocation = GetLastCubeLocation();
-    if(searchLocation.x != 0 && searchLocation.y != 0)
-    {
+    if(searchLocation.x != 0 && searchLocation.y != 0) {
         cout << "searhccontroller has a known location: " << searchLocation.x << searchLocation.y << endl;
         result.type = waypoint;
+        result.waypoints.clear();
         result.waypoints.insert(result.waypoints.begin(), searchLocation);
 
     } else {
