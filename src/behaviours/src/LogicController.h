@@ -10,6 +10,8 @@
 #include "RangeController.h"
 #include "ManualWaypointController.h"
 
+#include "LogicAssistant.h"
+
 #include <vector>
 #include <queue>
 

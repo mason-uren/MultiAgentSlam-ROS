@@ -3,6 +3,16 @@
 
 #include "Result.h"
 
+enum ControllerName {
+    SEARCH = 0,
+    PICK_UP,
+    DROP_OFF,
+    OBSTACLE,
+    MANUAL,
+    RANGE,
+    NO_STATE
+};
+
 /*
  * This class is meant to serve as a template for all Controllers,
  * including new Controllers defined by each team.
@@ -30,14 +40,7 @@ public:
   /*
   * TODO: correctly made enum that depicts current state
   */
-  enum ControllerName {
-      SEARCH = 0,
-      PICK_UP,
-      DROP_OFF,
-      OBSTACLE,
-      MANUAL,
-      RANGE
-  };
+
   ControllerName controller;
 
 protected:

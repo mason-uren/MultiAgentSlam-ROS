@@ -5,6 +5,8 @@ LogicController::LogicController() {
     logicState = LOGIC_STATE_INTERRUPT;
     processState = PROCCESS_STATE_SEARCHING;
 
+
+
     ProcessData();
 
     control_queue = priority_queue<PrioritizedController>();
@@ -70,6 +72,8 @@ Result LogicController::DoWork() {
             std::cout << "After grabbing top" << std::endl;
 
 
+
+
             //Reset the control queue
             control_queue = priority_queue<PrioritizedController>();
             
@@ -105,7 +109,9 @@ Result LogicController::DoWork() {
                 swap(top_of_queue, obs_temp);
             }
 
-            //take the top member of the priority queue and run their do work function.
+            std::cout << "=====================================STATE: " << control_queue.top().controller->controller << std::endl;
+
+                      //take the top member of the priority queue and run their do work function.
             printf("before pop logic\n");
             result = control_queue.top().controller->DoWork();
             printf("after pop logic %d\n",result.type);
