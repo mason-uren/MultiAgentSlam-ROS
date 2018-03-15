@@ -14,8 +14,8 @@ float angle_between_points(Point waypoint, Point currentLocation) {
     return atan2(waypoint.y - currentLocation.y, waypoint.x - currentLocation.x);
 }
 
-float difference_between_angles(Point waypoint, Point currentLocation) {
-    return angles::shortest_angular_distance(waypoint.theta, currentLocation.theta);
+float difference_between_angles(Point currentLocation, Point waypoint) {
+    return angles::shortest_angular_distance(currentLocation.theta, waypoint.theta);
 }
 
 int saturation_check(int direction, int sat) {
