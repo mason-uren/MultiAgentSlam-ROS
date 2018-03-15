@@ -4,6 +4,7 @@
 
 #include "Controller.h"
 #include "Tag.h"
+#include "Utilities.h"
 #include <math.h>
 #include <ros/ros.h>
 #include <std_msgs/String.h>

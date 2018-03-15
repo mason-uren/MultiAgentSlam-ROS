@@ -57,7 +57,7 @@ Result DropOffController::DoWork() {
     logicMessage(current_time, ClassName, __func__);
 
     bool centerSeen = tagCount > 0;
-    double distanceToCenter = Utilities::distance_between_points(centerLocation, currentLocation);
+    double distanceToCenter = distance_between_points(centerLocation, currentLocation);
 
     //Starts the timer
     if (timerTimeElapsed > -1) {
@@ -262,12 +262,12 @@ void DropOffController::DeliverCube()
         cout << "STEP3: Delivering Cube and moved desired distance." << endl;
     }
 
-    if((abs(centerYaw) - abs(prevYaw) > 0.75 || abs(centerYaw) - abs(prevYaw) < -0.75))
-    {
-        dropOffMessage(ClassName, "Deliver - seen funky tags. sending to altDeliver");
-        cout << "STEP Plan B: Alternate deliver" << endl;
-        alternateDeliver = true;
-    }
+//    if((abs(centerYaw) - abs(prevYaw) > 0.75 || abs(centerYaw) - abs(prevYaw) < -0.75))
+//    {
+//        dropOffMessage(ClassName, "Deliver - seen funky tags. sending to altDeliver");
+//        cout << "STEP Plan B: Alternate deliver" << endl;
+//        alternateDeliver = true;
+//    }
 }
 
 void DropOffController::AltDeliver()
@@ -341,7 +341,7 @@ void DropOffController::SearchForHome()
     //radians counterclockwise from being purly along the x-axis.
     nextSpinPoint.x = centerLocation.x + (initialSpinSize + spinSizeIncrease) * cos(spinner);
     nextSpinPoint.y = centerLocation.y + (initialSpinSize + spinSizeIncrease) * sin(spinner);
-    nextSpinPoint.theta = Utilities::angle_between_points(nextSpinPoint,currentLocation);
+    nextSpinPoint.theta = angle_between_points(nextSpinPoint,currentLocation);
 
     result.type = waypoint;
     result.waypoints.clear();
