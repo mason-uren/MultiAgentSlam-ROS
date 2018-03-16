@@ -4,13 +4,13 @@
 #include "Result.h"
 
 enum ControllerName {
+    NO_STATE = 0,
     SEARCH = 0,
     PICK_UP,
     DROP_OFF,
     OBSTACLE,
     MANUAL,
-    RANGE,
-    NO_STATE
+    RANGE
 };
 
 /*
