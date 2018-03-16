@@ -159,11 +159,15 @@ Result LogicController::DoWork() {
 
                 //waypoints are also a pass through facilitated command but with a slightly diffrent overhead
                 //they are handled in the LOGIC_STATE_WAITING switch case
-            else if (result.type == waypoint || result.type == vectorDriving) {
-
+//            else if (result.type == waypoint || result.type == vectorDriving) {
+            else if (result.type == waypoint) {
                 logicState = LOGIC_STATE_WAITING;
                 driveController.SetResultData(result);
                 //fall through on purpose
+            }
+            else if (result.type == vectorDriving) {
+                logicState = LOGIC_STATE_PRECISION_COMMAND;
+                break;
             }
         } //end of interupt case***************************************************************************************
 
