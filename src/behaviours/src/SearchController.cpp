@@ -1,6 +1,5 @@
 #include "SearchController.h"
 #include <angles/angles.h>
-#include "Utilities.h"
 
 SearchController::SearchController() {
     rng = new random_numbers::RandomNumberGenerator();
@@ -38,10 +37,18 @@ void SearchController::SetCurrentTimeInMilliSecs(long int time) {
 Result SearchController::DoWork() {
 
     extern void logicMessage(long int currentTime, string component, string message);
-    result.type = vectorDriving;
-    result.desired_heading = GetNewHeading(currentLocation.theta,true); //bool value is search_mode
-    printf("search Controller new heading: %f\n",result.desired_heading);
+    Point searchLocation = GetLastCubeLocation();
+    if(searchLocation.x != 0 && searchLocation.y != 0) {
+        cout << "searhccontroller has a known location: " << searchLocation.x << searchLocation.y << endl;
+        result.type = waypoint;
+        result.waypoints.clear();
+        result.waypoints.insert(result.waypoints.begin(), searchLocation);
+
+    } else {
+        result.type = vectorDriving;
+    }
     return result;
+
 }
 
 void SearchController::SetCenterLocation(Point centerLocation) {

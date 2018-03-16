@@ -73,7 +73,6 @@ Result LogicController::DoWork() {
 
             //Reset the control queue
             control_queue = priority_queue<PrioritizedController>();
-            
             //check what controllers have work to do all that say yes will be added to the priority queue.
             for (PrioritizedController cntrlr : prioritizedControllers) {
                 if (cntrlr.controller->HasWork()) {
@@ -110,13 +109,13 @@ Result LogicController::DoWork() {
                       //take the top member of the priority queue and run their do work function.
             printf("before pop logic\n");
             result = control_queue.top().controller->DoWork();
-            printf("after pop logic %d\n",result.type);
             //anaylyze the result that was returned and do state changes accordingly
             //behavior types are used to indicate behavior changes of some form
             if (result.type == behavior) {
 
                 //ask for an external reset so the state of the controller is preserved untill after it has returned a result and
                 //gotten a chance to communicate with other controllers
+
                 if (result.reset) {
                     controllerInterconnect(); //allow controller to communicate state data before it is reset
                     control_queue.top().controller->Reset();
@@ -304,8 +303,10 @@ void LogicController::controllerInterconnect() {
     if (processState == PROCCESS_STATE_SEARCHING) {
 
         //obstacle needs to know if the center ultrasound should be ignored
+        cout << "ignore center: " << pickUpController.GetIgnoreCenter() << endl;
         if (pickUpController.GetIgnoreCenter()) {
             obstacleController.setIgnoreCenterSonar();
+
         }
 
         //pickup controller annouces it has pickedup a target
@@ -335,6 +336,7 @@ void LogicController::SetPositionData(Point currentLocation) {
     obstacleController.setCurrentLocation(currentLocation);
     driveController.SetCurrentLocation(currentLocation);
     manualWaypointController.SetCurrentLocation(currentLocation);
+    pickUpController.SetCurrentLocation(currentLocation);
 }
 
 // Recieves position in the world frame with global data (GPS)

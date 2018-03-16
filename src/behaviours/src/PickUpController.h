@@ -5,6 +5,7 @@
 #include "Tag.h"
 #include <std_msgs/String.h>
 #include <ros/ros.h>
+#include "Utilities.h"
 
 #define IGNORE_TAGS 10
 
@@ -14,6 +15,8 @@ extern void logicMessage(long int currentTime, string component, string message)
 
 class PickUpController : virtual Controller {
 public:
+    static constexpr float CAMERA_OFFSET_CORRECTION = 0.023;
+
     PickUpController();
 
     ~PickUpController();
@@ -23,7 +26,7 @@ public:
 
     Result DoWork() override;
 
-    void SetTagData(vector <Tag> tags);
+    void SetTagData(vector<Tag> tags);
 
     bool ShouldInterrupt() override;
 
@@ -44,6 +47,8 @@ public:
     bool GetTargetHeld() { return targetHeld; }
 
     void SetCurrentTimeInMilliSecs(long int time);
+
+    void SetCurrentLocation(Point current);
 
 protected:
 
@@ -97,8 +102,20 @@ private:
 
     string ClassName = "PickUp Controller";
 
+    Point currentLocation;
+
     int spins = 0;
     bool stop = false;
+
+    /**
+     * Takes the target's x position in camera FOV and distance from lens, weights them, and returns a priority value
+     * for the target.
+     *
+     * @param xPos Target position x in camera FOV
+     * @param distance Distance from camera lens to the target
+     * @return Priority value (higher is better)
+     */
+    static double calculateTargetPriority(double xPos, double distance);
 
 };
 

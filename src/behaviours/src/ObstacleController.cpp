@@ -188,17 +188,26 @@ Result ObstacleController::DoWork() {
         set_waypoint = false;
         clearWaypoints = false;
         // TODO: obstacle traversal
-        if (targetHeld)
+        Point lastLocation = GetLastCubeLocation();
+
+        if (targetHeld) {
             result.type = waypoint;
-        else
+            result.waypoints.clear();
+            lastLocation.x = 0; //this can be changed, needed to make sure cluster collection wasnt dying here
+            lastLocation.y = 0;
+            lastLocation.theta = 0;
+            result.waypoints.push_back(lastLocation);
+            cout << "target held go home 0,0,0 " << endl;
+        } else if (lastLocation.x != 0 && lastLocation.y != 0) {
+            cout << "in obstacle 171: " << lastLocation.x << endl;
+            result.type = waypoint;
+            result.waypoints.clear();
+            result.waypoints.push_back(lastLocation);
+        } else {
             result.type = vectorDriving;
-        //result.desired_heading = currentLocation.theta;
+        }
+
         result.PIDMode = FAST_PID; //use fast pid for waypoints
-        Point forward;            //waypoint is directly ahead of current heading
-        forward.x = currentLocation.x + (0.5 * cos(currentLocation.theta));
-        forward.y = currentLocation.y + (0.5 * sin(currentLocation.theta));
-        result.waypoints.clear();
-        result.waypoints.push_back(forward);
     }
 
     return result;

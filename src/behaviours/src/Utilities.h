@@ -5,18 +5,18 @@
 
 #include "Point.h"
 
-class Utilities {
+float distance_between_points(Point, Point);
 
-public:
-    static float distance_between_points(Point, Point);
+float angle_between_points(Point, Point);
 
-    static float angle_between_points(Point, Point);
+float difference_between_angles(Point, Point);
 
-    static float difference_between_angles(Point, Point);
+int saturation_check(int, int);
 
-    static int saturation_check(int, int);
-    
-    static float infinity_norm(Point);
-};
+float infinity_norm(Point);
+
+Point GetLastCubeLocation();
+
+void SetLastCubeLocation(Point lastKnownLocation);
 
 #endif

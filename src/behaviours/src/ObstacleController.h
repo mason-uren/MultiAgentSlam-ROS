@@ -4,6 +4,7 @@
 #include "Controller.h"
 #include "Tag.h"
 #include "ObstacleAssistant.h"
+#include "Utilities.h"
 
 #define _USE_MATH_DEFINES
 #include <map>

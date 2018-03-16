@@ -4,6 +4,7 @@
 #include "PID.h"
 #include "Controller.h"
 #include <angles/angles.h>
+#include "Utilities.h"
 #include <std_msgs/Float64MultiArray.h>
 
 extern void logicMessage(long int currentTime, string component, string message);
@@ -111,6 +112,7 @@ private:
     long int current_time;
     string ClassName = "Drive Controller";
 
+    bool spun = false;
 
 };
 

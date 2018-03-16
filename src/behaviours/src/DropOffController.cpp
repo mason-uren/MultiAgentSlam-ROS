@@ -1,5 +1,4 @@
 #include "DropOffController.h"
-#include "Utilities.h"
 
 DropOffController::DropOffController() {
 
@@ -60,7 +59,7 @@ Result DropOffController::DoWork() {
     logicMessage(current_time, ClassName, __func__);
 
     bool centerSeen = tagCount > 0;
-    double distanceToCenter = Utilities::distance_between_points(centerLocation, currentLocation);
+    double distanceToCenter = distance_between_points(centerLocation, currentLocation);
 
     //Starts the timer
     if (timerTimeElapsed > -1) {
@@ -354,7 +353,7 @@ void DropOffController::SearchForHome()
     //radians counterclockwise from being purly along the x-axis.
     nextSpinPoint.x = centerLocation.x + (initialSpinSize + spinSizeIncrease) * cos(spinner);
     nextSpinPoint.y = centerLocation.y + (initialSpinSize + spinSizeIncrease) * sin(spinner);
-    nextSpinPoint.theta = Utilities::angle_between_points(nextSpinPoint,currentLocation);
+    nextSpinPoint.theta = angle_between_points(nextSpinPoint,currentLocation);
 
     result.type = waypoint;
     result.waypoints.clear();

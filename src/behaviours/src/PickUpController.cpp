@@ -1,4 +1,5 @@
 #include "PickUpController.h"
+#include "Utilities.h"
 #include <limits> // For numeric limits
 #include <cmath> // For hypot
 
@@ -37,28 +38,30 @@ void PickUpController::SetTagData(vector<Tag> tags) {
 
             nTargetsSeen = tags.size();
 
-            //we saw a target, set target_timer
-            target_timer = current_time;
-
-            double closest = std::numeric_limits<double>::max();
+            // Set to some small number, numeric_limits<double>::min() seems to fail
+            double maxPriority = -1000000;
             int target = 0;
-
+                //we saw a target, set target_timer
+            target_timer = current_time;
+            
             //this loop selects the closest visible block to makes goals for it
             for (int i = 0; i < tags.size(); i++) {
 
                 if (tags[i].getID() == 0) {
 
+                    double distance = hypot(hypot(tags[target].getPositionX(), tags[target].getPositionY()),
+                                            tags[target].getPositionZ());
+                    double priority = PickUpController::calculateTargetPriority(
+                            tags[i].getPositionX() + PickUpController::CAMERA_OFFSET_CORRECTION, distance);
+
                     targetFound = true;
 
-                    //absolute distance to block from camera lens
-                    double test = hypot(hypot(tags[i].getPositionX(), tags[i].getPositionY()), tags[i].getPositionZ());
-
-                    if (closest > test) {
+                    if (priority > maxPriority) {
                         target = i;
-                        closest = test;
+                        maxPriority = priority;
                     }
                 } else {
-                    // If the center is seen, then don't try to pick up the cube.
+                // If the center is seen, then don't try to pick up the cube.
                     if (tags[i].getID() == 256) {
                         stop = true;
                         std::cout << "PICK UP: stop listening to tag data" << std::endl;
@@ -70,11 +73,19 @@ void PickUpController::SetTagData(vector<Tag> tags) {
                         }
 
                         return;
+
+//                    if (tags[i].getID() == 256) {
+//
+//                    if (closest > test) {
+//                        target = i;
+//                        closest = test;
+//                    }
+//                } else {
+//                    // If the center is seen, then don't try to pick up the cube.
+//
                     }
                 }
             }
-
-            float cameraOffsetCorrection = 0.023; //meters;
 
             // using a^2 + b^2 = c^2 to find the distance to the block
             // 0.195 is the height of the camera lens above the ground in cm.
@@ -94,8 +105,9 @@ void PickUpController::SetTagData(vector<Tag> tags) {
 
             //cout << "blockDistance  TAGDATA:  " << blockDistance << endl;
 
-            blockYawError = atan((tags[target].getPositionX() + cameraOffsetCorrection) / blockDistance) *
-                            1.05; //angle to block from bottom center of chassis on the horizontal.
+        blockYawError =
+                atan((tags[target].getPositionX() + PickUpController::CAMERA_OFFSET_CORRECTION) / blockDistance) *
+                1.05; //angle to block from bottom center of chassis on the horizontal.
 
             cout << "blockYawError TAGDATA:  " << blockYawError << endl;
 
@@ -113,18 +125,16 @@ void PickUpController::SetTagData(vector<Tag> tags) {
 }
 
 
-bool PickUpController::SetSonarData(float rangeCenter)
-{
-  // If the center ultrasound sensor is blocked by a very close
-  // object, then a cube has been successfully lifted.
-  if (rangeCenter < 0.12 && targetFound)
-  {
-    result.type = behavior;
-    result.behaviourType = nextProcess;
-    result.reset = true;
-    targetHeld = true;
-    return true;
-  }
+bool PickUpController::SetSonarData(float rangeCenter) {
+    // If the center ultrasound sensor is blocked by a very close
+    // object, then a cube has been successfully lifted.
+    if (rangeCenter < 0.12 && targetFound) {
+        result.type = behavior;
+        result.behaviourType = nextProcess;
+        result.reset = true;
+        targetHeld = true;
+        return true;
+    }
 
     return false;
 
@@ -147,25 +157,23 @@ void PickUpController::ProcessData() {
 
     //cout << "distance : " << blockDistanceFromCamera << " time is : " << Td << endl;
 
-  // If the block is very close to the camera then the robot has
-  // successfully lifted a target. Enter the target held state to
-  // return to the center.
-  if (blockDistanceFromCamera < 0.14 && Td < 3.9)
-  {
-    result.type = behavior;
-    result.behaviourType = nextProcess;
-    result.reset = true;
-    targetHeld = true;
-  }
-  //Lower wrist and open fingers if no locked target -- this is the
-  //case if the robot lost tracking, or missed the cube when
-  //attempting to pick it up.
-  else if (!lockTarget)
-  {
-    //set gripper;
-    result.fingerAngle = M_PI_2;
-    result.wristAngle = 1.25;
-  }
+    // If the block is very close to the camera then the robot has
+    // successfully lifted a target. Enter the target held state to
+    // return to the center.
+    if (blockDistanceFromCamera < 0.14 && Td < 3.9) {
+        result.type = behavior;
+        result.behaviourType = nextProcess;
+        result.reset = true;
+        targetHeld = true;
+    }
+        //Lower wrist and open fingers if no locked target -- this is the
+        //case if the robot lost tracking, or missed the cube when
+        //attempting to pick it up.
+    else if (!lockTarget) {
+        //set gripper;
+        result.fingerAngle = M_PI_2;
+        result.wristAngle = 1.25;
+    }
 }
 
 
@@ -173,31 +181,25 @@ bool PickUpController::ShouldInterrupt() {
 
     ProcessData();
 
-  // saw center tags, so don't try to pick up the cube.
-  if (release_control)
-  {
-    release_control = false;
-    has_control = false;
-    return true;
-  }
+    // saw center tags, so don't try to pick up the cube.
+    if (release_control) {
+        release_control = false;
+        has_control = false;
+        return true;
+    }
 
-  if ((targetFound && !interupted) || targetHeld)
-  {
-    interupted = true;
-    has_control = false;
-    return true;
-  }
-  else if (!targetFound && interupted)
-  {
-    // had a cube in sight but lost it, interrupt again to release control
-    interupted = false;
-    has_control = false;
-    return true;
-  }
-  else
-  {
-    return false;
-  }
+    if ((targetFound && !interupted) || targetHeld) {
+        interupted = true;
+        has_control = false;
+        return true;
+    } else if (!targetFound && interupted) {
+        // had a cube in sight but lost it, interrupt again to release control
+        interupted = false;
+        has_control = false;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 Result PickUpController::DoWork() {
@@ -318,6 +320,11 @@ Result PickUpController::DoWork() {
             result.pd.cmdVel = -0.15;
             result.pd.cmdAngularError = 0.0;
             result.wristAngle = 0;
+            //set a flag for the last cube found
+            Point cubeLocation = currentLocation;
+            cubeLocation.x + .2*cos(currentLocation.theta);
+            cubeLocation.y + .2*sin(currentLocation.theta);
+            SetLastCubeLocation(cubeLocation);
         } else if (Td > grasp_time_begin) //close the fingers and stop driving
         {
             result.pd.cmdVel = 0.0;
@@ -394,4 +401,19 @@ void PickUpController::SetUltraSoundData(bool blockBlock) {
 
 void PickUpController::SetCurrentTimeInMilliSecs(long int time) {
     current_time = time;
+}
+
+double PickUpController::calculateTargetPriority(double xPos, double distance) {
+    // How much to weight each value when computing the priority
+    // These only have significance relative to each other
+    static const double xPosWt = 1;
+    static const double dstWt = .5;
+    // Absolute distance to block x from center of camera FOV
+    double absXPos = fabs(xPos);
+
+    return xPosWt * -absXPos + dstWt * -distance;
+}
+
+void PickUpController::SetCurrentLocation(Point current) {
+    this->currentLocation = current;
 }
