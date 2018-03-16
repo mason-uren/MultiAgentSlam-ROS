@@ -228,7 +228,9 @@ Result LogicController::DoWork() {
 
     //now using proccess logic allow the controller to communicate data between eachother
     controllerInterconnect();
-    std::cout << control_queue.top().controller->controller << " is driving" << std::endl;
+    if (!control_queue.empty()) {
+        std::cout << control_queue.top().controller->controller << " is driving" << std::endl;
+    }
     //give the ROSAdapter the final decision on how it should drive
     return result;
 }
