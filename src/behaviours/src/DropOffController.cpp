@@ -470,7 +470,7 @@ void DropOffController::SetTargetData(vector<Tag> tags) {
         average_center_tag.setPositionY(sum_y / (countLeft + countRight + countCenter));
         average_center_tag.setPositionZ(sum_z / (countLeft + countRight + countCenter));
     }
-    tagCount = countLeft + countRight; //total home tags
+    tagCount = countLeft + countCenter + countRight; //total home tags
     tagMessage(tags);
 }
 
