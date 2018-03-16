@@ -117,11 +117,11 @@ void ObstacleController::avoidCollectionZone() {
      * Left (Positive) | Right (Negative)
      */
     if (this->x_home_tag_orientation > 0) { // Home tags on left
-         this->reflect({LC_LOW, LC_HIGH});
+         this->reflect({HL_LOW, HL_HIGH});
          result.pd.cmdAngular = K_angular; // Turn right
          std::cout << "LEFT TURN!! LEFT TURN!!" << std::endl;
     } else { // Home tages on right
-         this->reflect({RC_LOW, RC_HIGH});
+         this->reflect({HR_LOW, HR_HIGH});
          result.pd.cmdAngular = -K_angular; // Turn Left
          std::cout << "RIGHT TURN!! RIGHT TURN!!" << std::endl;
     }

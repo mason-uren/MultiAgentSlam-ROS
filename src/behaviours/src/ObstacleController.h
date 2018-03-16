@@ -51,6 +51,13 @@
 #define LC_LOW ((M_PI_2))
 #define LC_HIGH ((3 * M_PI) / 5)
 
+#define HR_LOW (-(M_PI_2))
+#define HR_HIGH (-(4 * M_PI) / 5)
+
+#define HL_LOW ((M_PI_2))
+#define HL_HIGH ((4 * M_PI) / 5)
+
+
 #define DELAY_ITERATION 2
 
 #define EXIT_ROTATE 0.15
