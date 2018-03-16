@@ -111,11 +111,12 @@ Result DropOffController::DoWork() {
         SearchForHome(); //currently spin search
     }
 
-    if(alternateDeliver)
-    {
-        AltDeliver();
-    }
-    else if(isAligned)
+//    if(alternateDeliver)
+//    {
+//        AltDeliver();
+//    }
+//    else
+    if(isAligned)
     {
         DeliverCube();
     }
