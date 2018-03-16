@@ -40,6 +40,7 @@ Result LogicController::DoWork() {
         if (cntrlr.controller->ShouldInterrupt() && cntrlr.priority >= 0) {
             logicState = LOGIC_STATE_INTERRUPT;
             //TODO: add comments about state logic
+            std::cout << cntrlr.controller->controller << " generated a ShouldInterrupt() call" << std::endl;
             //do not break all shouldInterupts may need calling in order to properly pre-proccess data.
         }
     }
@@ -98,7 +99,7 @@ Result LogicController::DoWork() {
              * TODO: always reset obstacle detection with each call to INTERUPT
              */
             if (prev_controller == OBSTACLE && control_queue.top().controller->controller != OBSTACLE) {
-                std::cout << "Attempting to swap queue positions" << std::endl;
+                std::cout << "Reseting ObstacleController" << std::endl;
                 obstacleController.Reset();
             }
 
@@ -244,7 +245,7 @@ void LogicController::ProcessData() {
     if (processState == PROCCESS_STATE_SEARCHING) {
         prioritizedControllers = {
                 PrioritizedController{0, (Controller *) (&searchController)},
-                PrioritizedController{15, (Controller *) (&obstacleController)},
+                PrioritizedController{14, (Controller *) (&obstacleController)},
                 PrioritizedController{15, (Controller *) (&pickUpController)},
                 PrioritizedController{5, (Controller *) (&range_controller)},
                 PrioritizedController{-1, (Controller *) (&dropOffController)},

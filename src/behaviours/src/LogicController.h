@@ -100,8 +100,11 @@ public:
 
     void setVirtualFenceOff();
 
+    std::map<int, Point> rover_map;
+
 protected:
     void ProcessData();
+
 
 private:
 
@@ -142,6 +145,8 @@ private:
     bool loggerSwitch = false; //When true, logger messages for Logic Controller are active
 
     string ClassName = "LogicController";
+
+
 };
 
 #endif // LOGICCONTROLLER_H
