@@ -180,22 +180,22 @@ void parse() {
 
     Serial.println("ODOM," + String(1) + "," + updateOdom());
 
-    Serial.print("USL,");
-    int leftUSValue = leftUS.ping_cm();
-    Serial.print(String(leftUSValue > 0 ? 1 : 0) + ",");
-    if (leftUSValue > 0) {
-      Serial.println(String(leftUSValue));
+    Serial.print("USC,");
+    int centerUSValue = centerUS.ping_cm();
+    Serial.print(String(centerUSValue > 0 ? 1 : 0) + ",");
+    if (centerUSValue > 0) {
+      Serial.println(String(centerUSValue));
     }
     else {
       Serial.println();
     }
     delay(33);
 
-    Serial.print("USC,");
-    int centerUSValue = centerUS.ping_cm();
-    Serial.print(String(centerUSValue > 0 ? 1 : 0) + ",");
-    if (centerUSValue > 0) {
-      Serial.println(String(centerUSValue));
+    Serial.print("USL,");
+    int leftUSValue = leftUS.ping_cm();
+    Serial.print(String(leftUSValue > 0 ? 1 : 0) + ",");
+    if (leftUSValue > 0) {
+      Serial.println(String(leftUSValue));
     }
     else {
       Serial.println();
