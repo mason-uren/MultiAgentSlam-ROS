@@ -26,6 +26,7 @@
 
 // Include Controllers
 #include "LogicController.h"
+#include "Controller.h"
 #include <vector>
 
 #include "Point.h"
@@ -70,6 +71,7 @@ random_numbers::RandomNumberGenerator* rng;
 LogicController logicController;
 std::vector<string> declared_rovers;
 int rovers = -1;
+
 
 void humanTime();
 

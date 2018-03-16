@@ -17,6 +17,8 @@
 
 using namespace std;
 
+//extern void roverMapHandler(const std_msgs::Float64MultiArray& message);
+
 struct PrioritizedController {
     int priority = -1;
     Controller *controller = nullptr;

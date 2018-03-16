@@ -102,7 +102,6 @@ Result LogicController::DoWork() {
                 std::cout << "Reseting ObstacleController" << std::endl;
                 obstacleController.Reset();
             }
-
             std::cout << "=====================================STATE: " << control_queue.top().controller->controller << std::endl;
             std::cout << "===========================Priority Number: " << control_queue.top().priority << std::endl;
             std::cout << "=============================Process State: " << processState << std::endl;
@@ -229,7 +228,7 @@ Result LogicController::DoWork() {
 
     //now using proccess logic allow the controller to communicate data between eachother
     controllerInterconnect();
-
+    std::cout << control_queue.top().controller->controller << " is driving" << std::endl;
     //give the ROSAdapter the final decision on how it should drive
     return result;
 }

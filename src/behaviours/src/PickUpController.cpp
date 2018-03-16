@@ -23,6 +23,7 @@ PickUpController::PickUpController() {
     result.fingerAngle = -1;
     result.wristAngle = -1;
     result.PIDMode = SLOW_PID;
+
     this->controller = PICK_UP;
 }
 
