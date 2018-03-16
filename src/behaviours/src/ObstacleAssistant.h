@@ -7,6 +7,8 @@
 
 #define START_STAG 2
 
+#define DEFAULT_RANGE 10
+
 /*
  * Type of declared obstacle
  */
@@ -43,7 +45,6 @@ private:
         bool init_detection;
         bool good_detection;
         double smallest_detection;
-        double crct_agl;
     } DETECTIONS;
 
 public:
@@ -51,10 +52,11 @@ public:
     DETECTIONS detections;
     std::vector<float> *monitor;
 
+    // TODO: maybe need make not explicit
     explicit ObstacleAssistant(SONAR s) :
             sonar(s),
             monitor(new std::vector<float>),
-            detections({false, false, 10, 0}) {};
+            detections({false, false, DEFAULT_RANGE}) {};
 
 };
 

@@ -44,6 +44,8 @@ DropOffController::DropOffController() {
     altAlignCorner = false;
     altAlignEdge = false;
 
+    this->controller = DROP_OFF;
+
 }
 
 DropOffController::~DropOffController() {
@@ -109,11 +111,12 @@ Result DropOffController::DoWork() {
         SearchForHome(); //currently spin search
     }
 
-    if(alternateDeliver)
-    {
-        AltDeliver();
-    }
-    else if(isAligned)
+//    if(alternateDeliver)
+//    {
+//        AltDeliver();
+//    }
+//    else
+    if(isAligned)
     {
         DeliverCube();
     }

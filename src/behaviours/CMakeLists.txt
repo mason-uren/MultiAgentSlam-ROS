@@ -36,7 +36,7 @@ add_executable(
   src/LogicController.cpp
   src/ManualWaypointController.cpp
   src/Utilities.cpp
-)
+        src/LogicAssistant.h)
 
 add_dependencies(behaviours ${catkin_EXPORTED_TARGETS})
 

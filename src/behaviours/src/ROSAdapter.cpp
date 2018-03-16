@@ -23,8 +23,10 @@
 #include <std_msgs/Float32MultiArray.h>
 #include "swarmie_msgs/Waypoint.h"
 
+
 // Include Controllers
 #include "LogicController.h"
+#include "Controller.h"
 #include <vector>
 
 #include "Point.h"
@@ -37,6 +39,8 @@
 
 #include <exception> // For exception handling
 
+#include <angles/angles.h>
+#include "std_msgs/Float64MultiArray.h"
 using namespace std;
 
 // Define Exceptions
@@ -65,6 +69,9 @@ random_numbers::RandomNumberGenerator* rng;
 // Create logic controller
 
 LogicController logicController;
+std::vector<string> declared_rovers;
+int rovers = -1;
+
 
 void humanTime();
 
@@ -134,6 +141,8 @@ ros::Publisher heartbeatPublisher;
 // Publishes swarmie_msgs::Waypoint messages on "/<robot>/waypooints"
 // to indicate when waypoints have been reached.
 ros::Publisher waypointFeedbackPublisher;
+// Used for rover map
+ros::Publisher roverPosePublisher;
 
 // All logs should be published here. See WIKI for how to view the logs.
 ros::Publisher loggerPublish;
@@ -154,6 +163,8 @@ ros::Subscriber virtualFenceSubscriber;
 // manualWaypointSubscriber listens on "/<robot>/waypoints/cmd" for
 // swarmie_msgs::Waypoint messages.
 ros::Subscriber manualWaypointSubscriber;
+// Used for rover map
+ros::Subscriber roverPoseSubscriber;
 
 // Timers
 ros::Timer stateMachineTimer;
@@ -186,6 +197,7 @@ void behaviourStateMachine(const ros::TimerEvent&);
 void publishStatusTimerEventHandler(const ros::TimerEvent& event);
 void publishHeartBeatTimerEventHandler(const ros::TimerEvent& event);
 void sonarHandler(const sensor_msgs::Range::ConstPtr& sonarLeft, const sensor_msgs::Range::ConstPtr& sonarCenter, const sensor_msgs::Range::ConstPtr& sonarRight);
+void roverMapHandler(const std_msgs::Float64MultiArray& message);
 
 // Converts the time passed as reported by ROS (which takes Gazebo simulation rate into account) into milliseconds as an integer.
 long int getROSTimeInMilliSecs();
@@ -222,6 +234,9 @@ int main(int argc, char **argv) {
   message_filters::Subscriber<sensor_msgs::Range> sonarCenterSubscriber(mNH, (publishedName + "/sonarCenter"), 10);
   message_filters::Subscriber<sensor_msgs::Range> sonarRightSubscriber(mNH, (publishedName + "/sonarRight"), 10);
 
+  // Rover Pose Subscriber
+  roverPoseSubscriber = mNH.subscribe(("/rover_pose"), 10, roverMapHandler);
+
     // Added a publisher for logging capabilities through ROSTopics.
   loggerPublish = mNH.advertise<std_msgs::String>((publishedName + "/logger"), 1, true);
 
@@ -233,6 +248,9 @@ int main(int argc, char **argv) {
   driveControlPublish = mNH.advertise<geometry_msgs::Twist>((publishedName + "/driveControl"), 10);
   heartbeatPublisher = mNH.advertise<std_msgs::String>((publishedName + "/behaviour/heartbeat"), 1, true);
   waypointFeedbackPublisher = mNH.advertise<swarmie_msgs::Waypoint>((publishedName + "/waypoints"), 1, true);
+
+  // Rover Pose Publisher
+  roverPosePublisher = mNH.advertise<std_msgs::Float64MultiArray>(("/rover_pose"), 10, true);
 
     // Added a publisher for logging capabilities through ROSTopics.
   loggerPublish = mNH.advertise<std_msgs::String>((publishedName + "/logger"), 1, true);
@@ -261,6 +279,17 @@ int main(int argc, char **argv) {
   ss << "Rover start delay set to " << startDelayInSeconds << " seconds";
   msg.data = ss.str();
   infoLogPublisher.publish(msg);
+
+
+//  double angle1 = angles::shortest_angular_distance((5 * M_PI)/ 6 + 2 * M_PI, -(5 * M_PI) / 6); // Positive
+//    double angle2 = angles::shortest_angular_distance(-(5 * M_PI) / 6 , (5 * M_PI)/ 6); // Negative
+//    double angle3 = angles::shortest_angular_distance(0, M_PI / 2);
+//    double angle4 = angles::shortest_angular_distance(M_PI / 2, 0);
+//
+//    std::cout << "Bound1 " << angle1 << std::endl;
+//    std::cout << "Bound2 " << angle2 << std::endl;
+//    std::cout << "Norm1 " << angle3 << std::endl;
+//    std::cout << "Norm2" << angle4 << std::endl;
 
   if(currentMode != 2 && currentMode != 3)
   {
@@ -447,6 +476,22 @@ void behaviourStateMachine(const ros::TimerEvent&)
     stateMachinePublish.publish(stateMachineMsg);
     sprintf(prev_state_machine, "%s", stateMachineMsg.data.c_str());
   }
+
+  /*
+   * Dynamically only add new rover to map
+   */
+  if (find(declared_rovers.begin(), declared_rovers.end(), publishedName) == declared_rovers.end()) {
+    declared_rovers.push_back(publishedName);
+    rovers++;
+  }
+
+  std_msgs::Float64MultiArray rover_pose;
+  rover_pose.data.clear();
+  rover_pose.data.push_back(rovers);
+  rover_pose.data.push_back(currentLocation.x);
+  rover_pose.data.push_back(currentLocation.y);
+  rover_pose.data.push_back(currentLocation.theta);
+  roverPosePublisher.publish(rover_pose);
 }
 
 void sendDriveCommand(double left, double right)
@@ -823,5 +868,16 @@ void dropOffMessage(string component, string message) {
   std_msgs::String messageToPublish;
   messageToPublish.data = "[ " + component + "] " + message;
   dropOffPublish.publish(messageToPublish);
+}
+
+void roverMapHandler(const std_msgs::Float64MultiArray& message) {
+  int current_rover = (int) message.data[0];
+  Point msg_pose;
+  msg_pose.x = message.data[1];
+  msg_pose.y = message.data[2];
+  msg_pose.theta = message.data[3];
+
+  // Populate Map
+  logicController.rover_map[current_rover] = msg_pose;
 }
 

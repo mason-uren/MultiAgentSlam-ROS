@@ -10,10 +10,14 @@
 #include "RangeController.h"
 #include "ManualWaypointController.h"
 
+#include "LogicAssistant.h"
+
 #include <vector>
 #include <queue>
 
 using namespace std;
+
+//extern void roverMapHandler(const std_msgs::Float64MultiArray& message);
 
 struct PrioritizedController {
     int priority = -1;
@@ -98,8 +102,11 @@ public:
 
     void setVirtualFenceOff();
 
+    std::map<int, Point> rover_map;
+
 protected:
     void ProcessData();
+
 
 private:
 
@@ -117,6 +124,8 @@ private:
         _LAST,
         PROCESS_STATE_MANUAL // robot is under manual control
     };
+
+
 
     LogicState logicState;
     ProcessState processState;
@@ -138,6 +147,8 @@ private:
     bool loggerSwitch = false; //When true, logger messages for Logic Controller are active
 
     string ClassName = "LogicController";
+
+
 };
 
 #endif // LOGICCONTROLLER_H

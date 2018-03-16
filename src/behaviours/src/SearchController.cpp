@@ -15,6 +15,11 @@ SearchController::SearchController() {
 
     result.fingerAngle = M_PI / 2;
     result.wristAngle = M_PI / 4;
+
+    /*
+     * TODO:
+     */
+    this->controller = SEARCH;
 }
 
 void SearchController::Reset() {
@@ -33,45 +38,10 @@ void SearchController::SetCurrentTimeInMilliSecs(long int time) {
 Result SearchController::DoWork() {
 
     extern void logicMessage(long int currentTime, string component, string message);
-
-    if (!result.waypoints.empty()) {
-        if (Utilities::distance_between_points(result.waypoints[0], currentLocation) < 0.15) {
-            attemptCount = 0;
-        }
-    }
-    if (attemptCount > 0 && attemptCount < 5) {
-        attemptCount++;
-        if (succesfullPickup) {
-            succesfullPickup = false;
-            attemptCount = 1;
-        }
-        return result;
-    } else if (attemptCount >= 5 || attemptCount == 0) {
-        attemptCount = 1;
-
-
-        result.type = waypoint;
-        Point searchLocation;
-
-        //select new position 50 cm from current location
-        if (first_waypoint) {
-            first_waypoint = false;
-            searchLocation.theta = currentLocation.theta + M_PI;
-            searchLocation.x = currentLocation.x + (0.5 * cos(searchLocation.theta));
-            searchLocation.y = currentLocation.y + (0.5 * sin(searchLocation.theta));
-        } else {
-            //select new heading from Gaussian distribution around current heading
-            searchLocation.theta = rng->gaussian(currentLocation.theta, 0.785398); //45 degrees in radians
-            searchLocation.x = currentLocation.x + (0.5 * cos(searchLocation.theta));
-            searchLocation.y = currentLocation.y + (0.5 * sin(searchLocation.theta));
-        }
-
-        result.waypoints.clear();
-        result.waypoints.insert(result.waypoints.begin(), searchLocation);
-
-        return result;
-    }
-
+    result.type = vectorDriving;
+    result.desired_heading = GetNewHeading(currentLocation.theta,true); //bool value is search_mode
+    printf("search Controller new heading: %f\n",result.desired_heading);
+    return result;
 }
 
 void SearchController::SetCenterLocation(Point centerLocation) {
@@ -108,16 +78,11 @@ void SearchController::SetSuccesfullPickup() {
     succesfullPickup = true;
 }
 
-float GetNewHeading(float beta, bool search_mode) {
+float SearchController::GetNewHeading(float beta, bool search_mode) {
   std::default_random_engine generator;
-  std::uniform_real_distribution<float> distribution(0.0,M_PI);
+  std::uniform_real_distribution<float> distribution(-2.355,-3.928);
   float theta = 0;
-  if(search_mode == false) {
-    theta = beta - M_PI/2 + (distribution(generator));
-  }
-  else {
-    theta = beta - M_PI/2 - (distribution(generator));
-  }
+    theta = currentLocation.theta;// + (distribution(generator));
   return theta;
 }
 

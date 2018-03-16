@@ -6,6 +6,7 @@
 #include <std_msgs/String.h>
 #include <ros/ros.h>
 
+#define IGNORE_TAGS 10
 
 extern void logMessage(long int currentTime, string component, string message);
 
@@ -95,6 +96,9 @@ private:
     bool has_control = false;
 
     string ClassName = "PickUp Controller";
+
+    int spins = 0;
+    bool stop = false;
 
 };
 

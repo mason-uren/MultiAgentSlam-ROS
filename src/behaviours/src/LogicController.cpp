@@ -5,10 +5,11 @@ LogicController::LogicController() {
     logicState = LOGIC_STATE_INTERRUPT;
     processState = PROCCESS_STATE_SEARCHING;
 
+
+
     ProcessData();
 
     control_queue = priority_queue<PrioritizedController>();
-
 }
 
 
@@ -38,6 +39,8 @@ Result LogicController::DoWork() {
     for (PrioritizedController cntrlr : prioritizedControllers) {
         if (cntrlr.controller->ShouldInterrupt() && cntrlr.priority >= 0) {
             logicState = LOGIC_STATE_INTERRUPT;
+            //TODO: add comments about state logic
+            std::cout << cntrlr.controller->controller << " generated a ShouldInterrupt() call" << std::endl;
             //do not break all shouldInterupts may need calling in order to properly pre-proccess data.
         }
     }
@@ -50,19 +53,27 @@ Result LogicController::DoWork() {
 
         //when an interrupt has been thorwn or there are no pending control_queue.top().actions logic controller is in this state.
         case LOGIC_STATE_INTERRUPT: {
-
-
             if(loggerSwitch) {
                 // The previous state will be the previous line in the logger
                 message = "Logic State: Interupt ";
 
                 logMessage(current_time, ClassName, message);
             }
+            /*
+             * TODO: save previous state
+             */
+            ControllerName prev_controller = NO_STATE; // Default
+            if (!control_queue.empty()) {
+                prev_controller = control_queue.top().controller->controller;
+                std::cout << "Previous State: " << prev_controller << std::endl;
+            }
+
+
 
 
             //Reset the control queue
             control_queue = priority_queue<PrioritizedController>();
-
+            
             //check what controllers have work to do all that say yes will be added to the priority queue.
             for (PrioritizedController cntrlr : prioritizedControllers) {
                 if (cntrlr.controller->HasWork()) {
@@ -84,9 +95,22 @@ Result LogicController::DoWork() {
                 result.behaviourType = noChange;
             }
 
-            //take the top member of the priority queue and run their do work function.
-            result = control_queue.top().controller->DoWork();
+            /*
+             * TODO: always reset obstacle detection with each call to INTERUPT
+             */
+            if (prev_controller == OBSTACLE && control_queue.top().controller->controller != OBSTACLE) {
+                std::cout << "Reseting ObstacleController" << std::endl;
+                obstacleController.Reset();
+            }
+            std::cout << "=====================================STATE: " << control_queue.top().controller->controller << std::endl;
+            std::cout << "===========================Priority Number: " << control_queue.top().priority << std::endl;
+            std::cout << "=============================Process State: " << processState << std::endl;
+            std::cout << "===============================Logic State: " << logicState << std::endl;
 
+                      //take the top member of the priority queue and run their do work function.
+            printf("before pop logic\n");
+            result = control_queue.top().controller->DoWork();
+            printf("after pop logic %d\n",result.type);
             //anaylyze the result that was returned and do state changes accordingly
             //behavior types are used to indicate behavior changes of some form
             if (result.type == behavior) {
@@ -135,13 +159,16 @@ Result LogicController::DoWork() {
 
                 //waypoints are also a pass through facilitated command but with a slightly diffrent overhead
                 //they are handled in the LOGIC_STATE_WAITING switch case
+//            else if (result.type == waypoint || result.type == vectorDriving) {
             else if (result.type == waypoint) {
-
                 logicState = LOGIC_STATE_WAITING;
                 driveController.SetResultData(result);
                 //fall through on purpose
             }
-
+            else if (result.type == vectorDriving) {
+                logicState = LOGIC_STATE_PRECISION_COMMAND;
+                break;
+            }
         } //end of interupt case***************************************************************************************
 
             //this case is primarly when logic controller is waiting for drive controller to reach its last waypoint
@@ -201,7 +228,9 @@ Result LogicController::DoWork() {
 
     //now using proccess logic allow the controller to communicate data between eachother
     controllerInterconnect();
-
+    if (!control_queue.empty()) {
+        std::cout << control_queue.top().controller->controller << " is driving" << std::endl;
+    }
     //give the ROSAdapter the final decision on how it should drive
     return result;
 }
@@ -217,7 +246,7 @@ void LogicController::ProcessData() {
     if (processState == PROCCESS_STATE_SEARCHING) {
         prioritizedControllers = {
                 PrioritizedController{0, (Controller *) (&searchController)},
-                PrioritizedController{10, (Controller *) (&obstacleController)},
+                PrioritizedController{14, (Controller *) (&obstacleController)},
                 PrioritizedController{15, (Controller *) (&pickUpController)},
                 PrioritizedController{5, (Controller *) (&range_controller)},
                 PrioritizedController{-1, (Controller *) (&dropOffController)},

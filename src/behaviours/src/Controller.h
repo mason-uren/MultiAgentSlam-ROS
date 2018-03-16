@@ -3,6 +3,17 @@
 
 #include "Result.h"
 
+enum ControllerName {
+    NO_STATE = 0,
+    SEARCH,
+    PICK_UP,
+    DROP_OFF,
+    OBSTACLE,
+    MANUAL,
+    RANGE
+};
+
+
 /*
  * This class is meant to serve as a template for all Controllers,
  * including new Controllers defined by each team.
@@ -12,27 +23,35 @@
  */
 class Controller {
 public:
-  Controller() {}
-  ~Controller() {}
+    Controller() {}
 
-  //Resets internal state to defaults
-  virtual void Reset() = 0;
+    ~Controller() {}
 
-  //Determines what action should be taken based on current
-  //internal state and data
-  virtual Result DoWork() = 0;
+    //Resets internal state to defaults
+    virtual void Reset() = 0;
 
-  //Returns whether or not an interrupt must be thrown
-  virtual bool ShouldInterrupt() = 0;
+    //Determines what action should be taken based on current
+    //internal state and data
+    virtual Result DoWork() = 0;
 
-  //Returns whether or not a controller should be polled for a Result
-  virtual bool HasWork() = 0;
+    //Returns whether or not an interrupt must be thrown
+    virtual bool ShouldInterrupt() = 0;
+
+    //Returns whether or not a controller should be polled for a Result
+    virtual bool HasWork() = 0;
+
+    /*
+    * TODO: correctly made enum that depicts current state
+    */
+
+    ControllerName controller;
 
 protected:
 
-  //Looks at external data and determines if an interrupt must be thrown
-  //or if the controller should be polled
-  virtual void ProcessData() = 0;
+    //Looks at external data and determines if an interrupt must be thrown
+    //or if the controller should be polled
+    virtual void ProcessData() = 0;
+
 };
 
 #endif // CONTROLLER_H
