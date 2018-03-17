@@ -161,18 +161,18 @@ Result DriveController::DoWork()
                 waypoints.back().theta = angle_between_points(waypoints.back(),currentLocation);
 
                 // Calculate the diffrence between current and desired heading in radians.
-//                cout << "ROTATE Error yaw:  " << errorYaw << " target heading : " << waypoints.back().theta << " current heading : " << currentLocation.theta << endl; //DEBUGGING CODE
-//                cout << "Waypoint x : " << waypoints.back().x << " y : " << waypoints.back().y << " currentLoc x : " << currentLocation.x << " y : " << currentLocation.y << endl; //DEBUGGING CODE
+                cout << "ROTATE Error yaw:  " << errorYaw << " target heading : " << waypoints.back().theta << " current heading : " << currentLocation.theta << endl; //DEBUGGING CODE
+                cout << "Waypoint x : " << waypoints.back().x << " y : " << waypoints.back().y << " currentLoc x : " << currentLocation.x << " y : " << currentLocation.y << endl; //DEBUGGING CODE
 
                 result.pd.setPointVel = 0.0;
                 //Calculate absolute value of angle
 
-                float abs_error = fabs(difference_between_angles(currentLocation,waypoints.back()));
+                float abs_error = fabs(errorYaw);
 
                 // If angle > rotateOnlyAngleTolerance radians rotate but dont drive forward.
                 if (abs_error > rotateOnlyAngleTolerance) {
                     // rotate but dont drive.
-                    outputValidation(velPID(fastVelPID, 0.0, result.pd.setPointVel), yawPID(slowYawPID, errorYaw, result.pd.setPointYaw));
+                    outputValidation(velPID(fastVelPID, 0.0, result.pd.setPointVel), yawPID(fastYawPID, errorYaw, result.pd.setPointYaw));
                     break;
                 } else {
                     //move to differential drive step

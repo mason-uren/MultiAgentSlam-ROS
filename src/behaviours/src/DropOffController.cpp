@@ -651,7 +651,3 @@ Point closestAnchor(Point current) {
     }
     return nearestAnchor;
 }
-
-Point DropOffController::GetLastCenterLocation(){
-    return this->lastKnownCenterLocation;
-}
