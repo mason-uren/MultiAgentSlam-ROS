@@ -108,6 +108,13 @@ Result LogicController::DoWork() {
 
                       //take the top member of the priority queue and run their do work function.
             printf("before pop logic\n");
+
+            if (control_queue.top().controller->controller == DROP_OFF && dropOffController.GetLastCenterLocation().x != 0 && dropOffController.GetLastCenterLocation().y != 0) {
+                cout << "drop off is on top of the queue trying to update center location "
+                     << dropOffController.GetLastCenterLocation().x << " " << dropOffController.GetLastCenterLocation().y << endl;
+                SetCenterLocationOdom(dropOffController.GetLastCenterLocation());
+            }
+
             result = control_queue.top().controller->DoWork();
             //anaylyze the result that was returned and do state changes accordingly
             //behavior types are used to indicate behavior changes of some form
@@ -303,7 +310,7 @@ void LogicController::controllerInterconnect() {
     if (processState == PROCCESS_STATE_SEARCHING) {
 
         //obstacle needs to know if the center ultrasound should be ignored
-        cout << "ignore center: " << pickUpController.GetIgnoreCenter() << endl;
+//        cout << "ignore center: " << pickUpController.GetIgnoreCenter() << endl;
         if (pickUpController.GetIgnoreCenter()) {
             obstacleController.setIgnoreCenterSonar();
 
@@ -367,6 +374,7 @@ void LogicController::SetSonarData(float left, float center, float right) {
 void LogicController::SetCenterLocationOdom(Point centerLocationOdom) {
     searchController.SetCenterLocation(centerLocationOdom);
     dropOffController.SetCenterLocation(centerLocationOdom);
+    obstacleController.SetCenterLocation(centerLocationOdom);
 }
 
 void LogicController::AddManualWaypoint(Point manualWaypoint, int waypoint_id) {

@@ -358,7 +358,6 @@ Result PickUpController::DoWork() {
             interupted = true;
             result.pd.cmdVel = 0.0;
             result.pd.cmdAngularError = 0.0;
-            ignoreCenterSonar = true;
             string message = "Exiting PickUp. Returning to Search.";
             logMessage(current_time, "PICKUP", message);
         }

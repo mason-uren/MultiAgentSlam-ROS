@@ -191,15 +191,12 @@ Result ObstacleController::DoWork() {
         Point lastLocation = GetLastCubeLocation();
 
         if (targetHeld) {
+            cout << "encountered obstacle while holding cube!!!!!!! " << endl;
             result.type = waypoint;
             result.waypoints.clear();
-            lastLocation.x = 0; //this can be changed, needed to make sure cluster collection wasnt dying here
-            lastLocation.y = 0;
-            lastLocation.theta = 0;
-            result.waypoints.push_back(lastLocation);
-            cout << "target held go home 0,0,0 " << endl;
+            result.waypoints.push_back(centerLocation);
         } else if (lastLocation.x != 0 && lastLocation.y != 0) {
-            cout << "in obstacle 171: " << lastLocation.x << endl;
+            cout << "in obstacle 197: " << lastLocation.x << endl;
             result.type = waypoint;
             result.waypoints.clear();
             result.waypoints.push_back(lastLocation);
@@ -726,6 +723,10 @@ void ObstacleController::resetDetections(DELAY_TYPE delay_type) {
         this->detection_declaration = NO_OBSTACLE;
         obstacleAvoided = true;
     }
+}
+
+void ObstacleController::SetCenterLocation(Point centerLocationOdom){
+    this->centerLocation = centerLocationOdom;
 }
 
 

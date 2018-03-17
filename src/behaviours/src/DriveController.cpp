@@ -109,7 +109,6 @@ Result DriveController::DoWork()
                             lastLocation.y = 0;
                             SetLastCubeLocation(lastLocation);
                             cout << "reset the lastLocation " << endl;
-                            result.waypoints.clear();
                     }
                     waypoints.pop_back();
                 } else {
@@ -173,7 +172,7 @@ Result DriveController::DoWork()
                 // If angle > rotateOnlyAngleTolerance radians rotate but dont drive forward.
                 if (abs_error > rotateOnlyAngleTolerance) {
                     // rotate but dont drive.
-                    outputValidation(velPID(fastVelPID, 0.0, result.pd.setPointVel), yawPID(fastYawPID, errorYaw, result.pd.setPointYaw));
+                    outputValidation(velPID(fastVelPID, 0.0, result.pd.setPointVel), yawPID(slowYawPID, errorYaw, result.pd.setPointYaw));
                     break;
                 } else {
                     //move to differential drive step
@@ -457,4 +456,6 @@ void DriveController::outputValidation(float velOut, float yawOut) {
 
     this->left = saturation_check(left,sat);
     this->right = saturation_check(right,sat);
+    cout << "LEFT: " << this->left << endl;
+    cout << "RIGHT " << this->right << endl;
 }

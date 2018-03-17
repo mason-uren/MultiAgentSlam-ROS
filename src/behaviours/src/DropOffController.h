@@ -53,6 +53,10 @@ public:
 
     Point closestAnchor(Point current);
 
+    Point GetLastCenterLocation();
+
+
+
 private:
 
     void ProcessData();
@@ -200,6 +204,7 @@ private:
 
     string ClassName = "DropOff Controller";
 
+    Point lastKnownCenterLocation;
 };
 
 #endif // end header define

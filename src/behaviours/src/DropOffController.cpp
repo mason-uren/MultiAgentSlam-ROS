@@ -25,7 +25,7 @@ DropOffController::DropOffController() {
 
     isPrecisionDriving = false;
     startWaypoint = false;
-    timerTimeElapsed = -1;
+    timerTimeElapsed = 0;
     alignTimer = -1;
     realignTimer = -1;
     deliverTimer = -1;
@@ -73,23 +73,34 @@ Result DropOffController::DoWork() {
 
         // Check if we have backed far enough away from the dropoff zone
         bool clearOfCircle = timerTimeElapsed > minimumBackupThreshold && tagCount == 0;
-//                             && closestTagDistance > centerClearedDistanceThreshold;
+                             //&& closestTagDistance > centerClearedDistanceThreshold;
+
+        cout << "clear of circle values: " <<
+                timerTimeElapsed << " " <<
+                tagCount << " " <<
+                closestTagDistance << endl;
+
+
         dropOffMessage(ClassName, "reached collection point");
 
         if (clearOfCircle) {
+            cout << "is clear of circle " << endl;
             dropOffMessage(ClassName, "clear of circle");
             if (finalInterrupt) {
                 result.type = behavior;
                 result.behaviourType = nextProcess;
                 result.reset = true;
+                cout << "final interrupt *******************" << endl;
                 logMessage(current_time, ClassName, "Exiting DropOff");
                 return result;
             } else {
+                cout << "NOT final interrupt" << endl;
                 logMessage(current_time, "DROPOFF", "Clear of circle, entering final interrupt");
                 finalInterrupt = true;
             }
         } else if (timerTimeElapsed >= 0.1)
         {
+            cout << "timer time elapsed about to start backup" << endl;
             dropOffMessage(ClassName, "about to call Backup()");
             BackUp();
         }
@@ -107,7 +118,8 @@ Result DropOffController::DoWork() {
     }
     else if (timerTimeElapsed >= 2 && tagCount == 0 && !homeFound) //Believes it is home but is not
     {
-        SearchForHome(); //currently spin search
+        cout << " ET PHONE HOME " << endl;
+        //SearchForHome(); //currently spin search
     }
 
 //    if(alternateDeliver)
@@ -322,7 +334,14 @@ void DropOffController::BackUp()
     isPrecisionDriving = true;
     result.type = precisionDriving;
 
+    cout << "in backup starting dropCube " << endl;
+
     DropCube();
+
+    //UPDATE center location
+    lastKnownCenterLocation = currentLocation;
+
+    cout << "in backup " << endl;
 
     //backing out of home
     result.pd.cmdVel = -0.3;
@@ -387,7 +406,7 @@ void DropOffController::Reset() {
     spinner = 0;
     spinSizeIncrease = 0;
     prevCount = 0;
-    timerTimeElapsed = -1;
+    timerTimeElapsed = 0;
     deliverTimer = -1;
 
     countLeft = 0;
@@ -611,4 +630,8 @@ Point closestAnchor(Point current) {
 
     }
     return nearestAnchor;
+}
+
+Point DropOffController::GetLastCenterLocation(){
+    return this->lastKnownCenterLocation;
 }

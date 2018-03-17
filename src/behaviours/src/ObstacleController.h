@@ -126,6 +126,8 @@ public:
         return tmp;
     }
 
+    void SetCenterLocation(Point centerLocationOdom);
+
 protected:
 
     void ProcessData();
@@ -184,6 +186,7 @@ private:
     bool ignore_center_sonar = false;
 
     Point currentLocation;
+    Point centerLocation;
 
     long int current_time;
     long int timeSinceTags;
