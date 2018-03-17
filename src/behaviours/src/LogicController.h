@@ -17,6 +17,8 @@
 
 using namespace std;
 
+// This struct contains a controller object and ties it to a priority value as
+// well as providing functionality to compare priorities with the < operator.
 //extern void roverMapHandler(const std_msgs::Float64MultiArray& message);
 
 struct PrioritizedController {

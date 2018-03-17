@@ -1,5 +1,15 @@
+// This file deals with the rover's ability to drop off cubes to the center collection disk
+// There are only two forms of driving: precision driving and waypoints
+// Precision Driving == any controller (drive, pickup, dropoff, obstacle)
+// continously feeding data into the feedback loop needed for drive controls
+// has more precise control over rover's movements, more accurate of less than 1cm
+
+// Waypoint Driving == drive controller feeding one data point (waypoint coordinates)
+// with an accuracy of at least 15cm
+
 #include "DropOffController.h"
 
+// Constructor to set initial values
 DropOffController::DropOffController() {
 
     reachedCollectionPoint = false;
@@ -440,6 +450,7 @@ void DropOffController::Reset() {
     altAlignEdge = false;
 }
 
+// Individually calculates and sets the number of tags seen on the right and the left of the rover
 void DropOffController::SetTargetData(vector<Tag> tags) {
 
     countRight = 0;
@@ -495,6 +506,8 @@ void DropOffController::SetTargetData(vector<Tag> tags) {
     tagMessage(tags);
 }
 
+// Sets the driving mode (precision or waypoint) depending on the
+// number of tags seen on the left and the right side of the rover
 void DropOffController::ProcessData() {
     if ((tagCount) > 0) {
         isPrecisionDriving = true;
@@ -502,6 +515,7 @@ void DropOffController::ProcessData() {
         startWaypoint = true;
     }
 }
+
 
 bool DropOffController::ShouldInterrupt() {
     ProcessData();
@@ -517,6 +531,7 @@ bool DropOffController::ShouldInterrupt() {
         return true;
     }
 }
+
 
 bool DropOffController::HasWork() {
 
@@ -534,22 +549,30 @@ bool DropOffController::HasWork() {
     return ((startWaypoint || isPrecisionDriving));
 }
 
+// Checking function to see if the driving mode (precision or waypoint) has been changed
 bool DropOffController::IsChangingMode() {
     return isPrecisionDriving;
 }
 
+// Setter function to set the center location (the collection disk)
+// Of the Point class (x, y, theta)
 void DropOffController::SetCenterLocation(Point center) {
     centerLocation = center;
 }
 
+// Setter function to set the current location of the Point class (x, y, theta)
 void DropOffController::SetCurrentLocation(Point current) {
     currentLocation = current;
 }
 
+// Setter function to set the variable to true if a target (cube) has been picked up
+// And that it is currently holding the target (cube)
 void DropOffController::SetTargetPickedUp() {
     targetHeld = true;
 }
 
+// Setter function to stop the ultrasound from being blocked
+// In other words, to block the ultrasound or not
 void DropOffController::SetBlockBlockingUltrasound(bool blockBlock) {
     targetHeld = targetHeld || blockBlock;
 }
