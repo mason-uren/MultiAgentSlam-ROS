@@ -169,8 +169,9 @@ Result DriveController::DoWork()
 
                 float abs_error = fabs(errorYaw);
 
+
                 // If angle > rotateOnlyAngleTolerance radians rotate but dont drive forward.
-                if (abs_error > rotateOnlyAngleTolerance) {
+                if (abs_error > .2) {
                     // rotate but dont drive.
                     outputValidation(velPID(fastVelPID, 0.0, result.pd.setPointVel), yawPID(fastYawPID, errorYaw, result.pd.setPointYaw));
                     break;
