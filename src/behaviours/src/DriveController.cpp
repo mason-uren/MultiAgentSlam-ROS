@@ -172,12 +172,17 @@ Result DriveController::DoWork()
 
                 // If angle > rotateOnlyAngleTolerance radians rotate but dont drive forward.
                 if (abs_error > .2) {
+                    rotationTimeBreak++;
                     // rotate but dont drive.
                     outputValidation(velPID(fastVelPID, 0.0, result.pd.setPointVel), yawPID(fastYawPID, errorYaw, result.pd.setPointYaw));
+                    if (rotationTimeBreak >= 70) {
+                        stateMachineState = STATE_MACHINE_SKID_STEER;
+                    }
                     break;
                 } else {
                     //move to differential drive step
                     stateMachineState = STATE_MACHINE_SKID_STEER;
+                    rotationTimeBreak = 0;
                     //fall through on purpose.
                 }
             }

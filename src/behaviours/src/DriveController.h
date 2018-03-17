@@ -114,6 +114,8 @@ private:
 
     bool spun = false;
 
+    int rotationTimeBreak = 0;
+
 };
 
 #endif // DRIVECONTROLLER_H
