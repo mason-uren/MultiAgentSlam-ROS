@@ -53,8 +53,6 @@ public:
 
     Point closestAnchor(Point current);
 
-    Point GetLastCenterLocation();
-
 
 
 private:
@@ -204,7 +202,6 @@ private:
 
     string ClassName = "DropOff Controller";
 
-    Point lastKnownCenterLocation;
 };
 
 #endif // end header define

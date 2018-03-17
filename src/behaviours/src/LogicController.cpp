@@ -109,12 +109,6 @@ Result LogicController::DoWork() {
                       //take the top member of the priority queue and run their do work function.
             printf("before pop logic\n");
 
-            if (control_queue.top().controller->controller == DROP_OFF && dropOffController.GetLastCenterLocation().x != 0 && dropOffController.GetLastCenterLocation().y != 0) {
-                cout << "drop off is on top of the queue trying to update center location "
-                     << dropOffController.GetLastCenterLocation().x << " " << dropOffController.GetLastCenterLocation().y << endl;
-                SetCenterLocationOdom(dropOffController.GetLastCenterLocation());
-            }
-
             result = control_queue.top().controller->DoWork();
             //anaylyze the result that was returned and do state changes accordingly
             //behavior types are used to indicate behavior changes of some form

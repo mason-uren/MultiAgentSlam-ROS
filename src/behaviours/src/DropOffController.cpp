@@ -348,9 +348,6 @@ void DropOffController::BackUp()
 
     DropCube();
 
-    //UPDATE center location
-    lastKnownCenterLocation = currentLocation;
-
     cout << "in backup " << endl;
 
     //backing out of home
