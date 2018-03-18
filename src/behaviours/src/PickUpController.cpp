@@ -220,13 +220,13 @@ void PickUpController::SetTagData(vector<Tag> tags) {
 
                 1.05;*/ //angle to block from bottom center of chassis on the horizontal.
 
-            blockYawError = chosen_tag.getPositionX();/*
+            blockYawError = CAMERA_OFFSET_CORRECTION + chosen_tag.getPositionX();/*
 
                 atan((tags[target_idx].getPositionX() + PickUpController::CAMERA_OFFSET_CORRECTION) / blockDistance) *
 
                 1.05;*/
 
-            cout << "blockYawError TAGDATA::::::::::::::::::::  " << blockYawError << endl;
+            cout << "Setting blockYawError TAGDATA::::::::::::::::::::  " << blockYawError << endl;
 
         }
 
@@ -504,7 +504,8 @@ Result PickUpController::DoWork() {
 
             } else {
 
-                result.pd.cmdAngularError = -2.0*blockYawError;
+                cout << "Using blockYawError DOWORK::::::::::::::::::::  " << blockYawError << endl;
+                result.pd.cmdAngularError = -2.0*blockYawError; // was cmdAngular not sure which to use.
 
             }
 
@@ -528,7 +529,7 @@ Result PickUpController::DoWork() {
 
         {
 
-            result.pd.cmdVel = 0.0; // was -0.15
+            result.pd.cmdVel = -0.15; // was -0.15
 
             result.pd.cmdAngularError = 0.0;
 
@@ -641,6 +642,7 @@ void PickUpController::Reset() {
     result.reset = false;
 
     ignoreCenterSonar = false;
+    blockYawError = 0.0;
 }
 
 void PickUpController::SetUltraSoundData(bool blockBlock) {
