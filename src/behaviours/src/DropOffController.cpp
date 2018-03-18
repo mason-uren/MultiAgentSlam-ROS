@@ -129,7 +129,7 @@ Result DropOffController::DoWork() {
     else if (timerTimeElapsed >= 2 && tagCount == 0 && !homeFound) //Believes it is home but is not
     {
         cout << " ET PHONE HOME " << endl;
-        //SearchForHome(); //currently spin search
+        SearchForHome(); //currently spin search
     }
 
 //    if(alternateDeliver)
