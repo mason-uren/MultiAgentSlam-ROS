@@ -108,7 +108,7 @@ void ObstacleController::ProcessData() {
   //there is no report of 0 tags seen
   long int Tdifference = current_time - timeSinceTags;
   float Td = Tdifference/1e3;
-  if (Td >= 0.5) {
+  if (Td >= 1.0 ) { // was 0.5
     collection_zone_seen = false;
     phys= false;
     if (!obstacleAvoided)
