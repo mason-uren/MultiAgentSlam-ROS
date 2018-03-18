@@ -7,7 +7,7 @@ PickUpController::PickUpController() {
     lockTarget = false;
     timeOut = false;
     nTargetsSeen = 0;
-    blockYawError = 0;
+    blockYawError = CAMERA_OFFSET_CORRECTION;
     blockDistance = 0;
     targetHeld = false;
     millTimer = 0;
@@ -628,7 +628,7 @@ void PickUpController::Reset() {
     lockTarget = false;
     timeOut = false;
     nTargetsSeen = 0;
-    blockYawError = 0;
+    blockYawError = CAMERA_OFFSET_CORRECTION;
     blockDistance = 0;
 
     targetFound = false;

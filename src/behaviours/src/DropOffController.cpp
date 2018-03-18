@@ -208,7 +208,7 @@ void DropOffController::Align()
     result.type = precisionDriving;
     result.pd.cmdVel = 0.10;
     result.pd.cmdAngular = 0.0;
-    result.pd.cmdAngularError = -2.0*average_center_tag.getPositionX();
+    result.pd.cmdAngularError = -2.0*(cameraOffsetCorrection + average_center_tag.getPositionX());
     // result.pd.cmdAngular = -200*average_center_tag.getPositionX();
     result.pd.setPointVel = 0.0;
     result.pd.setPointYaw = 0.0;
