@@ -22,7 +22,7 @@ void ObstacleController::Reset() {
 void ObstacleController::avoidObstacle() {
   
     //always turn left to avoid obstacles
-    if (right < 0.8 || center < 0.8 || left < 0.8) {
+    if  ( (right < triggerDistance && center < triggerDistance) || (left < triggerDistance && center < triggerDistance) )  {
       result.type = precisionDriving;
 
       result.pd.cmdAngular = -K_angular;
@@ -141,7 +141,7 @@ void ObstacleController::ProcessData() {
   }
 
   //if any sonar is below the trigger distance set physical obstacle true
-  if (left < triggerDistance || right < triggerDistance || center < triggerDistance)
+  if ( (right < triggerDistance && center < triggerDistance) || (left < triggerDistance && center < triggerDistance) )
   {
     phys = true;
     timeSinceTags = current_time;
