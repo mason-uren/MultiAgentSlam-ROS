@@ -154,7 +154,10 @@ Result LogicController::DoWork()
       driveController.SetResultData(result);
       // Fall through on purpose to "case LOGIC_STATE_WAITING:"
     }
-
+    else if(result.type == vectorDriving) {
+      logicState = LOGIC_STATE_PRECISION_COMMAND;
+      break;
+    }
   }
   // ***************************************************************************
   // END LOGIC_STATE_INTERUPT
