@@ -510,6 +510,13 @@ void sendDriveCommand(double left, double right)
 
 void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& message) {
 
+    float sum_x = 0.0;
+    float sum_y = 0.0;
+    float sum_z = 0.0;
+    int countHome = 0;
+    Tag average_center_tag;
+    float blockDistance = 0;
+    float cameraOffsetCorrection = 0.020;
   // Don't pass April tag data to the logic controller if the robot is not in autonomous mode.
   // This is to make sure autonomous behaviours are not triggered while the rover is in manual mode. 
   if(!tagTesting && (currentMode == 0 || currentMode == 1))
@@ -526,6 +533,9 @@ void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& messag
       Tag loc;
       loc.setID( message->detections[i].id );
 
+
+
+
       // Pass the position of the AprilTag
       geometry_msgs::PoseStamped tagPose = message->detections[i].pose;
       loc.setPosition( make_tuple( tagPose.pose.position.x,
@@ -538,8 +548,50 @@ void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& messag
 							    tagPose.pose.orientation.z,
 							    tagPose.pose.orientation.w ) );
       tags.push_back(loc);
-    }
-    
+
+        if (message->detections[i].id == 256) {
+            countHome++;
+            sum_x = sum_x + loc.getPositionX();
+            sum_y = sum_y + loc.getPositionY();
+            sum_z = sum_z + loc.getPositionZ();
+        }
+    } // for loop end
+
+      if (countHome > 0) {
+          average_center_tag.setPositionX(sum_x / (countHome));
+          average_center_tag.setPositionY(sum_y / (countHome));
+          average_center_tag.setPositionZ(sum_z / (countHome));
+
+          float blockDistanceFromCamera;
+
+          float blockYawError = 0.0;
+          // using a^2 + b^2 = c^2 to find the distance to the block
+          // 0.195 is the height of the camera lens above the ground in cm.
+          //
+          // a is the linear distance from the robot to the block, c is the
+          // distance from the camera lens, and b is the height of the
+          // camera above the ground.
+          blockDistanceFromCamera = hypot(hypot(average_center_tag.getPositionX(), average_center_tag.getPositionY()),
+                                          average_center_tag.getPositionZ());
+
+
+          if ((blockDistanceFromCamera * blockDistanceFromCamera - 0.195 * 0.195) > 0) {
+              blockDistance = sqrt(blockDistanceFromCamera * blockDistanceFromCamera - 0.195 * 0.195);
+          } else {
+              float epsilon = 0.00001; // A small non-zero positive number
+              blockDistance = epsilon;
+          }
+
+          blockYawError = atan((average_center_tag.getPositionX() + cameraOffsetCorrection) / blockDistance) *
+                          1.05; //angle to block from bottom center of chassis on the horizontal.
+
+          centerLocationOdom.x = currentLocation.x + blockDistance * cos(currentLocation.theta + blockYawError);
+          centerLocationOdom.y = currentLocation.y + blockDistance * sin(currentLocation.theta + blockYawError);
+
+          cout << "********************************************** CENTER LOCATION WAS CHANGED **********************************************" << endl;
+          cout << "  centerLocationOdom.x : " << centerLocationOdom.x << endl;
+          cout << "  centerLocationOdom.y : " << centerLocationOdom.y << endl;
+      }
     logicController.SetAprilTags(tags);
   }
   
@@ -729,7 +781,7 @@ long int getROSTimeInMilliSecs()
 
 Point updateCenterLocation()
 {
-  transformMapCentertoOdom();
+  //transformMapCentertoOdom();
   
   Point tmp;
   tmp.x = centerLocationOdom.x;
