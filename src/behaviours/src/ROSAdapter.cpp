@@ -385,7 +385,7 @@ void behaviourStateMachine(const ros::TimerEvent&)
     //ask logic controller for the next set of actuator commands
     result = logicController.DoWork();
     
-    cout << result.enable_reset_center_location << " :WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW" << endl;
+    //cout << result.enable_reset_center_location << " :WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW" << endl;
     if( result.enable_reset_center_location ){
       centerLocationIsUpdatable = result.enable_reset_center_location;
     }
@@ -441,7 +441,7 @@ void behaviourStateMachine(const ros::TimerEvent&)
     
     
     //adds a blank space between sets of debugging data to easily tell one tick from the next
-    cout << endl;
+    // cout << endl;
     
   }
   
@@ -599,12 +599,12 @@ void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& messag
               centerLocationIsUpdatable = false;
             }
         } else {
-            cout << " {}{}{}{}{}{}{}{}{} saw cube tags, set centerLcoationWasUpdated to false {}{}{}{}{}{{}{}{}}{}" << endl;
+            // cout << " {}{}{}{}{}{}{}{}{} saw cube tags, set centerLcoationWasUpdated to false {}{}{}{}{}{{}{}{}}{}" << endl;
             centerLocationWasUpdated = false; //gps centerLocation update does run
         }
         logicController.SetAprilTags(tags);
     } else {
-        cout << " ()()()()()()(()()()()( saw no tags, set centerLcoationWasUpdated to false ()()()()()()(()()()()(" << endl;
+        // cout << " ()()()()()()(()()()()( saw no tags, set centerLcoationWasUpdated to false ()()()()()()(()()()()(" << endl;
         centerLocationWasUpdated = false;
     }
 
@@ -796,9 +796,9 @@ long int getROSTimeInMilliSecs()
 
 Point updateCenterLocation()
 {
-  // if(!centerLocationWasUpdated) {
-  //     transformMapCentertoOdom();
-  // }
+  if(!centerLocationWasUpdated) {
+      transformMapCentertoOdom();
+  }
   
   Point tmp;
   tmp.x = centerLocationOdom.x;

@@ -119,19 +119,46 @@ Result DropOffController::DoWork() {
     }
 
     //check to see if we are driving to the center location or if we need to drive in a circle and look.
-    if (distanceToCenter > collectionPointVisualDistance && !circularCenterSearching && (tagCount == 0) && !homeFound) {
+    if (distanceToCenter > collectionPointVisualDistance && !circularCenterSearching && (tagCount == 0) && !homeFound && gps_chase_timer < 120) {
 
+        cout << " Driving to home waypoint.+++++++++++++++++++++++++++ " << endl;
+        cout << " Distance to Center: " << distanceToCenter << endl;
+        cout << " timerTimeElapsed: " << timerTimeElapsed << endl;
+        cout << " gps chase timer : " << gps_chase_timer << endl;
         WaypointNav();
-
+        if(gps_chase_timer < 1){
+            gps_chase_timer = 1; // This was Kevin's idea. 
+        }
+        else{
+            gps_chase_timer += timerTimeElapsed;   
+        }
+        
         return result;
 
     }
-    else if (timerTimeElapsed >= 2 && tagCount == 0 && !homeFound) //Believes it is home but is not
+    else if (gps_chase_timer >= 120 && gps_chase_timer <= 240 && tagCount == 0 && !homeFound) //Believes it is home but is not
     {
         cout << " ET PHONE HOME " << endl;
+        gps_chase_timer += timerTimeElapsed;
         SearchForHome(); //currently spin search
+        
+        cout << " gps chase timer : " << gps_chase_timer << endl;
     }
+    else if (gps_chase_timer >= 240 && tagCount == 0 && !homeFound) //Believes it is home but is not
+    {
+        dropOffMessage(ClassName, __func__);
+        cout << "Timout now we vector drive." << endl;
+        result.type = vectorDriving;
+        result.desired_heading = currentLocation.theta;
+        circularCenterSearching = true;
+        //safety flag to prevent us trying to drive back to the
+        //center since we have a block with us and the above point is
+        //greater than collectionPointVisualDistance from the center.
 
+        returnTimer = current_time;
+        timerTimeElapsed = 0;
+
+    }
 //    if(alternateDeliver)
 //    {
 //        AltDeliver();
@@ -366,7 +393,7 @@ void DropOffController::WaypointNav()
     startWaypoint = false;
     isPrecisionDriving = false;
 
-    timerTimeElapsed = 0;
+    returnTimer = current_time;
 
     string message = "Starting DropOff, setting waypoint to center location";
     logMessage(current_time, "DROPOFF", message);
@@ -426,6 +453,8 @@ void DropOffController::Reset() {
 
     alignAngleSumLeft = 0;
     alignAngleSumRight = 0;
+
+    gps_chase_timer = 0;
 
     //reset flags
     reachedCollectionPoint = false;

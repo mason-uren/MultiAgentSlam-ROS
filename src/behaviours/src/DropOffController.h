@@ -202,6 +202,8 @@ private:
 
     string ClassName = "DropOff Controller";
 
+    float gps_chase_timer = 0.0;
+
 };
 
 #endif // end header define

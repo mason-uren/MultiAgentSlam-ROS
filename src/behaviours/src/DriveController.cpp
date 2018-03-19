@@ -142,7 +142,7 @@ Result DriveController::DoWork()
             // Calculate angle between currentLocation.theta and waypoints.front().theta
             // Rotate left or right depending on sign of angle
             // Stay in this state until angle is minimized
-            printf("rotate\n");
+            // printf("rotate\n");
             if (result.type == vectorDriving) {
                 float errorYaw = angles::shortest_angular_distance(result.desired_heading, currentLocation.theta);
                 result.pd.setPointVel = 0.0;
@@ -161,7 +161,7 @@ Result DriveController::DoWork()
                 waypoints.back().theta = angle_between_points(waypoints.back(),currentLocation);
 
                 // Calculate the diffrence between current and desired heading in radians.
-                cout << "ROTATE Error yaw:  " << errorYaw << " target heading : " << waypoints.back().theta << " current heading : " << currentLocation.theta << endl; //DEBUGGING CODE
+                // cout << "ROTATE Error yaw:  " << errorYaw << " target heading : " << waypoints.back().theta << " current heading : " << currentLocation.theta << endl; //DEBUGGING CODE
                 cout << "Waypoint x : " << waypoints.back().x << " y : " << waypoints.back().y << " currentLoc x : " << currentLocation.x << " y : " << currentLocation.y << endl; //DEBUGGING CODE
 
                 result.pd.setPointVel = 0.0;
@@ -462,6 +462,6 @@ void DriveController::outputValidation(float velOut, float yawOut) {
 
     this->left = saturation_check(left,sat);
     this->right = saturation_check(right,sat);
-    cout << "LEFT: " << this->left << endl;
-    cout << "RIGHT " << this->right << endl;
+    // cout << "LEFT: " << this->left << endl;
+    // cout << "RIGHT " << this->right << endl;
 }

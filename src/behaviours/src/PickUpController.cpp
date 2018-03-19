@@ -226,7 +226,7 @@ void PickUpController::SetTagData(vector<Tag> tags) {
 
                 1.05;*/
 
-            cout << "Setting blockYawError TAGDATA::::::::::::::::::::  " << blockYawError << endl;
+            // cout << "Setting blockYawError TAGDATA::::::::::::::::::::  " << blockYawError << endl;
 
         }
 
