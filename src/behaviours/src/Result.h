@@ -81,4 +81,5 @@ struct Result {
 
     bool reset; //holds a reset command where logic controller will reset the controller that asks
     float desired_heading;//contains the angle for the robot to rotate to
+    bool enable_reset_center_location = false;
 };

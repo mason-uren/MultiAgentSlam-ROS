@@ -140,6 +140,7 @@ Result DropOffController::DoWork() {
     if(isAligned)
     {
         DeliverCube();
+        result.enable_reset_center_location = false;
     }
     else if(centerSeen)
     {
@@ -204,6 +205,7 @@ void DropOffController::Align()
         result.pd.setPointYaw = 0.0;
         prevYaw = tagYaw;
         isAligned = true;
+        result.enable_reset_center_location = true;
     }
     result.type = precisionDriving;
     result.pd.cmdVel = 0.10;

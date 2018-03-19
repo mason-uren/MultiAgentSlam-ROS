@@ -123,6 +123,7 @@ bool tagTesting = true; //Allows tag detection while in manual mode
 Result result;
 
 bool centerLocationWasUpdated = false;
+bool centerLocationIsUpdatable = false;
 
 std_msgs::String msg;	//used for passing messages to the GUI
 
@@ -384,6 +385,10 @@ void behaviourStateMachine(const ros::TimerEvent&)
     //ask logic controller for the next set of actuator commands
     result = logicController.DoWork();
     
+    cout << result.enable_reset_center_location << " :WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW" << endl;
+    if( result.enable_reset_center_location ){
+      centerLocationIsUpdatable = result.enable_reset_center_location;
+    }
     bool wait = false;	//a variable created to check if we are in a waiting state
     
     //if a wait behaviour is thrown sit and do nothing untill logicController is ready
@@ -583,14 +588,16 @@ void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& messag
 
             blockYawError = atan((average_center_tag.getPositionX() + cameraOffsetCorrection) / blockDistance) *
                             1.05; //angle to block from bottom center of chassis on the horizontal.
+            if(centerLocationIsUpdatable){
+              centerLocationOdom.x = currentLocation.x + ( 0.5 + blockDistance ) * cos(currentLocation.theta + blockYawError);
+              centerLocationOdom.y = currentLocation.y + ( 0.5 + blockDistance ) * sin(currentLocation.theta + blockYawError);
 
-            centerLocationOdom.x = currentLocation.x + blockDistance * cos(currentLocation.theta + blockYawError);
-            centerLocationOdom.y = currentLocation.y + blockDistance * sin(currentLocation.theta + blockYawError);
-
-            cout << "********************************************** CENTER LOCATION WAS CHANGED **********************************************" << endl;
-            cout << "  centerLocationOdom.x : " << centerLocationOdom.x << endl;
-            cout << "  centerLocationOdom.y : " << centerLocationOdom.y << endl;
-            centerLocationWasUpdated = true; //gps centerLocation update doesn't run
+              cout << "********************************************** CENTER LOCATION WAS CHANGED **********************************************" << endl;
+              cout << "  centerLocationOdom.x : " << centerLocationOdom.x << endl;
+              cout << "  centerLocationOdom.y : " << centerLocationOdom.y << endl;
+              centerLocationWasUpdated = true; //gps centerLocation update doesn't run
+              centerLocationIsUpdatable = false;
+            }
         } else {
             cout << " {}{}{}{}{}{}{}{}{} saw cube tags, set centerLcoationWasUpdated to false {}{}{}{}{}{{}{}{}}{}" << endl;
             centerLocationWasUpdated = false; //gps centerLocation update does run
@@ -789,9 +796,9 @@ long int getROSTimeInMilliSecs()
 
 Point updateCenterLocation()
 {
-  if(!centerLocationWasUpdated) {
-      transformMapCentertoOdom();
-  }
+  // if(!centerLocationWasUpdated) {
+  //     transformMapCentertoOdom();
+  // }
   
   Point tmp;
   tmp.x = centerLocationOdom.x;
