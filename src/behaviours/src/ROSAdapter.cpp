@@ -744,7 +744,9 @@ void joyCmdHandler(const sensor_msgs::Joy::ConstPtr& message) {
 
 void publishStatusTimerEventHandler(const ros::TimerEvent&) {
   std_msgs::String msg;
-  msg.data = "CSUCI";
+  stringstream converter;
+  converter << "  (" << centerLocationOdom.x << "," << centerLocationOdom.y << ")";
+  msg.data = converter.str();
   status_publisher.publish(msg);
 }
 
