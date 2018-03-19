@@ -7,9 +7,9 @@ SearchController::SearchController() {
     currentLocation.y = 0;
     currentLocation.theta = 0;
 
-    centerLocation.x = 0;
-    centerLocation.y = 0;
-    centerLocation.theta = 0;
+    // centerLocation.x = 0; 
+    // centerLocation.y = 0;
+    // centerLocation.theta = 0;
     result.PIDMode = FAST_PID;
 
     result.fingerAngle = M_PI / 2;
@@ -53,14 +53,14 @@ Result SearchController::DoWork() {
 
 void SearchController::SetCenterLocation(Point centerLocation) {
 
-    float diffX = this->centerLocation.x - centerLocation.x;
-    float diffY = this->centerLocation.y - centerLocation.y;
-    this->centerLocation = centerLocation;
+    // float diffX = this->centerLocation.x - centerLocation.x;
+    // float diffY = this->centerLocation.y - centerLocation.y;
+    // this->centerLocation = centerLocation;
 
-    if (!result.waypoints.empty()) {
-        result.waypoints.back().x -= diffX;
-        result.waypoints.back().y -= diffY;
-    }
+    // if (!result.waypoints.empty()) {
+    //     result.waypoints.back().x -= diffX;
+    //     result.waypoints.back().y -= diffY;
+    // }
 
 }
 

@@ -89,7 +89,8 @@ void transformMapCentertoOdom();	//checks ODOMs perceived idea of where the cent
 
 
 // Numeric Variables for rover positioning
-geometry_msgs::Pose2D currentLocation;		//current location using ODOM
+geometry_msgs::Pose2D currentLocationOdom;		//current location using ODOM
+geometry_msgs::Pose2D currentLocation; // This is what we will use for currenLocation from now on.
 geometry_msgs::Pose2D currentLocationMap;	//current location using GPS
 geometry_msgs::Pose2D currentLocationAverage;	//an average of the robots current location
 
@@ -347,8 +348,8 @@ void behaviourStateMachine(const ros::TimerEvent&)
       centerLocationMap.x = centerMap.x;
       centerLocationMap.y = centerMap.y;
       
-      centerLocationOdom.x = centerOdom.x;
-      centerLocationOdom.y = centerOdom.y;
+      centerLocationOdom.x = centerMap.x;//centerOdom.x;
+      centerLocationOdom.y = centerMap.y;//centerOdom.y;
       
       startTime = getROSTimeInMilliSecs();
       /*
@@ -629,25 +630,25 @@ void sonarHandler(const sensor_msgs::Range::ConstPtr& sonarLeft, const sensor_ms
 
 void odometryHandler(const nav_msgs::Odometry::ConstPtr& message) {
   //Get (x,y) location directly from pose
-  currentLocation.x = message->pose.pose.position.x;
-  currentLocation.y = message->pose.pose.position.y;
+  currentLocationOdom.x = message->pose.pose.position.x;
+  currentLocationOdom.y = message->pose.pose.position.y;
   
   //Get theta rotation by converting quaternion orientation to pitch/roll/yaw
   tf::Quaternion q(message->pose.pose.orientation.x, message->pose.pose.orientation.y, message->pose.pose.orientation.z, message->pose.pose.orientation.w);
   tf::Matrix3x3 m(q);
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
-  currentLocation.theta = yaw;
+  currentLocationOdom.theta = yaw;
   
   linearVelocity = message->twist.twist.linear.x;
   angularVelocity = message->twist.twist.angular.z;
   
   
-  Point currentLoc;
-  currentLoc.x = currentLocation.x;
-  currentLoc.y = currentLocation.y;
-  currentLoc.theta = currentLocation.theta;
-  logicController.SetPositionData(currentLoc);
+  // Point currentLoc;
+  // currentLoc.x = currentLocation.x;
+  // currentLoc.y = currentLocation.y;
+  // currentLoc.theta = currentLocation.theta;
+  // logicController.SetPositionData(currentLoc);
   logicController.SetVelocityData(linearVelocity, angularVelocity);
 }
 
@@ -702,6 +703,9 @@ void mapHandler(const nav_msgs::Odometry::ConstPtr& message) {
   //Get (x,y) location directly from pose
   currentLocationMap.x = message->pose.pose.position.x;
   currentLocationMap.y = message->pose.pose.position.y;
+
+  currentLocation.x = message->pose.pose.position.x;
+  currentLocation.y = message->pose.pose.position.y;
   
   //Get theta rotation by converting quaternion orientation to pitch/roll/yaw
   tf::Quaternion q(message->pose.pose.orientation.x, message->pose.pose.orientation.y, message->pose.pose.orientation.z, message->pose.pose.orientation.w);
@@ -709,7 +713,8 @@ void mapHandler(const nav_msgs::Odometry::ConstPtr& message) {
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
   currentLocationMap.theta = yaw;
-  
+  currentLocation.theta = yaw;
+
   linearVelocity = message->twist.twist.linear.x;
   angularVelocity = message->twist.twist.angular.z;
   
@@ -718,6 +723,7 @@ void mapHandler(const nav_msgs::Odometry::ConstPtr& message) {
   curr_loc.y = currentLocationMap.y;
   curr_loc.theta = currentLocationMap.theta;
   logicController.SetMapPositionData(curr_loc);
+  logicController.SetPositionData(curr_loc); // Replacing currentLocation from Odom with currentLocation from GPS.
   logicController.SetMapVelocityData(linearVelocity, angularVelocity);
 }
 
@@ -796,9 +802,9 @@ long int getROSTimeInMilliSecs()
 
 Point updateCenterLocation()
 {
-  if(!centerLocationWasUpdated) {
-      transformMapCentertoOdom();
-  }
+  // if(!centerLocationWasUpdated) {
+  //     transformMapCentertoOdom();
+  // }
   
   Point tmp;
   tmp.x = centerLocationOdom.x;

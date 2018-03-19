@@ -397,7 +397,7 @@ void LogicController::SetSonarData(float left, float center, float right)
 // Called once by RosAdapter in guarded init.
 void LogicController::SetCenterLocationOdom(Point centerLocationOdom)
 {
-  searchController.SetCenterLocation(centerLocationOdom);
+  // searchController.SetCenterLocation(centerLocationOdom);
   dropOffController.SetCenterLocation(centerLocationOdom);
 }
 
@@ -429,6 +429,7 @@ void LogicController::setVirtualFenceOff()
 
 void LogicController::SetCenterLocationMap(Point centerLocationMap)
 {
+  dropOffController.SetCenterLocation(centerLocationMap);
 }
 
 void LogicController::SetCurrentTimeInMilliSecs( long int time )
