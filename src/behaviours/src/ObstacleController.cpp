@@ -16,13 +16,14 @@ void ObstacleController::Reset() {
   obstacleDetected = false;
   obstacleInterrupt = false;
   delay = current_time;
+  allow_center_reset_center_location = true;  
 }
 
 // Avoid crashing into objects detected by the ultraound
 void ObstacleController::avoidObstacle() {
   
     //always turn left to avoid obstacles
-    if  ( (right < triggerDistance && center < triggerDistance) || (left < triggerDistance && center < triggerDistance) )  {
+    if  ( left < triggerDistance || center < triggerDistance || right < triggerDistance )  {
       result.type = precisionDriving;
 
       result.pd.cmdAngular = -K_angular;
@@ -52,6 +53,14 @@ void ObstacleController::avoidCollectionZone() {
     result.pd.setPointVel = 0.0;
     result.pd.cmdVel = 0.0;
     result.pd.setPointYaw = 0;
+    if( allow_center_reset_center_location ) {
+      result.enable_reset_center_location = true;
+      allow_center_reset_center_location = false;  
+    }
+    else {
+      result.enable_reset_center_location = false;
+    }
+    
 }
 
 
@@ -141,7 +150,7 @@ void ObstacleController::ProcessData() {
   }
 
   //if any sonar is below the trigger distance set physical obstacle true
-  if ( (right < triggerDistance && center < triggerDistance) || (left < triggerDistance && center < triggerDistance) )
+  if ( left < triggerDistance || center < triggerDistance || right < triggerDistance )
   {
     phys = true;
     timeSinceTags = current_time;
@@ -175,7 +184,7 @@ void ObstacleController::setTagData(vector<Tag> tags){
     for (int i = 0; i < tags.size(); i++) { //redundant for loop
       if (tags[i].getID() == 256) {
 
-	collection_zone_seen = checkForCollectionZoneTags( tags );
+	      collection_zone_seen = checkForCollectionZoneTags( tags );
         timeSinceTags = current_time;
       }
     }

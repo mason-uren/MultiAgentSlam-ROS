@@ -229,6 +229,8 @@ private:
     bool acceptDetections;
 
     double x_home_tag_orientation;
+
+    bool allow_center_reset_center_location = true;
 };
 
 #endif // OBSTACLECONTOLLER_H
