@@ -189,10 +189,11 @@ void parse() {
 
     Serial.println("ODOM," + String(1) + "," + updateOdom());
 
+    int centerUSValue, leftUSValue, rightUSValue;
     switch(sonar_fire) {
       case 0:
         Serial.print("USC,");	
-        int centerUSValue = centerUS.ping_cm();
+        centerUSValue = centerUS.ping_cm();
         Serial.print(String(centerUSValue > 0 ? 1 : 0) + ",");
         if (centerUSValue > 0) {
           Serial.println(String(centerUSValue));
@@ -203,7 +204,7 @@ void parse() {
         break;
       case 1:
         Serial.print("USL,");
-        int leftUSValue = leftUS.ping_cm();
+        leftUSValue = leftUS.ping_cm();
         Serial.print(String(leftUSValue > 0 ? 1 : 0) + ",");
         if (leftUSValue > 0) {
           Serial.println(String(leftUSValue));
@@ -213,7 +214,7 @@ void parse() {
         break;
       case 2:
         Serial.print("USR,");
-        int rightUSValue = rightUS.ping_cm();
+        rightUSValue = rightUS.ping_cm();
         Serial.print(String(rightUSValue > 0 ? 1 : 0) + ",");
         if (rightUSValue > 0) {
           Serial.println(String(rightUSValue));
