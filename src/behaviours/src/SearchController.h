@@ -63,6 +63,10 @@ private:
     long int current_time;
 
     string ClassName = "Search Controller";
+
+    float waypoint_outside_wall_timer = 0;
+    float waypoint_search_timer_start = 0;
+    bool abandonShip = false;
 };
 
 #endif /* SEARCH_CONTROLLER */

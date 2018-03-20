@@ -38,15 +38,27 @@ Result SearchController::DoWork() {
 
     extern void logicMessage(long int currentTime, string component, string message);
     Point searchLocation = GetLastCubeLocation();
-    if(searchLocation.x != 0 && searchLocation.y != 0) {
+    cout << "waypoint outside wall timer: " << waypoint_outside_wall_timer << endl;
+    cout << "waypoint search timer start: " << waypoint_search_timer_start << endl;
+    waypoint_outside_wall_timer = (current_time - waypoint_search_timer_start) / 1e3;
+    if( searchLocation.x != 0 && searchLocation.y != 0 && abandonShip == false) {
         cout << "searhccontroller has a known location: " << searchLocation.x << searchLocation.y << endl;
         result.type = waypoint;
         result.waypoints.clear();
         result.waypoints.insert(result.waypoints.begin(), searchLocation);
-
+        cout << "inside if waypoint outside wall timer: " << waypoint_outside_wall_timer << endl;
+        if(waypoint_outside_wall_timer > 240)//4 minutes, could be longer
+        {
+            abandonShip = true;
+            cout << "Abadoning going to last cube location, returning to vector driving" << endl;
+            result.type = vectorDriving;
+        }
     } else {
         result.type = vectorDriving;
     }
+    /*if( waypoint_outside_wall_timer > 120){
+        result.type = vectorDriving;
+    }*/
     return result;
 
 }
@@ -82,7 +94,10 @@ bool SearchController::HasWork() {
 }
 
 void SearchController::SetSuccesfullPickup() {
+    waypoint_search_timer_start = current_time;
+    cout << "Starting waypoint search timer:  " << waypoint_search_timer_start << endl;//Move this so it starts the timer after a good dropoff
     succesfullPickup = true;
+    abandonShip = false;
 }
 
 float SearchController::GetNewHeading(float beta, bool search_mode) {
