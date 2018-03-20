@@ -6,6 +6,7 @@ ObstacleController::ObstacleController()
   obstacleDetected = false;
   obstacleInterrupt = false;
   result.PIDMode = CONST_PID; //use the const PID to turn at a constant speed
+  rng = new random_numbers::RandomNumberGenerator();
 }
 
 
@@ -117,7 +118,16 @@ void ObstacleController::ProcessData() {
   //there is no report of 0 tags seen
   long int Tdifference = current_time - timeSinceTags;
   float Td = Tdifference/1e3;
-  if (Td >= 1.0 ) { // was 0.5
+  float time_threshold;
+  if(ignore_center_sonar) {
+    // we're heading home, use a more sane threshold
+    time_threshold = 1;
+  } else {
+    // no care, use random
+    time_threshold = 1 + rng->gaussian(1, 0.5);
+  }
+   // rotate between 1.5 and 2.5 seconds Before this was set to 1
+  if (Td >= time_threshold) { // was 0.5
     collection_zone_seen = false;
     phys= false;
     if (!obstacleAvoided)

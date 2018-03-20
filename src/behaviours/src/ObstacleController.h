@@ -11,6 +11,7 @@
 #include <cstdlib>
 #include <cmath>
 #include <random>
+#include <random_numbers/random_numbers.h>
 /*
  * Sonar has the most accurate readings at a range less than 2 meters
  * Calculated % Error:
@@ -149,6 +150,9 @@ protected:
     void onExit();
 
 private:
+
+    // Random number generator
+    random_numbers::RandomNumberGenerator* rng;
 
     // Try not to run over the collection zone
     void avoidCollectionZone();

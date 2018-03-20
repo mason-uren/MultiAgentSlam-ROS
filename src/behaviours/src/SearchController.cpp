@@ -47,7 +47,7 @@ Result SearchController::DoWork() {
         result.waypoints.clear();
         result.waypoints.insert(result.waypoints.begin(), searchLocation);
         cout << "inside if waypoint outside wall timer: " << waypoint_outside_wall_timer << endl;
-        if(waypoint_outside_wall_timer > 240)//4 minutes, could be longer
+        if(waypoint_outside_wall_timer > 120)//2 minutes, could be longer
         {
             abandonShip = true;
             cout << "Abadoning going to last cube location, returning to vector driving" << endl;
