@@ -517,10 +517,11 @@ Result PickUpController::DoWork() {
 
             lockTarget = true;
 
-            result.pd.cmdVel = 0.18;
-
-            result.pd.cmdAngularError = 0.0;
-
+            //result.pd.cmdVel = 0.18;
+            //result.pd.cmdAngularError = 0.0;
+	    // try distance driving
+	    result.type = distance_driving;
+	    
             timeOut = true;
 
             ignoreCenterSonar = true;

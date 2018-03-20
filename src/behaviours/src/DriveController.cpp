@@ -199,8 +199,25 @@ Result DriveController::DoWork()
                 //outputValidation(velPID(fastVelPID,.3,5),yawPID(fastYawPID,0,0));
                 outputValidation(90,0.0); // just floor it.
                 break;
-            }
-            else {
+            } else if (result.type == distance_driving) {
+	      // DRIVE some distance
+	      cout << ",.~'`'~., DISTANCE DRIVING ,.~'`'~.," << endl;
+	      if(result.distance_driving_values.start_odom.x == 0 && result.distance_driving_values.start_odom.y == 0) {
+		cout << ",.~'`'~.,.~'`'~.,.~'`'~. FIRST TIME DISTANCE DRIVING ,.~'`'~.,.~'`'~.,.~'`'~.,.~'`'~." << endl;
+		result.distance_driving_values.start_odom = currentLocation; // which is odom?
+	      } else {
+		float distance = distance_between_points(result.distance_driving_values.start_odom, currentLocation);
+		result.distance_driving_values.completed_distance += distance;
+		cout << ",.~'`'~.,.~'`'~.,.~'`'~. GONE: " << distance << ",.~'`'~.,.~'`'~.,.~'`'~.,.~'`'~." << endl;
+		if(result.distance_driving_values.completed_distance > 3.0) { // > result.distance_driving_values.desired_distance TODO
+		  break;
+		  cout << ",.~'`'~.,.~'`'~.,.~'`'~. DONEZOOOOOOOO ,.~'`'~.,.~'`'~.,.~'`'~.,.~'`'~." << endl;
+		} else {
+		  outputValidation(90,0.0); // FIDLAR
+		}
+	      }
+	      break;
+            } else {
                 waypoints.back().theta = angle_between_points(waypoints.back(), currentLocation);
                 float errorYaw = difference_between_angles(currentLocation, waypoints.back());
                 float distance = distance_between_points(waypoints.back(), currentLocation);
@@ -273,7 +290,7 @@ void DriveController::ProcessData() {
             waypoints.insert(waypoints.end(), result.waypoints.begin(), result.waypoints.end());
             stateMachineState = STATE_MACHINE_WAYPOINTS;
         }
-    } else if (result.type == vectorDriving) {
+    } else if (result.type == vectorDriving || result.type == distance_driving) {
         stateMachineState = STATE_MACHINE_SKID_STEER;
 
     } else if (result.type == precisionDriving) {
