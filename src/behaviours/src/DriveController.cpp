@@ -202,9 +202,11 @@ Result DriveController::DoWork()
             } else if (result.type == distance_driving) {
 	      // DRIVE some distance
 	      cout << ",.~'`'~., DISTANCE DRIVING ,.~'`'~.," << endl;
-	      if(result.distance_driving_values.start_odom.x == 0 && result.distance_driving_values.start_odom.y == 0) {
+	      if(result.distance_driving_values.start_odom.x == 0.0 && result.distance_driving_values.start_odom.y == 0.0) {
 		cout << ",.~'`'~.,.~'`'~.,.~'`'~. FIRST TIME DISTANCE DRIVING ,.~'`'~.,.~'`'~.,.~'`'~.,.~'`'~." << endl;
-		result.distance_driving_values.start_odom = currentLocation; // which is odom?
+		result.distance_driving_values.start_odom.x = currentLocation.x; // which is odom
+		result.distance_driving_values.start_odom.y = currentLocation.y;
+		cout << currentLocation.x << "," << currentLocation.y << endl;
 	      } else {
 		float distance = distance_between_points(result.distance_driving_values.start_odom, currentLocation);
 		result.distance_driving_values.completed_distance += distance;
