@@ -60,9 +60,10 @@ byte leftSignal = 4;
 byte centerSignal = 5;
 byte rightSignal = 6;
 
+unsigned long time;
+unsigned long new_time;
 unsigned long sonar_fire = 0;
-unsigned long last_sonar_fired = 9001;
-unsigned long time_sonar_fired = 0;
+int centerUSValue, leftUSValue, rightUSValue;
 
 ////////////////////////////
 ////Class Instantiations////
@@ -109,6 +110,11 @@ void setup()
 /////////////////
 
 void loop() {
+  new_time = millis();
+  if(new_time - time > 33) {
+    sonar_fire = (sonar_fire + 1) % 3;
+    time = millis();
+  }
   if (Serial.available()) {
     char c = Serial.read();
     if (c == ',' || c == '\n') {
@@ -183,12 +189,9 @@ void parse() {
 
     Serial.println("ODOM," + String(1) + "," + updateOdom());
 
-    int centerUSValue, leftUSValue, rightUSValue;
+    
     switch(sonar_fire) {
       case 0:
-        if(last_sonar_fired != sonar_fire) {
-          // save the time that the sonar fired
-          time_sonar_fired = millis();
           Serial.print("USC,");	
           centerUSValue = centerUS.ping_cm();
           Serial.print(String(centerUSValue > 0 ? 1 : 0) + ",");
@@ -198,14 +201,8 @@ void parse() {
           else {
             Serial.println();
           }
-	        last_sonar_fired = sonar_fire;
-	      }else if(millis() - time_sonar_fired > 33) {
-          sonar_fire = (sonar_fire + 1) % 3;
-        }
         break;
       case 1:
-        if(last_sonar_fired != sonar_fire) {
-          time_sonar_fired = millis();
           Serial.print("USL,");
           leftUSValue = leftUS.ping_cm();
           Serial.print(String(leftUSValue > 0 ? 1 : 0) + ",");
@@ -214,14 +211,8 @@ void parse() {
           } else {
             Serial.println();
           }
-        	last_sonar_fired = sonar_fire;
-      	} else if(millis() - time_sonar_fired > 33) {
-          sonar_fire = (sonar_fire + 1) % 3;
-        }
         break;
       case 2:
-        if(last_sonar_fired != sonar_fire) {
-          time_sonar_fired = millis();
           Serial.print("USR,");
           rightUSValue = rightUS.ping_cm();
           Serial.print(String(rightUSValue > 0 ? 1 : 0) + ",");
@@ -230,10 +221,6 @@ void parse() {
           } else {
             Serial.println();
           }
-          last_sonar_fired = sonar_fire;
-        }else if(millis() - time_sonar_fired > 33) {
-          sonar_fire = (sonar_fire + 1) % 3;
-        }
         break;
     }
   }
