@@ -60,9 +60,10 @@ byte leftSignal = 4;
 byte centerSignal = 5;
 byte rightSignal = 6;
 
+unsigned long time;
+unsigned long new_time;
 unsigned long sonar_fire = 0;
-unsigned long start_time, end_time;
-long total_loop_time;
+int centerUSValue, leftUSValue, rightUSValue;
 
 ////////////////////////////
 ////Class Instantiations////
@@ -109,7 +110,11 @@ void setup()
 /////////////////
 
 void loop() {
-  start_time = millis();
+  new_time = millis();
+  if(new_time - time > 33) {
+    sonar_fire = (sonar_fire + 1) % 3;
+    time = millis();
+  }
   if (Serial.available()) {
     char c = Serial.read();
     if (c == ',' || c == '\n') {
@@ -123,11 +128,6 @@ void loop() {
   }
   if (millis() - lastCommTime > watchdogTimer) {
     move.stop();
-  }
-  end_time = millis();
-  total_loop_time = end_time - start_time;
-  if(33 - total_loop_time > 0) {
-    delay(33-(total_loop_time));
   }
 }
 
@@ -189,7 +189,7 @@ void parse() {
 
     Serial.println("ODOM," + String(1) + "," + updateOdom());
 
-    int centerUSValue, leftUSValue, rightUSValue;
+    
     switch(sonar_fire) {
       case 0:
           Serial.print("USC,");	
@@ -201,7 +201,6 @@ void parse() {
           else {
             Serial.println();
           }
-          sonar_fire = 1;
         break;
       case 1:
           Serial.print("USL,");
@@ -212,7 +211,6 @@ void parse() {
           } else {
             Serial.println();
           }
-          sonar_fire = 2;
         break;
       case 2:
           Serial.print("USR,");
@@ -223,7 +221,6 @@ void parse() {
           } else {
             Serial.println();
           }
-          sonar_fire = 0;
         break;
     }
   }
