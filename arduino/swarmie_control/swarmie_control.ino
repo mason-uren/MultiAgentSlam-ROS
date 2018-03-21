@@ -63,6 +63,7 @@ byte rightSignal = 6;
 unsigned long time;
 unsigned long new_time;
 unsigned long sonar_fire = 0;
+unsigned long last_sonar_fired = 9001;
 
 
 ////////////////////////////
@@ -192,17 +193,21 @@ void parse() {
     int centerUSValue, leftUSValue, rightUSValue;
     switch(sonar_fire) {
       case 0:
-        Serial.print("USC,");	
-        centerUSValue = centerUS.ping_cm();
-        Serial.print(String(centerUSValue > 0 ? 1 : 0) + ",");
-        if (centerUSValue > 0) {
-          Serial.println(String(centerUSValue));
-        }
-        else {
-          Serial.println();
-        }
+        if(last_sonar_fired != sonar_fire) {
+          Serial.print("USC,");	
+          centerUSValue = centerUS.ping_cm();
+          Serial.print(String(centerUSValue > 0 ? 1 : 0) + ",");
+          if (centerUSValue > 0) {
+            Serial.println(String(centerUSValue));
+          }
+          else {
+            Serial.println();
+          }
+	  last_sonar_fired = sonar_fire;
+	}
         break;
       case 1:
+        if(last_sonar_fired != sonar_fire) {
         Serial.print("USL,");
         leftUSValue = leftUS.ping_cm();
         Serial.print(String(leftUSValue > 0 ? 1 : 0) + ",");
@@ -211,8 +216,11 @@ void parse() {
         } else {
           Serial.println();
         }
+	last_sonar_fired = sonar_fire;
+	}
         break;
       case 2:
+        if(last_sonar_fired != sonar_fire) {
         Serial.print("USR,");
         rightUSValue = rightUS.ping_cm();
         Serial.print(String(rightUSValue > 0 ? 1 : 0) + ",");
@@ -221,6 +229,7 @@ void parse() {
         } else {
           Serial.println();
         }
+	}
         break;
     }
   }
