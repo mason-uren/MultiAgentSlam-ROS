@@ -114,8 +114,9 @@ float angularVelocity = 0;	//turning speed, POSITIVE = left, NEGATIVE = right
 float prevWrist = 0;	//last wrist angle
 float prevFinger = 0;	//last finger angle
 long int startTime = 0;	//stores time when robot is swtiched on
-float minutesTime = 0;	//time in minutes
-float hoursTime = 0;	//time in hours
+int minutesTime = 0;	//time in minutes
+int hoursTime = 0;	//time in hours
+long int startAutoTime = 0; // 
 
 float drift_tolerance = 0.5; // the perceived difference between ODOM and GPS values before shifting the values up or down, in meters
 
@@ -615,6 +616,7 @@ void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
   currentMode = message->data;
   if(currentMode == 2 || currentMode == 3) {
     logicController.SetModeAuto();
+    startAutoTime = getROSTimeInMilliSecs();
   }
   else {
     logicController.SetModeManual();
@@ -881,6 +883,19 @@ void humanTime() {
   }
   timeDiff = floor(timeDiff*10)/10;
   
+
+  // // This had unintended consequences
+  // if ((currentMode == 2 || currentMode == 3)){
+  //   float autoTimeDiff = (getROSTimeInMilliSecs()-startAutoTime)/1e3;
+  //   cout << "Auto Time Diff: " << autoTimeDiff << "+++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
+  //   if ((((int) autoTimeDiff) % 100) == 0) {
+  //     if ((int) autoTimeDiff > 0) {
+  //         cout << "We are breaking everything. Please bare with us.........................................................................................." << endl;
+  //         logicController.periodicHardReset();
+  //     }
+  //   }
+  // }
+
   double intP, frac;
   frac = modf(timeDiff, &intP);
   timeDiff -= frac;

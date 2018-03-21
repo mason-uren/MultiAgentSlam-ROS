@@ -218,8 +218,8 @@ void DropOffController::Align()
     }
 
     blockYawError = atan((average_center_tag.getPositionX() + cameraOffsetCorrection) / blockDistance) * 1.05; //angle to block from bottom center of chassis on the horizontal.
-    // cout << average_center_tag.getPositionX() << endl;
-    if(abs(average_center_tag.getPositionX()) < 0.02)
+    cout << "******** AVG CENTER TAG:::: " << average_center_tag.getPositionX() << "          ********" << endl;
+    if(abs(average_center_tag.getPositionX()) < 0.05)
     {
         cout << "STEP2: Stopping Rotation." << endl;
         startDeliveryTime = current_time;

@@ -15,7 +15,7 @@ LogicController::~LogicController() {}
 
 void LogicController::Reset() {
 
-  std::cout << "LogicController.Reset()" << std::endl;
+  std::cout << "Hello:  LogicController.Reset()" << std::endl;
   logicState = LOGIC_STATE_INTERRUPT;
   processState = PROCCESS_STATE_SEARCHING;
 
@@ -460,4 +460,13 @@ void LogicController::SetModeManual()
     control_queue = priority_queue<PrioritizedController>();
     driveController.Reset();
   }
+}
+
+void LogicController::periodicHardReset()
+{
+  for(PrioritizedController cntrlr : prioritizedControllers)
+  {
+    cntrlr.controller->Reset();
+  }
+  this->Reset();
 }

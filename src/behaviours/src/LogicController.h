@@ -104,6 +104,8 @@ public:
 
     void setVirtualFenceOff();
 
+    void periodicHardReset();
+
     std::map<int, Point> rover_map;
 
 protected:
