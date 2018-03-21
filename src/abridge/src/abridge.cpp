@@ -14,6 +14,8 @@
 #include <sensor_msgs/Range.h>
 #include <std_msgs/UInt8.h>
 
+#include <math.h>
+
 //Package include
 #include <usbSerial.h>
 
@@ -67,6 +69,8 @@ float yawError[4] = {0,0,0,0}; //contains current yaw error and error 3 steps in
 
 float prevLin = 0;
 float prevYaw = 0;
+
+float previous_odom = 0;
 
 ros::Time prevDriveCommandUpdateTime;
 
@@ -310,6 +314,16 @@ void parseData(string str) {
 
 		}
 	}
+
+    // KEVIN not sure if this 0.09 is too big, but it seems the error of odom itself is
+    // that large when stationary.
+    if(fabs(odom.pose.pose.position.x - previous_odom) < 0.09) {
+      imu.linear_acceleration.x = 0;
+      imu.angular_velocity.x = 0;
+    } else {
+      previous_odom = odom.pose.pose.position.x;
+    }
+    
 }
 
 

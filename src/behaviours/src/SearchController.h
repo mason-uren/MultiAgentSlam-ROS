@@ -3,6 +3,7 @@
 
 #include <random_numbers/random_numbers.h>
 #include "Controller.h"
+#include "Utilities.h"
 
 /**
  * This class implements the search control algorithm for the rovers. The code
@@ -37,7 +38,7 @@ public:
     void SetCurrentTimeInMilliSecs(long int time);
 
 
-  float GetNewHeading(float beta, bool search_mode);
+    float GetNewHeading(float beta, bool search_mode);
 
 protected:
 
@@ -62,6 +63,10 @@ private:
     long int current_time;
 
     string ClassName = "Search Controller";
+
+    float waypoint_outside_wall_timer = 0;
+    float waypoint_search_timer_start = 0;
+    bool abandonShip = false;
 };
 
 #endif /* SEARCH_CONTROLLER */

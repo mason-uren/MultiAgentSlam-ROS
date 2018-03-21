@@ -1,6 +1,5 @@
 #include "SearchController.h"
 #include <angles/angles.h>
-#include "Utilities.h"
 
 SearchController::SearchController() {
     rng = new random_numbers::RandomNumberGenerator();
@@ -8,13 +7,18 @@ SearchController::SearchController() {
     currentLocation.y = 0;
     currentLocation.theta = 0;
 
-    centerLocation.x = 0;
-    centerLocation.y = 0;
-    centerLocation.theta = 0;
+    // centerLocation.x = 0; 
+    // centerLocation.y = 0;
+    // centerLocation.theta = 0;
     result.PIDMode = FAST_PID;
 
     result.fingerAngle = M_PI / 2;
     result.wristAngle = M_PI / 4;
+
+    /*
+     * TODO:
+     */
+    this->controller = SEARCH;
 }
 
 void SearchController::Reset() {
@@ -33,57 +37,42 @@ void SearchController::SetCurrentTimeInMilliSecs(long int time) {
 Result SearchController::DoWork() {
 
     extern void logicMessage(long int currentTime, string component, string message);
-
-    if (!result.waypoints.empty()) {
-        if (Utilities::distance_between_points(result.waypoints[0], currentLocation) < 0.15) {
-            attemptCount = 0;
-        }
-    }
-    if (attemptCount > 0 && attemptCount < 5) {
-        attemptCount++;
-        if (succesfullPickup) {
-            succesfullPickup = false;
-            attemptCount = 1;
-        }
-        return result;
-    } else if (attemptCount >= 5 || attemptCount == 0) {
-        attemptCount = 1;
-
-
+    Point searchLocation = GetLastCubeLocation();
+    cout << "waypoint outside wall timer: " << waypoint_outside_wall_timer << endl;
+    cout << "waypoint search timer start: " << waypoint_search_timer_start << endl;
+    waypoint_outside_wall_timer = (current_time - waypoint_search_timer_start) / 1e3;
+    if( searchLocation.x != 0 && searchLocation.y != 0 && abandonShip == false) {
+        cout << "searhccontroller has a known location: " << searchLocation.x << searchLocation.y << endl;
         result.type = waypoint;
-        Point searchLocation;
-
-        //select new position 50 cm from current location
-        if (first_waypoint) {
-            first_waypoint = false;
-            searchLocation.theta = currentLocation.theta + M_PI;
-            searchLocation.x = currentLocation.x + (0.5 * cos(searchLocation.theta));
-            searchLocation.y = currentLocation.y + (0.5 * sin(searchLocation.theta));
-        } else {
-            //select new heading from Gaussian distribution around current heading
-            searchLocation.theta = rng->gaussian(currentLocation.theta, 0.785398); //45 degrees in radians
-            searchLocation.x = currentLocation.x + (0.5 * cos(searchLocation.theta));
-            searchLocation.y = currentLocation.y + (0.5 * sin(searchLocation.theta));
-        }
-
         result.waypoints.clear();
         result.waypoints.insert(result.waypoints.begin(), searchLocation);
-
-        return result;
+        cout << "inside if waypoint outside wall timer: " << waypoint_outside_wall_timer << endl;
+        if(waypoint_outside_wall_timer > 240)//4 minutes, could be longer
+        {
+            abandonShip = true;
+            cout << "Abadoning going to last cube location, returning to vector driving" << endl;
+            result.type = vectorDriving;
+        }
+    } else {
+        result.type = vectorDriving;
     }
+    /*if( waypoint_outside_wall_timer > 120){
+        result.type = vectorDriving;
+    }*/
+    return result;
 
 }
 
 void SearchController::SetCenterLocation(Point centerLocation) {
 
-    float diffX = this->centerLocation.x - centerLocation.x;
-    float diffY = this->centerLocation.y - centerLocation.y;
-    this->centerLocation = centerLocation;
+    // float diffX = this->centerLocation.x - centerLocation.x;
+    // float diffY = this->centerLocation.y - centerLocation.y;
+    // this->centerLocation = centerLocation;
 
-    if (!result.waypoints.empty()) {
-        result.waypoints.back().x -= diffX;
-        result.waypoints.back().y -= diffY;
-    }
+    // if (!result.waypoints.empty()) {
+    //     result.waypoints.back().x -= diffX;
+    //     result.waypoints.back().y -= diffY;
+    // }
 
 }
 
@@ -105,19 +94,17 @@ bool SearchController::HasWork() {
 }
 
 void SearchController::SetSuccesfullPickup() {
+    waypoint_search_timer_start = current_time;
+    cout << "Starting waypoint search timer:  " << waypoint_search_timer_start << endl;//Move this so it starts the timer after a good dropoff
     succesfullPickup = true;
+    abandonShip = false;
 }
 
-float GetNewHeading(float beta, bool search_mode) {
+float SearchController::GetNewHeading(float beta, bool search_mode) {
   std::default_random_engine generator;
-  std::uniform_real_distribution<float> distribution(0.0,M_PI);
+  std::uniform_real_distribution<float> distribution(-2.355,-3.928);
   float theta = 0;
-  if(search_mode == false) {
-    theta = beta - M_PI/2 + (distribution(generator));
-  }
-  else {
-    theta = beta - M_PI/2 - (distribution(generator));
-  }
+    theta = currentLocation.theta;// + (distribution(generator));
   return theta;
 }
 

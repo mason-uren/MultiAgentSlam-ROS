@@ -4,8 +4,14 @@
 #include "Controller.h"
 #include "Tag.h"
 #include "ObstacleAssistant.h"
-#include <map>
+#include "Utilities.h"
 
+#define _USE_MATH_DEFINES
+#include <map>
+#include <cstdlib>
+#include <cmath>
+#include <random>
+#include <random_numbers/random_numbers.h>
 /*
  * Sonar has the most accurate readings at a range less than 2 meters
  * Calculated % Error:
@@ -20,12 +26,12 @@
  * Web cam has max april tag detection range of 0.6604m
  * Any theoretical obstacle needs to be verified 'not a resource'
  */
-#define MIN_THRESH 0.6
+#define MIN_THRESH 0.8
 
 /*
  * With rover speed of 0.3m/s and min head on collisoin separation at 0.35m, structure size cannot exceed the value of 8.
  */
-#define VECTOR_MAX 8
+#define VECTOR_MAX 4
 
 /*
  * Calculated max dist. lost when collision imminent between two rover, plus variance observed at 1.5m range
@@ -33,18 +39,56 @@
 #define DELTA 0.60894
 
 /*
+ * Reflection bounds
+ */
+#define R_LOW (-(M_PI) / 6)
+#define R_HIGH (-(M_PI_2))
+
+#define L_LOW ((M_PI) / 6)
+#define L_HIGH ((M_PI_2))
+
+#define RC_LOW (-(M_PI_2))
+#define RC_HIGH (-(3 * M_PI) / 5)
+
+#define LC_LOW ((M_PI_2))
+#define LC_HIGH ((3 * M_PI) / 5)
+
+#define HR_LOW (-(M_PI_2))
+#define HR_HIGH (-(4 * M_PI) / 5)
+
+#define HL_LOW ((M_PI_2))
+#define HL_HIGH ((4 * M_PI) / 5)
+
+
+#define DELAY_ITERATION 2
+
+#define EXIT_ROTATE 0.15
+
+
+
+/*
  * Obstacle structure
  */
 typedef struct {
     bool allowed;
     OBS_TYPE type;
-    DELAY_TYPE delay;
     std::map<SONAR, ObstacleAssistant> sonar_map;
-} OBSTACLE;
+} LISTENER;
+
+/*
+ * Reflection
+ */
+typedef struct {
+    bool should_start;
+    bool should_end;
+    double desired_heading;
+    double reflect_angle;
+} REFLECTION;
 
 extern void logMessage(long int currentTime, string component, string message);
 
 extern void detectionMessage(long int currentTime, string component, string message);
+
 extern void logicMessage(long int currentTime, string component, string message);
 
 class ObstacleController : virtual Controller {
@@ -83,19 +127,32 @@ public:
         return tmp;
     }
 
+    void SetCenterLocation(Point centerLocationOdom);
+
 protected:
 
     void ProcessData();
 
-    void sonarMonitor(OBSTACLE, float, SONAR);
+    void sonarMonitor(DELAY_TYPE, float, SONAR);
 
-    void sonarAnalysis(ObstacleAssistant, DELAY_TYPE);
+    void sonarAnalysis(DELAY_TYPE);
 
     void obstacleContactDir(std::map<SONAR, ObstacleAssistant>, DELAY_TYPE);
 
+    void reflect(std::vector<double>);
+
+    void traversal();
+
     void resetObstacle(DELAY_TYPE);
 
+    void resetDetections(DELAY_TYPE);
+
+    void onExit();
+
 private:
+
+    // Random number generator
+    random_numbers::RandomNumberGenerator* rng;
 
     // Try not to run over the collection zone
     void avoidCollectionZone();
@@ -107,7 +164,8 @@ private:
     // and are those AprilTags oriented towards or away from the camera.
     bool checkForCollectionZoneTags(vector <Tag>);
 
-    const float K_angular = 1.0; //radians a second turn rate to avoid obstacles
+//    const float K_angular = 1.0;
+    const float K_angular = 0.5; //radians a second turn rate to avoid obstacles
     const float reactivate_center_sonar_threshold = 0.8; //reactive center sonar if it goes back above this distance, assuming it is deactivated
     const int targetCountPivot = 6; ///unused variable
     const float obstacleDistancePivot = 0.2526; ///unused variable
@@ -132,6 +190,7 @@ private:
     bool ignore_center_sonar = false;
 
     Point currentLocation;
+    Point centerLocation;
 
     long int current_time;
     long int timeSinceTags;
@@ -159,8 +218,11 @@ private:
      */
     int stag;
     OBS_TYPE detection_declaration;
-    OBSTACLE obstacle_init;
-    OBSTACLE obstacle_stag;
+//    LISTENER obstacle_init;
+//    LISTENER obstacle_stag;
+    REFLECTION reflection;
+
+    std::map<DELAY_TYPE, LISTENER> monitor_map;
 
     string detect_msg;
 
@@ -169,6 +231,10 @@ private:
      * Default: True
      */
     bool acceptDetections;
+
+    double x_home_tag_orientation;
+
+    bool allow_center_reset_center_location = true;
 };
 
 #endif // OBSTACLECONTOLLER_H

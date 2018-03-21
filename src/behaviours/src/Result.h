@@ -43,7 +43,9 @@ enum PIDType {
 enum ResultType {
     behavior, //result contains behaviour related signals for logic controller to interpret
     waypoint, //result contains waypoints for drive controller
-    precisionDriving //controller wants direct error input into drive controller
+    precisionDriving, //controller wants direct error input into drive controller
+    vectorDriving, //result contains desired_heading for drive controller
+    distance_driving
 };
 
 enum BehaviorTrigger {
@@ -64,7 +66,11 @@ struct PrecisionDriving {
     float right = 0.0;
 };
 
-
+struct DistanceDriving {
+  float distance_desired = 0.0;
+  Point start_odom;
+  float completed_distance = 0.0;
+};
 
 
 struct Result {
@@ -73,10 +79,13 @@ struct Result {
     BehaviorTrigger behaviourType; //hold the behavior type
     vector<Point> waypoints;  //hold the waypoints
     PrecisionDriving pd; //holds precision commands
-
+  DistanceDriving distance_driving_values;
+  
     float fingerAngle = -1; //holds commanded for finger angle, defualt is -1 no movment
     float wristAngle = -1; //"                  " wrist angle, "                        "
     PIDType PIDMode; //hold the PID type selected for use
 
     bool reset; //holds a reset command where logic controller will reset the controller that asks
+    float desired_heading;//contains the angle for the robot to rotate to
+    bool enable_reset_center_location = false;
 };

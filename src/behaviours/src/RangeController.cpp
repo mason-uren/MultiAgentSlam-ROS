@@ -51,15 +51,18 @@ bool RangeRectangle::isInside(Point coords) {
 
 // Default constructor
 RangeController::RangeController() {
+    this->controller = RANGE;
 }
 
 RangeController::RangeController(float backtrack_distance) {
     setBacktrackDistance(backtrack_distance);
+    this->controller = RANGE;
 }
 
 RangeController::RangeController(float backtrack_distance, RangeShape *range) {
     setBacktrackDistance(backtrack_distance);
     setRangeShape(range);
+    this->controller = RANGE;
 }
 
 void RangeController::Reset() {
