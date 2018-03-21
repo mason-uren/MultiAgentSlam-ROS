@@ -219,7 +219,7 @@ void DropOffController::Align()
 
     blockYawError = atan((average_center_tag.getPositionX() + cameraOffsetCorrection) / blockDistance) * 1.05; //angle to block from bottom center of chassis on the horizontal.
     cout << "******** AVG CENTER TAG:::: " << average_center_tag.getPositionX() << "          ********" << endl;
-    if(abs(average_center_tag.getPositionX()) < 0.05)
+    if(abs(average_center_tag.getPositionX()) < 0.1)
     {
         cout << "STEP2: Stopping Rotation." << endl;
         startDeliveryTime = current_time;
@@ -237,7 +237,7 @@ void DropOffController::Align()
     result.type = precisionDriving;
     result.pd.cmdVel = 0.10;
     result.pd.cmdAngular = 0.0;
-    result.pd.cmdAngularError = -2.0*(cameraOffsetCorrection + average_center_tag.getPositionX());
+    result.pd.cmdAngularError = -1.0*(cameraOffsetCorrection + average_center_tag.getPositionX());
     // result.pd.cmdAngular = -200*average_center_tag.getPositionX();
     result.pd.setPointVel = 0.0;
     result.pd.setPointYaw = 0.0;
