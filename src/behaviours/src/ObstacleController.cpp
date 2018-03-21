@@ -124,7 +124,7 @@ void ObstacleController::ProcessData() {
     time_threshold = 1;
   } else {
     // no care, use random
-    time_threshold = 1 + rng->gaussian(1, 0.5);
+    time_threshold = 1.5 + rng->uniform01();
   }
    // rotate between 1.5 and 2.5 seconds Before this was set to 1
   if (Td >= time_threshold) { // was 0.5
