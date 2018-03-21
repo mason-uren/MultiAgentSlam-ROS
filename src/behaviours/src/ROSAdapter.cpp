@@ -884,17 +884,17 @@ void humanTime() {
   timeDiff = floor(timeDiff*10)/10;
   
 
-
-  if ((currentMode == 2 || currentMode == 3)){
-    float autoTimeDiff = (getROSTimeInMilliSecs()-startAutoTime)/1e3;
-    cout << "Auto Time Diff: " << autoTimeDiff << "+++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
-    if ((((int) autoTimeDiff) % 100) == 0) {
-      if ((int) autoTimeDiff > 0) {
-          cout << "We are breaking everything. Please bare with us.........................................................................................." << endl;
-          logicController.periodicHardReset();
-      }
-    }
-  }
+  // // This had unintended consequences
+  // if ((currentMode == 2 || currentMode == 3)){
+  //   float autoTimeDiff = (getROSTimeInMilliSecs()-startAutoTime)/1e3;
+  //   cout << "Auto Time Diff: " << autoTimeDiff << "+++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
+  //   if ((((int) autoTimeDiff) % 100) == 0) {
+  //     if ((int) autoTimeDiff > 0) {
+  //         cout << "We are breaking everything. Please bare with us.........................................................................................." << endl;
+  //         logicController.periodicHardReset();
+  //     }
+  //   }
+  // }
 
   double intP, frac;
   frac = modf(timeDiff, &intP);
