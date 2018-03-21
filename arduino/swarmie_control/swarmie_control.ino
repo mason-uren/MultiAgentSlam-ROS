@@ -64,7 +64,6 @@ unsigned long sonar_fire = 0;
 unsigned long last_sonar_fired = 9001;
 unsigned long time_sonar_fired = 0;
 
-
 ////////////////////////////
 ////Class Instantiations////
 ////////////////////////////
@@ -200,8 +199,7 @@ void parse() {
             Serial.println();
           }
 	        last_sonar_fired = sonar_fire;
-	      }
-        if(millis() - time_sonar_fired > 33) {
+	      }else if(millis() - time_sonar_fired > 33) {
           sonar_fire = (sonar_fire + 1) % 3;
         }
         break;
@@ -217,8 +215,7 @@ void parse() {
             Serial.println();
           }
         	last_sonar_fired = sonar_fire;
-      	}
-        if(millis() - time_sonar_fired > 33) {
+      	} else if(millis() - time_sonar_fired > 33) {
           sonar_fire = (sonar_fire + 1) % 3;
         }
         break;
@@ -232,11 +229,11 @@ void parse() {
             Serial.println(String(rightUSValue));
           } else {
             Serial.println();
-        }
-        if(millis() - time_sonar_fired > 33) {
+          }
+          last_sonar_fired = sonar_fire;
+        }else if(millis() - time_sonar_fired > 33) {
           sonar_fire = (sonar_fire + 1) % 3;
         }
-	}
         break;
     }
   }
