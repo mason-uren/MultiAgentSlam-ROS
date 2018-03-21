@@ -60,6 +60,10 @@ byte leftSignal = 4;
 byte centerSignal = 5;
 byte rightSignal = 6;
 
+unsigned long sonar_fire = 0;
+unsigned long last_sonar_fired = 9001;
+unsigned long time_sonar_fired = 0;
+
 
 ////////////////////////////
 ////Class Instantiations////
@@ -180,39 +184,63 @@ void parse() {
 
     Serial.println("ODOM," + String(1) + "," + updateOdom());
 
-    Serial.print("USC,");
-    int centerUSValue = centerUS.ping_cm();
-    Serial.print(String(centerUSValue > 0 ? 1 : 0) + ",");
-    if (centerUSValue > 0) {
-      Serial.println(String(centerUSValue));
+    int centerUSValue, leftUSValue, rightUSValue;
+    switch(sonar_fire) {
+      case 0:
+        if(last_sonar_fired != sonar_fire) {
+          // save the time that the sonar fired
+          time_sonar_fired = millis();
+          Serial.print("USC,");	
+          centerUSValue = centerUS.ping_cm();
+          Serial.print(String(centerUSValue > 0 ? 1 : 0) + ",");
+          if (centerUSValue > 0) {
+            Serial.println(String(centerUSValue));
+          }
+          else {
+            Serial.println();
+          }
+	        last_sonar_fired = sonar_fire;
+	      }
+        if(millis() - time_sonar_fired > 33) {
+          sonar_fire = (sonar_fire + 1) % 3;
+        }
+        break;
+      case 1:
+        if(last_sonar_fired != sonar_fire) {
+          time_sonar_fired = millis();
+          Serial.print("USL,");
+          leftUSValue = leftUS.ping_cm();
+          Serial.print(String(leftUSValue > 0 ? 1 : 0) + ",");
+          if (leftUSValue > 0) {
+            Serial.println(String(leftUSValue));
+          } else {
+            Serial.println();
+          }
+        	last_sonar_fired = sonar_fire;
+      	}
+        if(millis() - time_sonar_fired > 33) {
+          sonar_fire = (sonar_fire + 1) % 3;
+        }
+        break;
+      case 2:
+        if(last_sonar_fired != sonar_fire) {
+          time_sonar_fired = millis();
+          Serial.print("USR,");
+          rightUSValue = rightUS.ping_cm();
+          Serial.print(String(rightUSValue > 0 ? 1 : 0) + ",");
+          if (rightUSValue > 0) {
+            Serial.println(String(rightUSValue));
+          } else {
+            Serial.println();
+        }
+        if(millis() - time_sonar_fired > 33) {
+          sonar_fire = (sonar_fire + 1) % 3;
+        }
+	}
+        break;
     }
-    else {
-      Serial.println();
-    }
-    delay(33);
-
-    Serial.print("USL,");
-    int leftUSValue = leftUS.ping_cm();
-    Serial.print(String(leftUSValue > 0 ? 1 : 0) + ",");
-    if (leftUSValue > 0) {
-      Serial.println(String(leftUSValue));
-    }
-    else {
-      Serial.println();
-    }
-    delay(33);
-
-    Serial.print("USR,");
-    int rightUSValue = rightUS.ping_cm();
-    Serial.print(String(rightUSValue > 0 ? 1 : 0) + ",");
-    if (rightUSValue > 0) {
-      Serial.println(String(rightUSValue));
-    }
-    else {
-      Serial.println();
-    }
-    delay(33);
   }
+
   else if (rxBuffer == "f") {
     float radianAngle = Serial.parseFloat();
     int angle = RAD2DEG(radianAngle); // Convert float radians to int degrees
