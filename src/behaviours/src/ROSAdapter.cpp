@@ -761,7 +761,7 @@ void publishStatusTimerEventHandler(const ros::TimerEvent&) {
   std_msgs::String msg;
   // stringstream converter;
   // converter << "  (" << centerLocationOdom.x << "," << centerLocationOdom.y << ")";
-  msg.data = "CSUCI";
+  msg.data = "+CSUCI";
   status_publisher.publish(msg);
 }
 
