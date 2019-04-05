@@ -56,8 +56,6 @@ public:
    
    // This should be called regularly to prevent memory leaks.
    std::vector<int> ReachedWaypoints();
-
-   void SetCurrentTimeInMilliSecs( long int time );
    
 protected:
    void ProcessData() override;
@@ -71,8 +69,6 @@ private:
 
    // coppied from DriveController: 15 cm
    const float waypoint_tolerance = 0.15;
-
-   long int current_time;
 };
 
 #endif // MANUALWAYPOINTCONTROLLER_H

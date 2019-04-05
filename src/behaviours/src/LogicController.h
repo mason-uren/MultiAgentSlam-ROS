@@ -10,8 +10,6 @@
 #include "RangeController.h"
 #include "ManualWaypointController.h"
 
-#include "LogicAssistant.h"
-
 #include <vector>
 #include <queue>
 
@@ -19,140 +17,123 @@ using namespace std;
 
 // This struct contains a controller object and ties it to a priority value as
 // well as providing functionality to compare priorities with the < operator.
-//extern void roverMapHandler(const std_msgs::Float64MultiArray& message);
-
 struct PrioritizedController {
-    int priority = -1;
-    Controller *controller = nullptr;
+  int priority = -1;
+  Controller* controller = nullptr;
 
-    PrioritizedController(int pri, Controller *cntrl) : priority(pri), controller(cntrl) {}
+  PrioritizedController(int pri, Controller* cntrl) :
+    priority(pri),
+    controller(cntrl)
+  {
+  }
 
-    inline bool operator<(const PrioritizedController &other) const {
-        return priority < other.priority;
-    }
+  inline bool operator <(const PrioritizedController& other) const
+  {
+    return priority < other.priority;
+  }
 };
 
-class LogicController : virtual Controller {
+class LogicController : virtual Controller
+{
 public:
-    LogicController();
+  LogicController();
+  ~LogicController();
 
-    ~LogicController();
+  void Reset() override;
+  Result DoWork() override;
+  void UpdateData();
+  bool ShouldInterrupt() override;
+  bool HasWork() override;
 
-    void Reset() override;
+  // Give the controller a list of visible april tags.
+  // NOTE: This function may be named SetTagData() in other classes
+  //       but they are the same function.
+  void SetAprilTags(vector<Tag> tags);
+  void SetSonarData(float left, float center, float right);
+  void SetPositionData(Point currentLocation);
+  void SetMapPositionData(Point currentLocationMap);
+  void SetVelocityData(float linearVelocity, float angularVelocity);
+  void SetMapVelocityData(float linearVelocity, float angularVelocity);
+  void SetCenterLocationOdom(Point centerLocationOdom);
+  void SetCenterLocationMap(Point centerLocationMap);
+  void gotRecruitmentMessage(Point p);
 
-    Result DoWork() override;
-
-    void UpdateData();
-
-    bool ShouldInterrupt() override;
-
-    bool HasWork() override;
-
-    void SetAprilTags(vector <Tag> tags);
-
-    void SetSonarData(float left, float center, float right);
-
-    void SetPositionData(Point currentLocation);
-
-    void SetMapPositionData(Point currentLocationMap);
-
-    void SetVelocityData(float linearVelocity, float angularVelocity);
-
-    void SetMapVelocityData(float linearVelocity, float angularVelocity);
-
-    void SetCenterLocationOdom(Point centerLocationOdom);
-
-    void SetCenterLocationMap(Point centerLocationMap);
+  int getCollisionCalls();
+  // Passthrough for providing new waypoints to the
+  // ManualWaypointController.
+  void AddManualWaypoint(Point wpt, int waypoint_id);
 
 
-    // Passthrough for providing new waypoints to the
-    // ManualWaypointController.
-    void AddManualWaypoint(Point wpt, int waypoint_id);
+  // Passthrough for removing waypoints from the
+  // ManualWaypointController.
+  void RemoveManualWaypoint(int waypoint_id);
 
 
-    // Passthrough for removing waypoints from the
-    // ManualWaypointController.
-    void RemoveManualWaypoint(int waypoint_id);
+  // Passthrough for getting the list of manual waypoints that have
+  // been visited.
+  std::vector<int> GetClearedWaypoints();
 
 
-    // Passthrough for getting the list of manual waypoints that have
-    // been visited.
-    std::vector<int> GetClearedWaypoints();
+  // Put the logic controller into manual mode. Changes process state
+  // to PROCESS_STATE_MANUAL and logic state to LOGIC_STATE_INTERRUPT.
+
+  // If the logic controller is already in manual mode this has no
+  // effect.
+  void SetModeManual();
 
 
-    // Put the logic controller into manual mode. Changes process state
-    // to PROCESS_STATE_MANUAL and logic state to LOGIC_STATE_INTERRUPT.
+  // Put the logic controller into autonomous mode. Resets the logic
+  // controller and clears all manual waypoints.
+  //
+  // If the logic controller is already in autonomous mode, then this
+  // has no effect.
+  void SetModeAuto();
 
-    // If the logic controller is already in manual mode this has no
-    // effect.
-    void SetModeManual();
+  void SetCurrentTimeInMilliSecs( long int time );
 
-
-    // Put the logic controller into autonomous mode. Resets the logic
-    // controller and clears all manual waypoints.
-    //
-    // If the logic controller is already in autonomous mode, then this
-    // has no effect.
-    void SetModeAuto();
-
-    void SetCurrentTimeInMilliSecs(long int time);
-
-    // Tell the logic controller whether rovers should automatically
-    // resstrict their foraging range. If so provide the shape of the
-    // allowed range.
-    void setVirtualFenceOn(RangeShape *range);
-
-    void setVirtualFenceOff();
-
-    void periodicHardReset();
-
-    std::map<int, Point> rover_map;
+  // Tell the logic controller whether rovers should automatically
+  // resstrict their foraging range. If so provide the shape of the
+  // allowed range.
+  void setVirtualFenceOn( RangeShape* range );
+  void setVirtualFenceOff( );
 
 protected:
-    void ProcessData();
-
+  void ProcessData();
 
 private:
 
-    enum LogicState {
-        LOGIC_STATE_INTERRUPT = 0,
-        LOGIC_STATE_WAITING,
-        LOGIC_STATE_PRECISION_COMMAND
-    };
+  enum LogicState {
+    LOGIC_STATE_INTERRUPT = 0,
+    LOGIC_STATE_WAITING,
+    LOGIC_STATE_PRECISION_COMMAND
+  };
 
-    enum ProcessState {
-        _FIRST = 0,
-        PROCCESS_STATE_SEARCHING = 0,
-        PROCCESS_STATE_TARGET_PICKEDUP,
-        PROCCESS_STATE_DROP_OFF,
-        _LAST,
-        PROCESS_STATE_MANUAL // robot is under manual control
-    };
+  enum ProcessState {
+    _FIRST = 0,
+    PROCESS_STATE_SEARCHING = 0,
+    PROCESS_STATE_TARGET_PICKEDUP,
+    PROCESS_STATE_DROP_OFF,
+    _LAST,
+    PROCESS_STATE_MANUAL // robot is under manual control
+  };
 
+  LogicState logicState;
+  ProcessState processState;
 
+  PickUpController pickUpController;
+  DropOffController dropOffController;
+  SearchController searchController;
+  ObstacleController obstacleController;
+  DriveController driveController;
+  RangeController range_controller;
+  ManualWaypointController manualWaypointController;
 
-    LogicState logicState;
-    ProcessState processState;
+  std::vector<PrioritizedController> prioritizedControllers;
+  priority_queue<PrioritizedController> control_queue;
 
-    PickUpController pickUpController;
-    DropOffController dropOffController;
-    SearchController searchController;
-    ObstacleController obstacleController;
-    DriveController driveController;
-    RangeController range_controller;
-    ManualWaypointController manualWaypointController;
+  void controllerInterconnect();
 
-    std::vector <PrioritizedController> prioritizedControllers;
-    priority_queue <PrioritizedController> control_queue;
-
-    void controllerInterconnect();
-
-    long int current_time = 0;
-    bool loggerSwitch = false; //When true, logger messages for Logic Controller are active
-
-    string ClassName = "LogicController";
-
-
+  long int current_time = 0;
 };
 
 #endif // LOGICCONTROLLER_H

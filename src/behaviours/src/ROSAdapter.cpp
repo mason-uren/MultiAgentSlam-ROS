@@ -22,15 +22,16 @@
 #include <apriltags_ros/AprilTagDetectionArray.h>
 #include <std_msgs/Float32MultiArray.h>
 #include "swarmie_msgs/Waypoint.h"
-
+#include "swarmie_msgs/Recruitment.h"
+#include "swarmie_msgs/Skid.h"
 
 // Include Controllers
 #include "LogicController.h"
-#include "Controller.h"
 #include <vector>
 
 #include "Point.h"
 #include "Tag.h"
+#include "PositionPublisher.hpp"
 
 // To handle shutdown signals so the node quits
 // properly in response to "rosnode kill"
@@ -39,8 +40,6 @@
 
 #include <exception> // For exception handling
 
-#include <angles/angles.h>
-#include "std_msgs/Float64MultiArray.h"
 using namespace std;
 
 // Define Exceptions
@@ -66,14 +65,12 @@ private:
 // Random number generator
 random_numbers::RandomNumberGenerator* rng;
 
+std_msgs::UInt8 collision_msg;
 // Create logic controller
 
 LogicController logicController;
-std::vector<string> declared_rovers;
-int rovers = -1;
 
-
-void humanTime();
+void humanTime();	//translates time into human time
 
 // Behaviours Logic Functions
 void sendDriveCommand(double linearVel, double angularVel);
@@ -87,10 +84,10 @@ void resultHandler();	// Not Used/Dead Code, prototype has no definition
 Point updateCenterLocation();		//calls transformMapCenterToOdom, returns a center location in ODOM frame
 void transformMapCentertoOdom();	//checks ODOMs perceived idea of where the center is with a stored GPS center coordinate and adjusts ODOM center value to account for drift
 
+PositionPublisher* positionPublisher;
 
 // Numeric Variables for rover positioning
-geometry_msgs::Pose2D currentLocationOdom;		//current location using ODOM
-geometry_msgs::Pose2D currentLocation; // This is what we will use for currenLocation from now on.
+geometry_msgs::Pose2D currentLocation;		//current location using ODOM
 geometry_msgs::Pose2D currentLocationMap;	//current location using GPS
 geometry_msgs::Pose2D currentLocationAverage;	//an average of the robots current location
 
@@ -108,29 +105,24 @@ const float waypointTolerance = 0.1; 		//10 cm tolerance.
 // used for calling code once but not in main
 bool initilized = false;	//switched to true after running through state machine the first time, initializes base values
 
+//bool dropOffMode = false;	//switched to true after starting dropOff state
+
 float linearVelocity = 0;	//forward speed, POSITIVE = forward, NEGATIVE = backward
 float angularVelocity = 0;	//turning speed, POSITIVE = left, NEGATIVE = right
 
 float prevWrist = 0;	//last wrist angle
 float prevFinger = 0;	//last finger angle
 long int startTime = 0;	//stores time when robot is swtiched on
-int minutesTime = 0;	//time in minutes
-int hoursTime = 0;	//time in hours
-long int startAutoTime = 0; // 
+float minutesTime = 0;	//time in minutes
+float hoursTime = 0;	//time in hours
 
 float drift_tolerance = 0.5; // the perceived difference between ODOM and GPS values before shifting the values up or down, in meters
 
-bool tagTesting = true; //Allows tag detection while in manual mode
-
-Result result;
-
-bool centerLocationWasUpdated = false;
-bool centerLocationIsUpdatable = false;
+Result result;		//result struct for passing and storing values to drive robot
 
 std_msgs::String msg;	//used for passing messages to the GUI
 
 
-geometry_msgs::Twist velocity;
 char host[128];		//rovers hostname
 string publishedName;	//published hostname
 char prev_state_machine[128];
@@ -143,20 +135,10 @@ ros::Publisher wristAnglePublish;		//publishes wrist angle to move wrist
 ros::Publisher infoLogPublisher;		//publishes a message to the infolog box on GUI
 ros::Publisher driveControlPublish;		//publishes motor commands to the motors
 ros::Publisher heartbeatPublisher;		//publishes ROSAdapters status via its "heartbeat"
+ros::Publisher obstaclePublisher;
 // Publishes swarmie_msgs::Waypoint messages on "/<robot>/waypooints"
 // to indicate when waypoints have been reached.
-ros::Publisher waypointFeedbackPublisher;
-// Used for rover map
-ros::Publisher roverPosePublisher;
-
-// All logs should be published here. See WIKI for how to view the logs.
-ros::Publisher loggerPublish;
-ros::Publisher loggerPublisher;
-ros::Publisher sonarPublisher;
-ros::Publisher logicPublish;
-ros::Publisher tagDataPublish;
-ros::Publisher tagQuadPublish;
-ros::Publisher dropOffPublish;
+ros::Publisher waypointFeedbackPublisher;	//publishes a waypoint to travel to if the rover is given a waypoint in manual mode
 
 // Subscribers
 ros::Subscriber joySubscriber;			//receives joystick information
@@ -167,9 +149,8 @@ ros::Subscriber mapSubscriber;			//receives GPS data
 ros::Subscriber virtualFenceSubscriber;		//receives data for vitrual boundaries
 // manualWaypointSubscriber listens on "/<robot>/waypoints/cmd" for
 // swarmie_msgs::Waypoint messages.
-ros::Subscriber manualWaypointSubscriber;
-// Used for rover map
-ros::Subscriber roverPoseSubscriber;
+ros::Subscriber manualWaypointSubscriber; 	//receives manual waypoints given from GUI
+ros::Subscriber recruitmentSubscriber;
 
 // Timers
 ros::Timer stateMachineTimer;
@@ -202,7 +183,7 @@ void behaviourStateMachine(const ros::TimerEvent&);					//Upper most state machi
 void publishStatusTimerEventHandler(const ros::TimerEvent& event);			//Publishes "ONLINE" when rover is successfully connected
 void publishHeartBeatTimerEventHandler(const ros::TimerEvent& event);			
 void sonarHandler(const sensor_msgs::Range::ConstPtr& sonarLeft, const sensor_msgs::Range::ConstPtr& sonarCenter, const sensor_msgs::Range::ConstPtr& sonarRight);	//handles ultrasound data and stores data
-void roverMapHandler(const std_msgs::Float64MultiArray& message); 
+void recruitmentHandler(const swarmie_msgs::Recruitment& msg);
 
 // Converts the time passed as reported by ROS (which takes Gazebo simulation rate into account) into milliseconds as an integer.
 long int getROSTimeInMilliSecs();
@@ -224,6 +205,7 @@ int main(int argc, char **argv) {
   // NoSignalHandler so we can catch SIGINT ourselves and shutdown the node
   ros::init(argc, argv, (publishedName + "_BEHAVIOUR"), ros::init_options::NoSigintHandler);
   ros::NodeHandle mNH;
+  positionPublisher = new PositionPublisher(mNH, publishedName);
   
   // Register the SIGINT event handler so the node can shutdown properly
   signal(SIGINT, sigintEventHandler);
@@ -239,33 +221,20 @@ int main(int argc, char **argv) {
   message_filters::Subscriber<sensor_msgs::Range> sonarLeftSubscriber(mNH, (publishedName + "/sonarLeft"), 10);
   message_filters::Subscriber<sensor_msgs::Range> sonarCenterSubscriber(mNH, (publishedName + "/sonarCenter"), 10);
   message_filters::Subscriber<sensor_msgs::Range> sonarRightSubscriber(mNH, (publishedName + "/sonarRight"), 10);
+  recruitmentSubscriber = mNH.subscribe("/detectionLocations", 10, recruitmentHandler);
 
-  // Rover Pose Subscriber
-  roverPoseSubscriber = mNH.subscribe(("/rover_pose"), 10, roverMapHandler);
+  //publishers
+  status_publisher = mNH.advertise<std_msgs::String>((publishedName + "/swarmie_status"), 1, true);			//publishes rover status
+  obstaclePublisher = mNH.advertise<std_msgs::UInt8>((publishedName + "/obstacle"), 10, true);
+  stateMachinePublish = mNH.advertise<std_msgs::String>((publishedName + "/state_machine"), 1, true);			//publishes state machine status
+  fingerAnglePublish = mNH.advertise<std_msgs::Float32>((publishedName + "/fingerAngle/cmd"), 1, true);			//publishes gripper angle to move gripper finger
+  wristAnglePublish = mNH.advertise<std_msgs::Float32>((publishedName + "/wristAngle/cmd"), 1, true);			//publishes wrist angle to move wrist
+  infoLogPublisher = mNH.advertise<std_msgs::String>("/infoLog", 1, true);						//publishes a message to the infolog box on GUI
+  driveControlPublish = mNH.advertise<swarmie_msgs::Skid>((publishedName + "/driveControl"), 10);			//publishes motor commands to the motors
+  heartbeatPublisher = mNH.advertise<std_msgs::String>((publishedName + "/behaviour/heartbeat"), 1, true);		//publishes ROSAdapters status via its "heartbeat"
+  waypointFeedbackPublisher = mNH.advertise<swarmie_msgs::Waypoint>((publishedName + "/waypoints"), 1, true);		//publishes a waypoint to travel to if the rover is given a waypoint in manual mode
 
-    // Added a publisher for logging capabilities through ROSTopics.
-  loggerPublish = mNH.advertise<std_msgs::String>((publishedName + "/logger"), 1, true);
-
-  status_publisher = mNH.advertise<std_msgs::String>((publishedName + "/status"), 1, true);
-  stateMachinePublish = mNH.advertise<std_msgs::String>((publishedName + "/state_machine"), 1, true);
-  fingerAnglePublish = mNH.advertise<std_msgs::Float32>((publishedName + "/fingerAngle/cmd"), 1, true);
-  wristAnglePublish = mNH.advertise<std_msgs::Float32>((publishedName + "/wristAngle/cmd"), 1, true);
-  infoLogPublisher = mNH.advertise<std_msgs::String>("/infoLog", 1, true);
-  driveControlPublish = mNH.advertise<geometry_msgs::Twist>((publishedName + "/driveControl"), 10);
-  heartbeatPublisher = mNH.advertise<std_msgs::String>((publishedName + "/behaviour/heartbeat"), 1, true);
-  waypointFeedbackPublisher = mNH.advertise<swarmie_msgs::Waypoint>((publishedName + "/waypoints"), 1, true);
-
-  // Rover Pose Publisher
-  roverPosePublisher = mNH.advertise<std_msgs::Float64MultiArray>(("/rover_pose"), 10, true);
-
-    // Added a publisher for logging capabilities through ROSTopics.
-  loggerPublish = mNH.advertise<std_msgs::String>((publishedName + "/logger"), 1, true);
-  sonarPublisher = mNH.advertise<std_msgs::String>((publishedName + "/detections"), 1, true);
-  logicPublish = mNH.advertise<std_msgs::String>((publishedName + "/logic"), 1, true);
-  tagDataPublish = mNH.advertise<std_msgs::String>((publishedName + "/tagData"), 1, true);
-  tagQuadPublish = mNH.advertise<std_msgs::String>((publishedName + "/tagQuad"), 1, true);
-  dropOffPublish = mNH.advertise<std_msgs::String>((publishedName + "/dropOff"), 1, true);
-
+  //timers
   publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
   stateMachineTimer = mNH.createTimer(ros::Duration(behaviourLoopTimeStep), behaviourStateMachine);
   
@@ -286,17 +255,6 @@ int main(int argc, char **argv) {
   msg.data = ss.str();
   infoLogPublisher.publish(msg);
 
-
-//  double angle1 = angles::shortest_angular_distance((5 * M_PI)/ 6 + 2 * M_PI, -(5 * M_PI) / 6); // Positive
-//    double angle2 = angles::shortest_angular_distance(-(5 * M_PI) / 6 , (5 * M_PI)/ 6); // Negative
-//    double angle3 = angles::shortest_angular_distance(0, M_PI / 2);
-//    double angle4 = angles::shortest_angular_distance(M_PI / 2, 0);
-//
-//    std::cout << "Bound1 " << angle1 << std::endl;
-//    std::cout << "Bound2 " << angle2 << std::endl;
-//    std::cout << "Norm1 " << angle3 << std::endl;
-//    std::cout << "Norm2" << angle4 << std::endl;
-
   if(currentMode != 2 && currentMode != 3)
   {
     // ensure the logic controller starts in the correct mode.
@@ -306,7 +264,8 @@ int main(int argc, char **argv) {
   timerStartTime = time(0);
   
   ros::spin();
-  
+
+  delete positionPublisher;
   return EXIT_SUCCESS;
 }
 
@@ -349,20 +308,10 @@ void behaviourStateMachine(const ros::TimerEvent&)
       centerLocationMap.x = centerMap.x;
       centerLocationMap.y = centerMap.y;
       
-      centerLocationOdom.x = centerMap.x;//centerOdom.x;
-      centerLocationOdom.y = centerMap.y;//centerOdom.y;
+      centerLocationOdom.x = centerOdom.x;
+      centerLocationOdom.y = centerOdom.y;
       
       startTime = getROSTimeInMilliSecs();
-      /*
-       * Update "/logger" publisher -> Initialization
-       */
-      string loggerMessage;
-      loggerMessage = "currentLocation(x,y,theta) = (" + std::to_string(currentLocation.x)
-                      + ", " + std::to_string(currentLocation.y) + ", " + std::to_string(currentLocation.theta) + ")\n" +
-      "currentLocationMap(x,y,theta) = (" + std::to_string(currentLocationMap.x)
-                      + ", " + std::to_string(currentLocationMap.y) + ", " + std::to_string(currentLocationMap.theta) + ")";
-      logMessage(startTime,"ROSAdapter",loggerMessage);
-
     }
 
     else
@@ -380,23 +329,19 @@ void behaviourStateMachine(const ros::TimerEvent&)
     
     //update the time used by all the controllers, logic controller will send to other controllers
     logicController.SetCurrentTimeInMilliSecs( getROSTimeInMilliSecs() );
-
-    //update center location
+    
+    //update center location, logic controller will send to other controllers
     logicController.SetCenterLocationOdom( updateCenterLocation() );
     
     //ask logic controller for the next set of actuator commands
     result = logicController.DoWork();
     
-    //cout << result.enable_reset_center_location << " :WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW" << endl;
-    if( result.enable_reset_center_location ){
-      centerLocationIsUpdatable = result.enable_reset_center_location;
-    }
     bool wait = false;	//a variable created to check if we are in a waiting state
     
     //if a wait behaviour is thrown sit and do nothing untill logicController is ready
     if (result.type == behavior)
     {
-      if (result.behaviourType == wait)
+      if (result.b == wait)
       {
         wait = true;
       }
@@ -437,13 +382,14 @@ void behaviourStateMachine(const ros::TimerEvent&)
         prevWrist = result.wristAngle;		//store the last known gripper wrist angle
       }
     }
-    
+  collision_msg.data = logicController.getCollisionCalls();
+  obstaclePublisher.publish(collision_msg);
     //publishHandeling here
     //logicController.getPublishData(); //Not Currently Implemented, used to get data from logic controller and publish to the appropriate ROS Topic; Suggested
     
     
     //adds a blank space between sets of debugging data to easily tell one tick from the next
-    // cout << endl;
+    cout << endl;
     
   }
   
@@ -455,7 +401,7 @@ void behaviourStateMachine(const ros::TimerEvent&)
     logicController.SetCurrentTimeInMilliSecs( getROSTimeInMilliSecs() );
 
     // publish current state for the operator to see
-      stateMachineMsg.data = "WAITING";
+    stateMachineMsg.data = "WAITING";
 
     // ask the logicController to get the waypoints that have been
     // reached.
@@ -469,8 +415,8 @@ void behaviourStateMachine(const ros::TimerEvent&)
       wpt.id = *it;
       waypointFeedbackPublisher.publish(wpt);
     }
-    result = logicController.DoWork();
-    if(result.type != behavior || result.behaviourType != wait)
+    result = logicController.DoWork();	//ask logic controller to run
+    if(result.type != behavior || result.b != wait)
     {
       // if the logic controller requested that the robot drive, then
       // drive. Otherwise there are no manual waypoints and the robot
@@ -486,31 +432,15 @@ void behaviourStateMachine(const ros::TimerEvent&)
     stateMachinePublish.publish(stateMachineMsg);
     sprintf(prev_state_machine, "%s", stateMachineMsg.data.c_str());
   }
-
-  /*
-   * Dynamically only add new rover to map
-   */
-  if (find(declared_rovers.begin(), declared_rovers.end(), publishedName) == declared_rovers.end()) {
-    declared_rovers.push_back(publishedName);
-    rovers++;
-  }
-
-  std_msgs::Float64MultiArray rover_pose;
-  rover_pose.data.clear();
-  rover_pose.data.push_back(rovers);
-  rover_pose.data.push_back(currentLocation.x);
-  rover_pose.data.push_back(currentLocation.y);
-  rover_pose.data.push_back(currentLocation.theta);
-  roverPosePublisher.publish(rover_pose);
 }
 
 void sendDriveCommand(double left, double right)
 {
-  velocity.linear.x = left,
-      velocity.angular.z = right;
-  
+  swarmie_msgs::Skid skid_command;
+  skid_command.left  = left;
+  skid_command.right = right;
   // publish the drive commands
-  driveControlPublish.publish(velocity);
+  driveControlPublish.publish(skid_command);
 }
 
 /*************************
@@ -519,104 +449,51 @@ void sendDriveCommand(double left, double right)
 
 void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& message) {
 
-    float sum_x = 0.0;
-    float sum_y = 0.0;
-    float sum_z = 0.0;
-    int countHome = 0;
-    Tag average_center_tag;
-    float blockDistance = 0;
-    float cameraOffsetCorrection = 0.020;
-    // Don't pass April tag data to the logic controller if the robot is not in autonomous mode.
-    // This is to make sure autonomous behaviours are not triggered while the rover is in manual mode.
-    if(!tagTesting && (currentMode == 0 || currentMode == 1))
-    {
-        return;
+  // Don't pass April tag data to the logic controller if the robot is not in autonomous mode.
+  // This is to make sure autonomous behaviours are not triggered while the rover is in manual mode. 
+  if(currentMode == 0 || currentMode == 1) 
+  { 
+    return; 
+  }
+
+  if (message->detections.size() > 0) {
+    vector<Tag> tags;
+
+    for (int i = 0; i < message->detections.size(); i++) {
+
+      // Package up the ROS AprilTag data into our own type that does not rely on ROS.
+      Tag loc;
+      loc.setID( message->detections[i].id );
+
+      // Pass the position of the AprilTag
+      geometry_msgs::PoseStamped tagPose = message->detections[i].pose;
+      loc.setPosition( make_tuple( tagPose.pose.position.x,
+				   tagPose.pose.position.y,
+				   tagPose.pose.position.z ) );
+
+      // Pass the orientation of the AprilTag
+      loc.setOrientation( ::boost::math::quaternion<float>( tagPose.pose.orientation.x,
+							    tagPose.pose.orientation.y,
+							    tagPose.pose.orientation.z,
+							    tagPose.pose.orientation.w ) );
+      tags.push_back(loc);
     }
 
-    if (message->detections.size() > 0) {
-        vector<Tag> tags;
+    // To enable recruitment uncomment these lines.
+    // Point curr_loc;
+    // curr_loc.x = currentLocationMap.x;
+    // curr_loc.y = currentLocationMap.y;
+    // positionPublisher->setDetections(tags, curr_loc);
 
-        for (int i = 0; i < message->detections.size(); i++) {
-
-            // Package up the ROS AprilTag data into our own type that does not rely on ROS.
-            Tag loc;
-            loc.setID( message->detections[i].id );
-
-            // Pass the position of the AprilTag
-            geometry_msgs::PoseStamped tagPose = message->detections[i].pose;
-            loc.setPosition( make_tuple( tagPose.pose.position.x,
-                                         tagPose.pose.position.y,
-                                         tagPose.pose.position.z ) );
-
-            // Pass the orientation of the AprilTag
-            loc.setOrientation( ::boost::math::quaternion<float>( tagPose.pose.orientation.x,
-                                                                  tagPose.pose.orientation.y,
-                                                                  tagPose.pose.orientation.z,
-                                                                  tagPose.pose.orientation.w ) );
-            tags.push_back(loc);
-
-            if (message->detections[i].id == 256) {
-                countHome++;
-                sum_x = sum_x + loc.getPositionX();
-                sum_y = sum_y + loc.getPositionY();
-                sum_z = sum_z + loc.getPositionZ();
-            }
-        } // for loop end
-
-        if (countHome > 0) {
-            average_center_tag.setPositionX(sum_x / (countHome));
-            average_center_tag.setPositionY(sum_y / (countHome));
-            average_center_tag.setPositionZ(sum_z / (countHome));
-
-            float blockDistanceFromCamera;
-
-            float blockYawError = 0.0;
-            // using a^2 + b^2 = c^2 to find the distance to the block
-            // 0.195 is the height of the camera lens above the ground in cm.
-            //
-            // a is the linear distance from the robot to the block, c is the
-            // distance from the camera lens, and b is the height of the
-            // camera above the ground.
-            blockDistanceFromCamera = hypot(hypot(average_center_tag.getPositionX(), average_center_tag.getPositionY()),
-                                            average_center_tag.getPositionZ());
-
-
-            if ((blockDistanceFromCamera * blockDistanceFromCamera - 0.195 * 0.195) > 0) {
-                blockDistance = sqrt(blockDistanceFromCamera * blockDistanceFromCamera - 0.195 * 0.195);
-            } else {
-                float epsilon = 0.00001; // A small non-zero positive number
-                blockDistance = epsilon;
-            }
-
-            blockYawError = atan((average_center_tag.getPositionX() + cameraOffsetCorrection) / blockDistance) *
-                            1.05; //angle to block from bottom center of chassis on the horizontal.
-            if(centerLocationIsUpdatable){
-              centerLocationOdom.x = currentLocation.x + ( 0.5 + blockDistance ) * cos(currentLocation.theta + blockYawError);
-              centerLocationOdom.y = currentLocation.y + ( 0.5 + blockDistance ) * sin(currentLocation.theta + blockYawError);
-
-              cout << "********************************************** CENTER LOCATION WAS CHANGED **********************************************" << endl;
-              cout << "  centerLocationOdom.x : " << centerLocationOdom.x << endl;
-              cout << "  centerLocationOdom.y : " << centerLocationOdom.y << endl;
-              centerLocationWasUpdated = true; //gps centerLocation update doesn't run
-              centerLocationIsUpdatable = false;
-            }
-        } else {
-            // cout << " {}{}{}{}{}{}{}{}{} saw cube tags, set centerLcoationWasUpdated to false {}{}{}{}{}{{}{}{}}{}" << endl;
-            centerLocationWasUpdated = false; //gps centerLocation update does run
-        }
-        logicController.SetAprilTags(tags);
-    } else {
-        // cout << " ()()()()()()(()()()()( saw no tags, set centerLcoationWasUpdated to false ()()()()()()(()()()()(" << endl;
-        centerLocationWasUpdated = false;
-    }
-
+    logicController.SetAprilTags(tags);
+  }
+  
 }
 
 void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
   currentMode = message->data;
   if(currentMode == 2 || currentMode == 3) {
     logicController.SetModeAuto();
-    startAutoTime = getROSTimeInMilliSecs();
   }
   else {
     logicController.SetModeManual();
@@ -632,25 +509,25 @@ void sonarHandler(const sensor_msgs::Range::ConstPtr& sonarLeft, const sensor_ms
 
 void odometryHandler(const nav_msgs::Odometry::ConstPtr& message) {
   //Get (x,y) location directly from pose
-  currentLocationOdom.x = message->pose.pose.position.x;
-  currentLocationOdom.y = message->pose.pose.position.y;
+  currentLocation.x = message->pose.pose.position.x;
+  currentLocation.y = message->pose.pose.position.y;
   
   //Get theta rotation by converting quaternion orientation to pitch/roll/yaw
   tf::Quaternion q(message->pose.pose.orientation.x, message->pose.pose.orientation.y, message->pose.pose.orientation.z, message->pose.pose.orientation.w);
   tf::Matrix3x3 m(q);
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
-  currentLocationOdom.theta = yaw;
+  currentLocation.theta = yaw;
   
   linearVelocity = message->twist.twist.linear.x;
   angularVelocity = message->twist.twist.angular.z;
   
   
-  // Point currentLoc;
-  // currentLoc.x = currentLocation.x;
-  // currentLoc.y = currentLocation.y;
-  // currentLoc.theta = currentLocation.theta;
-  // logicController.SetPositionData(currentLoc);
+  Point currentLoc;
+  currentLoc.x = currentLocation.x;
+  currentLoc.y = currentLocation.y;
+  currentLoc.theta = currentLocation.theta;
+  logicController.SetPositionData(currentLoc);
   logicController.SetVelocityData(linearVelocity, angularVelocity);
 }
 
@@ -705,9 +582,6 @@ void mapHandler(const nav_msgs::Odometry::ConstPtr& message) {
   //Get (x,y) location directly from pose
   currentLocationMap.x = message->pose.pose.position.x;
   currentLocationMap.y = message->pose.pose.position.y;
-
-  currentLocation.x = message->pose.pose.position.x;
-  currentLocation.y = message->pose.pose.position.y;
   
   //Get theta rotation by converting quaternion orientation to pitch/roll/yaw
   tf::Quaternion q(message->pose.pose.orientation.x, message->pose.pose.orientation.y, message->pose.pose.orientation.z, message->pose.pose.orientation.w);
@@ -715,8 +589,7 @@ void mapHandler(const nav_msgs::Odometry::ConstPtr& message) {
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
   currentLocationMap.theta = yaw;
-  currentLocation.theta = yaw;
-
+  
   linearVelocity = message->twist.twist.linear.x;
   angularVelocity = message->twist.twist.angular.z;
   
@@ -725,7 +598,6 @@ void mapHandler(const nav_msgs::Odometry::ConstPtr& message) {
   curr_loc.y = currentLocationMap.y;
   curr_loc.theta = currentLocationMap.theta;
   logicController.SetMapPositionData(curr_loc);
-  logicController.SetPositionData(curr_loc); // Replacing currentLocation from Odom with currentLocation from GPS.
   logicController.SetMapVelocityData(linearVelocity, angularVelocity);
 }
 
@@ -759,9 +631,7 @@ void joyCmdHandler(const sensor_msgs::Joy::ConstPtr& message) {
 
 void publishStatusTimerEventHandler(const ros::TimerEvent&) {
   std_msgs::String msg;
-  // stringstream converter;
-  // converter << "  (" << centerLocationOdom.x << "," << centerLocationOdom.y << ")";
-  msg.data = "+CSUCI";
+  msg.data = "online";		//change this with team name
   status_publisher.publish(msg);
 }
 
@@ -778,6 +648,16 @@ void manualWaypointHandler(const swarmie_msgs::Waypoint& message) {
     logicController.RemoveManualWaypoint(message.id);
     break;
   }
+}
+
+void recruitmentHandler(const swarmie_msgs::Recruitment& msg)
+{
+   if(msg.name.data != publishedName) {
+      Point p;
+      p.x = msg.x;
+      p.y = msg.y;
+      logicController.gotRecruitmentMessage(p);
+   }
 }
 
 void sigintEventHandler(int sig) {
@@ -804,9 +684,7 @@ long int getROSTimeInMilliSecs()
 
 Point updateCenterLocation()
 {
-  // if(!centerLocationWasUpdated) {
-  //     transformMapCentertoOdom();
-  // }
+  transformMapCentertoOdom();
   
   Point tmp;
   tmp.x = centerLocationOdom.x;
@@ -883,19 +761,6 @@ void humanTime() {
   }
   timeDiff = floor(timeDiff*10)/10;
   
-
-  // // This had unintended consequences
-  // if ((currentMode == 2 || currentMode == 3)){
-  //   float autoTimeDiff = (getROSTimeInMilliSecs()-startAutoTime)/1e3;
-  //   cout << "Auto Time Diff: " << autoTimeDiff << "+++++++++++++++++++++++++++++++++++++++++++++++++++++" << endl;
-  //   if ((((int) autoTimeDiff) % 100) == 0) {
-  //     if ((int) autoTimeDiff > 0) {
-  //         cout << "We are breaking everything. Please bare with us.........................................................................................." << endl;
-  //         logicController.periodicHardReset();
-  //     }
-  //   }
-  // }
-
   double intP, frac;
   frac = modf(timeDiff, &intP);
   timeDiff -= frac;
@@ -906,69 +771,3 @@ void humanTime() {
   
   //cout << "System has been Running for :: " << hoursTime << " : hours " << minutesTime << " : minutes " << timeDiff << "." << frac << " : seconds" << endl; //you can remove or comment this out it just gives indication something is happening to the log file
 }
-
-void logMessage(long int currentTime, string component, string message) {
-  std_msgs::String messageToPublish;
-  messageToPublish.data = "[" + std::to_string(currentTime) + " " + component + "] " + message;
-  loggerPublish.publish(messageToPublish);
-}
-
-void detectionMessage(long int currentTime, string component, string message) {
-  std_msgs::String messageToPublish;
-  messageToPublish.data = "[" + std::to_string(currentTime) + " " + component + "] " + message;
-  sonarPublisher.publish(messageToPublish);
-}
-void logicMessage(long int currentTime, string component, string message) {
-  std_msgs::String messageToPublish;
-  messageToPublish.data = "[" + std::to_string(currentTime) + " " + component + "] " + message;
-  logicPublish.publish(messageToPublish);
-}
-
-void tagMessage(vector <Tag> tags) {
-  double tagYaw;
-  double tagRoll;
-  double tagPitch;
-  float xPos;
-  float yPos;
-  float zPos;
-  std_msgs::String messageToPublish;
-  messageToPublish.data = "New Frame:---------------------------------------------------";
-  tagDataPublish.publish(messageToPublish);
-  for (int i = 0; i < tags.size(); i++) {
-    // if (tags[i].getID() == 256) {
-      tf::Quaternion tagOrien(tags[0].getOrientationX(), tags[0].getOrientationY(), tags[0].getOrientationZ(), tags[0].getOrientationW());
-      tf::Matrix3x3 rotMartrix(tagOrien);
-      rotMartrix.getRPY(tagRoll, tagPitch, tagYaw);
-      xPos = tags[i].getPositionX();
-      yPos = tags[i].getPositionY();
-      zPos = tags[i].getPositionZ();                 
-      messageToPublish.data = "X: " + std::to_string(xPos) + " Y: " + std::to_string(yPos) + " Z: " + std::to_string(zPos) + " yaw: " + std::to_string(tagYaw);
-      tagDataPublish.publish(messageToPublish);
-    // }
-  }
-  tagDataPublish.publish(messageToPublish);
-}
-
-void tagQuadMessage(int upL, int upR, int lowL, int lowR) {
-  std_msgs::String messageToPublish;
-  messageToPublish.data = "UpL : " + std::to_string(upL) + " UpR : " + std::to_string(upR) + "LowL: " + std::to_string(lowL) + " lowR: " + std::to_string(lowR);
-  tagQuadPublish.publish(messageToPublish);
-}
-
-void dropOffMessage(string component, string message) {
-  std_msgs::String messageToPublish;
-  messageToPublish.data = "[ " + component + "] " + message;
-  dropOffPublish.publish(messageToPublish);
-}
-
-void roverMapHandler(const std_msgs::Float64MultiArray& message) {
-  int current_rover = (int) message.data[0];
-  Point msg_pose;
-  msg_pose.x = message.data[1];
-  msg_pose.y = message.data[2];
-  msg_pose.theta = message.data[3];
-
-  // Populate Map
-  logicController.rover_map[current_rover] = msg_pose;
-}
-

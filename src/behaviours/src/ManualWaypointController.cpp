@@ -2,19 +2,10 @@
 
 #include "ManualWaypointController.h"
 #include <angles/angles.h> // for hypot()
-#include "Utilities.h"
 
-ManualWaypointController::ManualWaypointController() {
-  this->controller = MANUAL;
-}
+ManualWaypointController::ManualWaypointController() {}
 
 ManualWaypointController::~ManualWaypointController() {}
-
-void ManualWaypointController::SetCurrentTimeInMilliSecs( long int time )
-{
-  current_time = time;
-}
-
 
 void ManualWaypointController::Reset() {
   waypoints.clear();
@@ -39,7 +30,7 @@ bool ManualWaypointController::ShouldInterrupt() {
 Result ManualWaypointController::DoWork() {
   Result result;
   result.type = waypoint;
-  result.waypoints.push_back(waypoints.begin()->second);
+  result.wpts.waypoints.push_back(waypoints.begin()->second);
   result.PIDMode = FAST_PID;
   return result;
 }
@@ -49,7 +40,9 @@ void ManualWaypointController::SetCurrentLocation(Point currentLocation)
   this->currentLocation = currentLocation;
   if(!waypoints.empty()) {
     std::map<int, Point>::iterator first = waypoints.begin();
-    if(distance_between_points(first->second,currentLocation) < waypoint_tolerance) {
+    if(hypot(first->second.x-currentLocation.x,
+             first->second.y-currentLocation.y)
+       < waypoint_tolerance) {
       cleared_waypoints.push_back(first->first);
       waypoints.erase(first);
     }
