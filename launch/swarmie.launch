@@ -5,9 +5,8 @@
   <node name="$(arg name)_BASE2CAM" pkg="tf" type="static_transform_publisher" args="0.12 -0.03 0.195 -1.57 0 -2.22 $(arg name)/base_link $(arg name)/camera_link 100" />
   <node name="$(arg name)_DIAGNOSTICS" pkg="diagnostics" type="diagnostics" args="$(arg name)" />
   <node name="$(arg name)_SBRIDGE" pkg="sbridge" type="sbridge" args="$(arg name)" />
-  <node launch-prefix="xterm -e gdb -ex run --args" name="$(arg name)_BEHAVIOUR" pkg="behaviours" type="behaviours" args="$(arg name)" output="screen"/>
-  <node name="$(arg name)_OBSTACLE" pkg="obstacle_detection" type="obstacle" args="$(arg name)" />
-  
+  <node name="$(arg name)_BEHAVIOUR" pkg="behaviours" type="behaviours" args="$(arg name)" output="screen"/>
+
   <node pkg="robot_localization" type="navsat_transform_node" name="$(arg name)_NAVSAT" respawn="false">
 
       <param name="magnetic_declination_radians" value="0.0"/>
@@ -46,6 +45,33 @@
       <remap from="/odometry/filtered" to="/$(arg name)/odom/filtered" />
     
   </node>
+
+  <node name="$(arg name)_imu_throttle" pkg="topic_tools" type="throttle"
+        args="messages /$(arg name)/imu 1.0" />
+
+  <node name="$(arg name)_navsol_throttle" pkg="topic_tools" type="throttle"
+        args="messages /$(arg name)/navsol 1.0" />
+
+  <node name="$(arg name)_odom_ekf_throttle" pkg="topic_tools" type="throttle"
+        args="messages /$(arg name)/odom/ekf 1.0" />
+
+  <node name="$(arg name)_odom_filtered_throttle" pkg="topic_tools" type="throttle"
+        args="messages /$(arg name)/odom/filtered 1.0" />
+
+  <node name="$(arg name)_odom_navsat_throttle" pkg="topic_tools" type="throttle"
+        args="messages /$(arg name)/odom/navsat 1.0" />
+
+  <node name="$(arg name)_sonarCenter_throttle" pkg="topic_tools" type="throttle"
+        args="messages /$(arg name)/sonarCenter 1.0" />
+
+  <node name="$(arg name)_sonarRight_throttle" pkg="topic_tools" type="throttle"
+        args="messages /$(arg name)/sonarRight 1.0" />
+
+  <node name="$(arg name)_sonarLeft_throttle" pkg="topic_tools" type="throttle"
+        args="messages /$(arg name)/sonarLeft 1.0" />
+
+  <node name="$(arg name)_targets_image_throttle" pkg="topic_tools" type="throttle"
+        args="messages /$(arg name)/targets/image/compressed 20.0 /$(arg name)/targets/image_throttle/compressed" />
 
   <node pkg="robot_localization" type="ekf_localization_node" name="$(arg name)_MAP">
 
