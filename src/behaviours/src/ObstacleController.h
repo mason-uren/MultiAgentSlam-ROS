@@ -68,6 +68,9 @@ private:
 
   // Ignore the center sonar because we are carrying a target
   bool ignore_center_sonar = false;
+  
+  // Disables avoid collection zone for drop off
+  //bool dropOffEnabled = false;
 
   Point currentLocation;
 
