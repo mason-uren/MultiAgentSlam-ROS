@@ -47,7 +47,7 @@ Result SearchController::DoWork() {
     result.type = waypoint;
     Point  searchLocation;
 
-    //select new position 50 cm from current location
+    //select new position 24 m from current location
     if (first_waypoint)
     {
       first_waypoint = false;
