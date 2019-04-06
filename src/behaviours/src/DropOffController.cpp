@@ -290,7 +290,7 @@ void DropOffController::Reset() {
   spinSizeIncrease = 0;
   prevCount = 0;
   timerTimeElapsed = -1;
-  dropOffMode = false;
+  //dropOffMode = false;
 
   countLeft = 0;
   countRight = 0;
