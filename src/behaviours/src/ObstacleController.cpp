@@ -70,7 +70,7 @@ Result ObstacleController::DoWork() {
   result.PIDMode = CONST_PID;
 
   // The obstacle is an april tag marking the collection zone
-  if(collection_zone_seen && targetHeld) { // && !dropOffMode){
+  if(collection_zone_seen && !targetHeld) {
     avoidCollectionZone();
   }
   else {
