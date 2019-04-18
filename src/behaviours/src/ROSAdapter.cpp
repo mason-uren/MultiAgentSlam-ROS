@@ -27,10 +27,15 @@
 
 // Include Controllers
 #include "LogicController.h"
+#include "Controller.h"
 #include <vector>
+#include <cmath>
+#include <math.h>
+#include <algorithm> 
 
 #include "Point.h"
 #include "Tag.h"
+
 #include "PositionPublisher.hpp"
 
 // To handle shutdown signals so the node quits
@@ -39,6 +44,13 @@
 #include <signal.h>
 
 #include <exception> // For exception handling
+
+
+#include <angles/angles.h>
+#include "std_msgs/Float64MultiArray.h"
+
+#include <fstream>
+#include <iostream>
 
 using namespace std;
 
@@ -73,11 +85,12 @@ LogicController logicController;
 void humanTime();	//translates time into human time
 
 // Behaviours Logic Functions
-void sendDriveCommand(double linearVel, double angularVel);
+void sendDriveCommand(double linear_velocity, double angular_velocity);
 void openFingers(); 	// Open fingers to 90 degrees
 void closeFingers();	// Close fingers to 0 degrees
 void raiseWrist();  	// Return wrist back to 0 degrees
 void lowerWrist();  	// Lower wrist to 50 degrees
+void centerWrist();
 void resultHandler();	// Not Used/Dead Code, prototype has no definition
 
 
@@ -87,34 +100,40 @@ void transformMapCentertoOdom();	//checks ODOMs perceived idea of where the cent
 PositionPublisher* positionPublisher;
 
 // Numeric Variables for rover positioning
-geometry_msgs::Pose2D currentLocation;		//current location using ODOM
-geometry_msgs::Pose2D currentLocationMap;	//current location using GPS
-geometry_msgs::Pose2D currentLocationAverage;	//an average of the robots current location
+geometry_msgs::Pose2D current_location_odom;		//current location using ODOM
+geometry_msgs::Pose2D current_location_ekf;	//current location using GPS
+geometry_msgs::Pose2D current_location_avg;	//an average of the robots current location
+Point location_offset_odom;
+Point location_offset_ekf;
+
 
 geometry_msgs::Pose2D centerLocation;		//Not used, dead code
 geometry_msgs::Pose2D centerLocationMap;	//A GPS point of the center location, used to help reduce drift from ODOM
 geometry_msgs::Pose2D centerLocationOdom;	//The centers location based on ODOM
 geometry_msgs::Pose2D centerLocationMapRef;	//Variable used in TransformMapCenterToOdom, can be moved to make it local instead of global
 
-int currentMode = 0;
-const float behaviourLoopTimeStep = 0.1; 	//time between the behaviour loop calls
-const float status_publish_interval = 1;	//time between publishes
-const float heartbeat_publish_interval = 2;	//time between heartbeat publishes
+int current_mode = 0;
+
+const float BEHAVIOR_LOOP_TIME_STEP = 0.1; 	//time between the behaviour loop calls
+const float STATUS_PUBLISH_INTERVAL = 1;	//time between publishes
+const float HEARTBEAT_PUBLISH_INTERVAL = 2;	//time between heartbeat publishes
 const float waypointTolerance = 0.1; 		//10 cm tolerance.
+const float CAMERA_OFFSET_CORRECTION = 0.020;
+const float CAMERA_HEIGHT_IN_CM = 0.195;
 
 // used for calling code once but not in main
 bool initilized = false;	//switched to true after running through state machine the first time, initializes base values
 
 //bool dropOffMode = false;	//switched to true after starting dropOff state
 
-float linearVelocity = 0;	//forward speed, POSITIVE = forward, NEGATIVE = backward
-float angularVelocity = 0;	//turning speed, POSITIVE = left, NEGATIVE = right
+float linear_velocity = 0;	//forward speed, POSITIVE = forward, NEGATIVE = backward
+float angular_velocity = 0;	//turning speed, POSITIVE = left, NEGATIVE = right
 
 float prevWrist = 0;	//last wrist angle
 float prevFinger = 0;	//last finger angle
-long int startTime = 0;	//stores time when robot is swtiched on
-float minutesTime = 0;	//time in minutes
-float hoursTime = 0;	//time in hours
+long int start_time = 0;	//stores time when robot is swtiched on
+float minutes_time = 0;	//time in minutes
+float hours_time = 0;	//time in hours
 
 float drift_tolerance = 0.5; // the perceived difference between ODOM and GPS values before shifting the values up or down, in meters
 
@@ -122,38 +141,47 @@ Result result;		//result struct for passing and storing values to drive robot
 
 std_msgs::String msg;	//used for passing messages to the GUI
 
-
+geometry_msgs::Twist velocity;
 char host[128];		//rovers hostname
-string publishedName;	//published hostname
+string published_name;	//published hostname
+
+
+
 char prev_state_machine[128];
 
 // Publishers
-ros::Publisher stateMachinePublish;		//publishes state machine status
+ros::Publisher state_machine_publisher;		//publishes state machine status
 ros::Publisher status_publisher;		//publishes rover status
-ros::Publisher fingerAnglePublish;		//publishes gripper angle to move gripper fingers
-ros::Publisher wristAnglePublish;		//publishes wrist angle to move wrist
+ros::Publisher finger_angle_publisher;		//publishes gripper angle to move gripper fingers
+ros::Publisher wrist_angle_publisher;		//publishes wrist angle to move wrist
 ros::Publisher infoLogPublisher;		//publishes a message to the infolog box on GUI
-ros::Publisher driveControlPublish;		//publishes motor commands to the motors
-ros::Publisher heartbeatPublisher;		//publishes ROSAdapters status via its "heartbeat"
+ros::Publisher drive_control_publisher;		//publishes motor commands to the motors
+ros::Publisher heartbeat_publisher;		//publishes ROSAdapters status via its "heartbeat"
 ros::Publisher obstaclePublisher;
 // Publishes swarmie_msgs::Waypoint messages on "/<robot>/waypooints"
 // to indicate when waypoints have been reached.
 ros::Publisher waypointFeedbackPublisher;	//publishes a waypoint to travel to if the rover is given a waypoint in manual mode
+ros::Publisher claim_anchor_point_publisher;
+ros::Publisher unclaim_anchor_point_publisher;
+ros::Publisher recruitment_publisher;
 
 // Subscribers
-ros::Subscriber joySubscriber;			//receives joystick information
-ros::Subscriber modeSubscriber; 		//receives mode from GUI
-ros::Subscriber targetSubscriber;		//receives tag data
-ros::Subscriber odometrySubscriber;		//receives ODOM data
-ros::Subscriber mapSubscriber;			//receives GPS data
+ros::Subscriber joystick_subscriber;			//receives joystick information
+ros::Subscriber mode_subscriber; 		//receives mode from GUI
+ros::Subscriber april_tag_subscriber;		//receives tag data
+ros::Subscriber odometry_subscriber;		//receives ODOM data
+ros::Subscriber ekf_subscriber;			//receives GPS data
 ros::Subscriber virtualFenceSubscriber;		//receives data for vitrual boundaries
 // manualWaypointSubscriber listens on "/<robot>/waypoints/cmd" for
 // swarmie_msgs::Waypoint messages.
 ros::Subscriber manualWaypointSubscriber; 	//receives manual waypoints given from GUI
 ros::Subscriber recruitmentSubscriber;
+ros::Subscriber claimed_anchor_point_subscriber;
+ros::Subscriber unclaimed_anchor_point_subscriber;
+ros::Subscriber recruitment_subscriber;
 
 // Timers
-ros::Timer stateMachineTimer;
+ros::Timer state_machine_timer;
 ros::Timer publish_status_timer;
 ros::Timer publish_heartbeat_timer;
 
@@ -194,51 +222,51 @@ int main(int argc, char **argv) {
   string hostname(host);
   
   if (argc >= 2) {
-    publishedName = argv[1];
-    cout << "Welcome to the world of tomorrow " << publishedName
+    published_name = argv[1];
+    cout << "Welcome to the world of tomorrow " << published_name
          << "!  Behaviour turnDirectionule started." << endl;
   } else {
-    publishedName = hostname;
-    cout << "No Name Selected. Default is: " << publishedName << endl;
+    published_name = hostname;
+    cout << "No Name Selected. Default is: " << published_name << endl;
   }
   
   // NoSignalHandler so we can catch SIGINT ourselves and shutdown the node
-  ros::init(argc, argv, (publishedName + "_BEHAVIOUR"), ros::init_options::NoSigintHandler);
+  ros::init(argc, argv, (published_name + "_BEHAVIOUR"), ros::init_options::NoSigintHandler);
   ros::NodeHandle mNH;
-  positionPublisher = new PositionPublisher(mNH, publishedName);
+  positionPublisher = new PositionPublisher(mNH, published_name);
   
   // Register the SIGINT event handler so the node can shutdown properly
   signal(SIGINT, sigintEventHandler);
   
   //subscribers
-  joySubscriber = mNH.subscribe((publishedName + "/joystick"), 10, joyCmdHandler);					//receives joystick information
-  modeSubscriber = mNH.subscribe((publishedName + "/mode"), 1, modeHandler);						//receives mode from GUI
-  targetSubscriber = mNH.subscribe((publishedName + "/targets"), 10, targetHandler);					//receives tag data
-  odometrySubscriber = mNH.subscribe((publishedName + "/odom/filtered"), 10, odometryHandler);				//receives ODOM data
-  mapSubscriber = mNH.subscribe((publishedName + "/odom/ekf"), 10, mapHandler);						//receives GPS data
+  joystick_subscriber = mNH.subscribe((published_name + "/joystick"), 10, joyCmdHandler);					//receives joystick information
+  mode_subscriber = mNH.subscribe((published_name + "/mode"), 1, modeHandler);						//receives mode from GUI
+  april_tag_subscriber = mNH.subscribe((published_name + "/targets"), 10, targetHandler);					//receives tag data
+  odometry_subscriber = mNH.subscribe((published_name + "/odom/filtered"), 10, odometryHandler);				//receives ODOM data
+  ekf_subscriber = mNH.subscribe((published_name + "/odom/ekf"), 10, mapHandler);						//receives GPS data
   virtualFenceSubscriber = mNH.subscribe(("/virtualFence"), 10, virtualFenceHandler);					//receives data for vitrual boundaries
-  manualWaypointSubscriber = mNH.subscribe((publishedName + "/waypoints/cmd"), 10, manualWaypointHandler);		//receives manual waypoints given from GUI
-  message_filters::Subscriber<sensor_msgs::Range> sonarLeftSubscriber(mNH, (publishedName + "/sonarLeft"), 10);
-  message_filters::Subscriber<sensor_msgs::Range> sonarCenterSubscriber(mNH, (publishedName + "/sonarCenter"), 10);
-  message_filters::Subscriber<sensor_msgs::Range> sonarRightSubscriber(mNH, (publishedName + "/sonarRight"), 10);
+  manualWaypointSubscriber = mNH.subscribe((published_name + "/waypoints/cmd"), 10, manualWaypointHandler);		//receives manual waypoints given from GUI
+  message_filters::Subscriber<sensor_msgs::Range> sonarLeftSubscriber(mNH, (published_name + "/sonarLeft"), 10);
+  message_filters::Subscriber<sensor_msgs::Range> sonarCenterSubscriber(mNH, (published_name + "/sonarCenter"), 10);
+  message_filters::Subscriber<sensor_msgs::Range> sonarRightSubscriber(mNH, (published_name + "/sonarRight"), 10);
   recruitmentSubscriber = mNH.subscribe("/detectionLocations", 10, recruitmentHandler);
 
   //publishers
-  status_publisher = mNH.advertise<std_msgs::String>((publishedName + "/swarmie_status"), 1, true);			//publishes rover status
-  obstaclePublisher = mNH.advertise<std_msgs::UInt8>((publishedName + "/obstacle"), 10, true);
-  stateMachinePublish = mNH.advertise<std_msgs::String>((publishedName + "/state_machine"), 1, true);			//publishes state machine status
-  fingerAnglePublish = mNH.advertise<std_msgs::Float32>((publishedName + "/fingerAngle/cmd"), 1, true);			//publishes gripper angle to move gripper finger
-  wristAnglePublish = mNH.advertise<std_msgs::Float32>((publishedName + "/wristAngle/cmd"), 1, true);			//publishes wrist angle to move wrist
+  status_publisher = mNH.advertise<std_msgs::String>((published_name + "/swarmie_status"), 1, true);			//publishes rover status
+  obstaclePublisher = mNH.advertise<std_msgs::UInt8>((published_name + "/obstacle"), 10, true);
+  state_machine_publisher = mNH.advertise<std_msgs::String>((published_name + "/state_machine"), 1, true);			//publishes state machine status
+  finger_angle_publisher = mNH.advertise<std_msgs::Float32>((published_name + "/fingerAngle/cmd"), 1, true);			//publishes gripper angle to move gripper finger
+  wrist_angle_publisher = mNH.advertise<std_msgs::Float32>((published_name + "/wristAngle/cmd"), 1, true);			//publishes wrist angle to move wrist
   infoLogPublisher = mNH.advertise<std_msgs::String>("/infoLog", 1, true);						//publishes a message to the infolog box on GUI
-  driveControlPublish = mNH.advertise<swarmie_msgs::Skid>((publishedName + "/driveControl"), 10);			//publishes motor commands to the motors
-  heartbeatPublisher = mNH.advertise<std_msgs::String>((publishedName + "/behaviour/heartbeat"), 1, true);		//publishes ROSAdapters status via its "heartbeat"
-  waypointFeedbackPublisher = mNH.advertise<swarmie_msgs::Waypoint>((publishedName + "/waypoints"), 1, true);		//publishes a waypoint to travel to if the rover is given a waypoint in manual mode
+  drive_control_publisher = mNH.advertise<swarmie_msgs::Skid>((published_name + "/driveControl"), 10);			//publishes motor commands to the motors
+  heartbeat_publisher = mNH.advertise<std_msgs::String>((published_name + "/behaviour/heartbeat"), 1, true);		//publishes ROSAdapters status via its "heartbeat"
+  waypointFeedbackPublisher = mNH.advertise<swarmie_msgs::Waypoint>((published_name + "/waypoints"), 1, true);		//publishes a waypoint to travel to if the rover is given a waypoint in manual mode
 
   //timers
-  publish_status_timer = mNH.createTimer(ros::Duration(status_publish_interval), publishStatusTimerEventHandler);
-  stateMachineTimer = mNH.createTimer(ros::Duration(behaviourLoopTimeStep), behaviourStateMachine);
+  publish_status_timer = mNH.createTimer(ros::Duration(STATUS_PUBLISH_INTERVAL), publishStatusTimerEventHandler);
+  state_machine_timer = mNH.createTimer(ros::Duration(BEHAVIOR_LOOP_TIME_STEP), behaviourStateMachine);
   
-  publish_heartbeat_timer = mNH.createTimer(ros::Duration(heartbeat_publish_interval), publishHeartBeatTimerEventHandler);
+  publish_heartbeat_timer = mNH.createTimer(ros::Duration(HEARTBEAT_PUBLISH_INTERVAL), publishHeartBeatTimerEventHandler);
   
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Range, sensor_msgs::Range, sensor_msgs::Range> sonarSyncPolicy;
   
@@ -255,7 +283,7 @@ int main(int argc, char **argv) {
   msg.data = ss.str();
   infoLogPublisher.publish(msg);
 
-  if(currentMode != 2 && currentMode != 3)
+  if(current_mode != 2 && current_mode != 3)
   {
     // ensure the logic controller starts in the correct mode.
     logicController.SetModeManual();
@@ -294,14 +322,14 @@ void behaviourStateMachine(const ros::TimerEvent&)
       initilized = true;
       //TODO: this just sets center to 0 over and over and needs to change
       Point centerOdom;
-      centerOdom.x = 1.3 * cos(currentLocation.theta);
-      centerOdom.y = 1.3 * sin(currentLocation.theta);
+      centerOdom.x = 1.3 * cos(current_location_odom.theta);
+      centerOdom.y = 1.3 * sin(current_location_odom.theta);
       centerOdom.theta = centerLocation.theta;
       logicController.SetCenterLocationOdom(centerOdom);
       
       Point centerMap;
-      centerMap.x = currentLocationMap.x + (1.3 * cos(currentLocationMap.theta));
-      centerMap.y = currentLocationMap.y + (1.3 * sin(currentLocationMap.theta));
+      centerMap.x = current_location_ekf.x + (1.3 * cos(current_location_ekf.theta));
+      centerMap.y = current_location_ekf.y + (1.3 * sin(current_location_ekf.theta));
       centerMap.theta = centerLocationMap.theta;
       logicController.SetCenterLocationMap(centerMap);
       
@@ -311,7 +339,7 @@ void behaviourStateMachine(const ros::TimerEvent&)
       centerLocationOdom.x = centerOdom.x;
       centerLocationOdom.y = centerOdom.y;
       
-      startTime = getROSTimeInMilliSecs();
+      start_time = getROSTimeInMilliSecs();
     }
 
     else
@@ -322,7 +350,7 @@ void behaviourStateMachine(const ros::TimerEvent&)
   }
 
   // Robot is in autonomous mode
-  if (currentMode == 2 || currentMode == 3)
+  if (current_mode == 2 || current_mode == 3)
   {
     
     humanTime();
@@ -354,9 +382,9 @@ void behaviourStateMachine(const ros::TimerEvent&)
       std_msgs::Float32 angle;
       
       angle.data = prevFinger;
-      fingerAnglePublish.publish(angle);
+      finger_angle_publisher.publish(angle);
       angle.data = prevWrist;
-      wristAnglePublish.publish(angle);
+      wrist_angle_publisher.publish(angle);
     }
     
     //normally interpret logic controllers actuator commands and deceminate them over the appropriate ROS topics
@@ -371,14 +399,14 @@ void behaviourStateMachine(const ros::TimerEvent&)
       if (result.fingerAngle != -1)
       {
         angle.data = result.fingerAngle;	//uses results struct with data sent back from logic controller to get angle data
-        fingerAnglePublish.publish(angle);	//publish angle data to the gripper fingers
+        finger_angle_publisher.publish(angle);	//publish angle data to the gripper fingers
         prevFinger = result.fingerAngle;	//store the last known gripper finger angle
       }
 
       if (result.wristAngle != -1)
       {
         angle.data = result.wristAngle;		//uses results struct with data sent back from logic controller to get angle data
-        wristAnglePublish.publish(angle);	//publish angle data to the gripper wrist
+        wrist_angle_publisher.publish(angle);	//publish angle data to the gripper wrist
         prevWrist = result.wristAngle;		//store the last known gripper wrist angle
       }
     }
@@ -429,7 +457,7 @@ void behaviourStateMachine(const ros::TimerEvent&)
   // publish state machine string for user, only if it has changed, though
   if (strcmp(stateMachineMsg.data.c_str(), prev_state_machine) != 0)
   {
-    stateMachinePublish.publish(stateMachineMsg);
+    state_machine_publisher.publish(stateMachineMsg);
     sprintf(prev_state_machine, "%s", stateMachineMsg.data.c_str());
   }
 }
@@ -440,7 +468,7 @@ void sendDriveCommand(double left, double right)
   skid_command.left  = left;
   skid_command.right = right;
   // publish the drive commands
-  driveControlPublish.publish(skid_command);
+  drive_control_publisher.publish(skid_command);
 }
 
 /*************************
@@ -451,7 +479,7 @@ void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& messag
 
   // Don't pass April tag data to the logic controller if the robot is not in autonomous mode.
   // This is to make sure autonomous behaviours are not triggered while the rover is in manual mode. 
-  if(currentMode == 0 || currentMode == 1) 
+  if(current_mode == 0 || current_mode == 1) 
   { 
     return; 
   }
@@ -481,8 +509,8 @@ void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& messag
 
     // To enable recruitment uncomment these lines.
     // Point curr_loc;
-    // curr_loc.x = currentLocationMap.x;
-    // curr_loc.y = currentLocationMap.y;
+    // curr_loc.x = current_location_ekf.x;
+    // curr_loc.y = current_location_ekf.y;
     // positionPublisher->setDetections(tags, curr_loc);
 
     logicController.SetAprilTags(tags);
@@ -491,8 +519,8 @@ void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& messag
 }
 
 void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
-  currentMode = message->data;
-  if(currentMode == 2 || currentMode == 3) {
+  current_mode = message->data;
+  if(current_mode == 2 || current_mode == 3) {
     logicController.SetModeAuto();
   }
   else {
@@ -509,26 +537,26 @@ void sonarHandler(const sensor_msgs::Range::ConstPtr& sonarLeft, const sensor_ms
 
 void odometryHandler(const nav_msgs::Odometry::ConstPtr& message) {
   //Get (x,y) location directly from pose
-  currentLocation.x = message->pose.pose.position.x;
-  currentLocation.y = message->pose.pose.position.y;
+  current_location_odom.x = message->pose.pose.position.x;
+  current_location_odom.y = message->pose.pose.position.y;
   
   //Get theta rotation by converting quaternion orientation to pitch/roll/yaw
   tf::Quaternion q(message->pose.pose.orientation.x, message->pose.pose.orientation.y, message->pose.pose.orientation.z, message->pose.pose.orientation.w);
   tf::Matrix3x3 m(q);
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
-  currentLocation.theta = yaw;
+  current_location_odom.theta = yaw;
   
-  linearVelocity = message->twist.twist.linear.x;
-  angularVelocity = message->twist.twist.angular.z;
+  linear_velocity = message->twist.twist.linear.x;
+  angular_velocity = message->twist.twist.angular.z;
   
   
   Point currentLoc;
-  currentLoc.x = currentLocation.x;
-  currentLoc.y = currentLocation.y;
-  currentLoc.theta = currentLocation.theta;
+  currentLoc.x = current_location_odom.x;
+  currentLoc.y = current_location_odom.y;
+  currentLoc.theta = current_location_odom.theta;
   logicController.SetPositionData(currentLoc);
-  logicController.SetVelocityData(linearVelocity, angularVelocity);
+  logicController.SetVelocityData(linear_velocity, angular_velocity);
 }
 
 // Allows a virtual fence to be defined and enabled or disabled through ROS
@@ -580,30 +608,30 @@ void virtualFenceHandler(const std_msgs::Float32MultiArray& message)
 
 void mapHandler(const nav_msgs::Odometry::ConstPtr& message) {
   //Get (x,y) location directly from pose
-  currentLocationMap.x = message->pose.pose.position.x;
-  currentLocationMap.y = message->pose.pose.position.y;
+  current_location_ekf.x = message->pose.pose.position.x;
+  current_location_ekf.y = message->pose.pose.position.y;
   
   //Get theta rotation by converting quaternion orientation to pitch/roll/yaw
   tf::Quaternion q(message->pose.pose.orientation.x, message->pose.pose.orientation.y, message->pose.pose.orientation.z, message->pose.pose.orientation.w);
   tf::Matrix3x3 m(q);
   double roll, pitch, yaw;
   m.getRPY(roll, pitch, yaw);
-  currentLocationMap.theta = yaw;
+  current_location_ekf.theta = yaw;
   
-  linearVelocity = message->twist.twist.linear.x;
-  angularVelocity = message->twist.twist.angular.z;
+  linear_velocity = message->twist.twist.linear.x;
+  angular_velocity = message->twist.twist.angular.z;
   
   Point curr_loc;
-  curr_loc.x = currentLocationMap.x;
-  curr_loc.y = currentLocationMap.y;
-  curr_loc.theta = currentLocationMap.theta;
+  curr_loc.x = current_location_ekf.x;
+  curr_loc.y = current_location_ekf.y;
+  curr_loc.theta = current_location_ekf.theta;
   logicController.SetMapPositionData(curr_loc);
-  logicController.SetMapVelocityData(linearVelocity, angularVelocity);
+  logicController.SetMapVelocityData(linear_velocity, angular_velocity);
 }
 
 void joyCmdHandler(const sensor_msgs::Joy::ConstPtr& message) {
   const int max_motor_cmd = 255;
-  if (currentMode == 0 || currentMode == 1) {	//takes data coming from joystick and stores into linear and angular variables
+  if (current_mode == 0 || current_mode == 1) {	//takes data coming from joystick and stores into linear and angular variables
     float linear  = abs(message->axes[4]) >= 0.1 ? message->axes[4]*max_motor_cmd : 0.0;
     float angular = abs(message->axes[3]) >= 0.1 ? message->axes[3]*max_motor_cmd : 0.0;
 
@@ -652,7 +680,7 @@ void manualWaypointHandler(const swarmie_msgs::Waypoint& message) {
 
 void recruitmentHandler(const swarmie_msgs::Recruitment& msg)
 {
-   if(msg.name.data != publishedName) {
+   if(msg.name.data != published_name) {
       Point p;
       p.x = msg.x;
       p.y = msg.y;
@@ -668,7 +696,7 @@ void sigintEventHandler(int sig) {
 void publishHeartBeatTimerEventHandler(const ros::TimerEvent&) {
   std_msgs::String msg;
   msg.data = "";
-  heartbeatPublisher.publish(msg);
+  heartbeat_publisher.publish(msg);
 }
 
 long int getROSTimeInMilliSecs()
@@ -702,7 +730,7 @@ void transformMapCentertoOdom()
   // setup msg to represent the center location in map frame
   mapPose.header.stamp = ros::Time::now();
   
-  mapPose.header.frame_id = publishedName + "/map";
+  mapPose.header.frame_id = published_name + "/map";
   mapPose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, centerLocationMap.theta);
   mapPose.pose.position.x = centerLocationMap.x;
   mapPose.pose.position.y = centerLocationMap.y;
@@ -711,8 +739,8 @@ void transformMapCentertoOdom()
   
   try
   { //attempt to get the transform of the center point in map frame to odom frame.
-    tfListener->waitForTransform(publishedName + "/map", publishedName + "/odom", ros::Time::now(), ros::Duration(1.0));
-    tfListener->transformPose(publishedName + "/odom", mapPose, odomPose);
+    tfListener->waitForTransform(published_name + "/map", published_name + "/odom", ros::Time::now(), ros::Duration(1.0));
+    tfListener->transformPose(published_name + "/odom", mapPose, odomPose);
   }
   
   catch(tf::TransformException& ex) {  //bad transform
@@ -750,13 +778,13 @@ void transformMapCentertoOdom()
 
 void humanTime() {
   
-  float timeDiff = (getROSTimeInMilliSecs()-startTime)/1e3;
+  float timeDiff = (getROSTimeInMilliSecs()-start_time)/1e3;
   if (timeDiff >= 60) {
-    minutesTime++;
-    startTime += 60  * 1e3;
-    if (minutesTime >= 60) {
-      hoursTime++;
-      minutesTime -= 60;
+    minutes_time++;
+    start_time += 60  * 1e3;
+    if (minutes_time >= 60) {
+      hours_time++;
+      minutes_time -= 60;
     }
   }
   timeDiff = floor(timeDiff*10)/10;
@@ -769,5 +797,5 @@ void humanTime() {
     frac = 0;
   }
   
-  //cout << "System has been Running for :: " << hoursTime << " : hours " << minutesTime << " : minutes " << timeDiff << "." << frac << " : seconds" << endl; //you can remove or comment this out it just gives indication something is happening to the log file
+  //cout << "System has been Running for :: " << hours_time << " : hours " << minutes_time << " : minutes " << timeDiff << "." << frac << " : seconds" << endl; //you can remove or comment this out it just gives indication something is happening to the log file
 }
