@@ -186,22 +186,22 @@ ros::Timer publish_status_timer;
 ros::Timer publish_heartbeat_timer;
 
 // records time for delays in sequenced actions, 1 second resolution.
-time_t timerStartTime;
+time_t timer_start_time;
 
 // An initial delay to allow the rover to gather enough position data to 
 // average its location.
-unsigned int startDelayInSeconds = 30;
-float timerTimeElapsed = 0;
+unsigned int start_delay_in_seconds = 30;
+float timer_time_elapsed = 0;
 
 //Transforms
-tf::TransformListener *tfListener;
+tf::TransformListener *transform_listener;
 
 // OS Signal Handler
-void sigintEventHandler(int signal);
+void SigintEventHandler(int signal);
 
 //Callback handlers
-void joyCmdHandler(const sensor_msgs::Joy::ConstPtr& message);				//for joystick control
-void modeHandler(const std_msgs::UInt8::ConstPtr& message);				//for detecting which mode the robot needs to be in
+void JoystickCommandHandler(const sensor_msgs::Joy::ConstPtr& message);				//for joystick control
+void ModeHandler(const std_msgs::UInt8::ConstPtr& message);				//for detecting which mode the robot needs to be in
 void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& tagInfo);	//receives and stores April Tag Data using the TAG class
 void odometryHandler(const nav_msgs::Odometry::ConstPtr& message);			//receives and stores ODOM information
 void mapHandler(const nav_msgs::Odometry::ConstPtr& message);				//receives and stores GPS information
@@ -236,11 +236,11 @@ int main(int argc, char **argv) {
   positionPublisher = new PositionPublisher(mNH, published_name);
   
   // Register the SIGINT event handler so the node can shutdown properly
-  signal(SIGINT, sigintEventHandler);
+  signal(SIGINT, SigintEventHandler);
   
   //subscribers
-  joystick_subscriber = mNH.subscribe((published_name + "/joystick"), 10, joyCmdHandler);					//receives joystick information
-  mode_subscriber = mNH.subscribe((published_name + "/mode"), 1, modeHandler);						//receives mode from GUI
+  joystick_subscriber = mNH.subscribe((published_name + "/joystick"), 10, JoystickCommandHandler);					//receives joystick information
+  mode_subscriber = mNH.subscribe((published_name + "/mode"), 1, ModeHandler);						//receives mode from GUI
   april_tag_subscriber = mNH.subscribe((published_name + "/targets"), 10, targetHandler);					//receives tag data
   odometry_subscriber = mNH.subscribe((published_name + "/odom/filtered"), 10, odometryHandler);				//receives ODOM data
   ekf_subscriber = mNH.subscribe((published_name + "/odom/ekf"), 10, mapHandler);						//receives GPS data
@@ -273,13 +273,13 @@ int main(int argc, char **argv) {
   message_filters::Synchronizer<sonarSyncPolicy> sonarSync(sonarSyncPolicy(10), sonarLeftSubscriber, sonarCenterSubscriber, sonarRightSubscriber);
   sonarSync.registerCallback(boost::bind(&sonarHandler, _1, _2, _3));
   
-  tfListener = new tf::TransformListener();
+  transform_listener = new tf::TransformListener();
   std_msgs::String msg;
   msg.data = "Log Started";
   infoLogPublisher.publish(msg);
   
   stringstream ss;
-  ss << "Rover start delay set to " << startDelayInSeconds << " seconds";
+  ss << "Rover start delay set to " << start_delay_in_seconds << " seconds";
   msg.data = ss.str();
   infoLogPublisher.publish(msg);
 
@@ -289,7 +289,7 @@ int main(int argc, char **argv) {
     logicController.SetModeManual();
   }
 
-  timerStartTime = time(0);
+  timer_start_time = time(0);
   
   ros::spin();
 
@@ -307,15 +307,15 @@ void behaviourStateMachine(const ros::TimerEvent&)
 
   std_msgs::String stateMachineMsg;
   
-  // time since timerStartTime was set to current time
-  timerTimeElapsed = time(0) - timerStartTime;
+  // time since timer_start_time was set to current time
+  timer_time_elapsed = time(0) - timer_start_time;
   
   // init code goes here. (code that runs only once at start of
   // auto mode but wont work in main goes here)
   if (!initilized)
   {
 
-    if (timerTimeElapsed > startDelayInSeconds)
+    if (timer_time_elapsed > start_delay_in_seconds)
     {
 
       // initialization has run
@@ -518,7 +518,7 @@ void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& messag
   
 }
 
-void modeHandler(const std_msgs::UInt8::ConstPtr& message) {
+void ModeHandler(const std_msgs::UInt8::ConstPtr& message) {
   current_mode = message->data;
   if(current_mode == 2 || current_mode == 3) {
     logicController.SetModeAuto();
@@ -629,7 +629,7 @@ void mapHandler(const nav_msgs::Odometry::ConstPtr& message) {
   logicController.SetMapVelocityData(linear_velocity, angular_velocity);
 }
 
-void joyCmdHandler(const sensor_msgs::Joy::ConstPtr& message) {
+void JoystickCommandHandler(const sensor_msgs::Joy::ConstPtr& message) {
   const int max_motor_cmd = 255;
   if (current_mode == 0 || current_mode == 1) {	//takes data coming from joystick and stores into linear and angular variables
     float linear  = abs(message->axes[4]) >= 0.1 ? message->axes[4]*max_motor_cmd : 0.0;
@@ -688,7 +688,7 @@ void recruitmentHandler(const swarmie_msgs::Recruitment& msg)
    }
 }
 
-void sigintEventHandler(int sig) {
+void SigintEventHandler(int sig) {
   // All the default sigint handler does is call shutdown()
   ros::shutdown();
 }
@@ -739,8 +739,8 @@ void transformMapCentertoOdom()
   
   try
   { //attempt to get the transform of the center point in map frame to odom frame.
-    tfListener->waitForTransform(published_name + "/map", published_name + "/odom", ros::Time::now(), ros::Duration(1.0));
-    tfListener->transformPose(published_name + "/odom", mapPose, odomPose);
+    transform_listener->waitForTransform(published_name + "/map", published_name + "/odom", ros::Time::now(), ros::Duration(1.0));
+    transform_listener->transformPose(published_name + "/odom", mapPose, odomPose);
   }
   
   catch(tf::TransformException& ex) {  //bad transform
