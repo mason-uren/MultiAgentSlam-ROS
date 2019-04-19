@@ -202,6 +202,7 @@ void SigintEventHandler(int signal);
 //Callback handlers
 void JoystickCommandHandler(const sensor_msgs::Joy::ConstPtr& message);				//for joystick control
 void ModeHandler(const std_msgs::UInt8::ConstPtr& message);				//for detecting which mode the robot needs to be in
+// TODO: Refactor names below this line to match surf code.
 void targetHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& tagInfo);	//receives and stores April Tag Data using the TAG class
 void odometryHandler(const nav_msgs::Odometry::ConstPtr& message);			//receives and stores ODOM information
 void mapHandler(const nav_msgs::Odometry::ConstPtr& message);				//receives and stores GPS information
