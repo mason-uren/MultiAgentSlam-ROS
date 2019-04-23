@@ -987,7 +987,7 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     state_machine_state = DROPOFF_ALIGN;
                     //desired heading will be set by AprilTagHandler, home_tag_yaw_error
                 }
-                else if (resource_held_counter == 30) {
+                else if (resource_held_counter == 50) {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     cout << "checking for resource held" << endl;
@@ -1901,6 +1901,9 @@ void AprilTagHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& mess
             else{
               home_tag_side = RIGHT;
             }
+        }
+        else {
+          average_home_tag.setPosition(1000,1000,1000);
         }
 
         if (count_resource_tags > 0) {
