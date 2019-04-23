@@ -26,7 +26,7 @@
 #include "swarmie_msgs/Skid.h"
 
 // Include Controllers
-#include "LogicController.h"
+//#include "LogicController.h"
 #include "Controller.h"
 #include <vector>
 #include <cmath>
@@ -80,7 +80,7 @@ random_numbers::RandomNumberGenerator* rng;
 std_msgs::UInt8 collision_msg;
 // Create logic controller
 
-LogicController logicController;
+//LogicController logicController;
 
 void humanTime();	//translates time into human time
 
@@ -273,7 +273,7 @@ const bool SIMULATOR = true;
 
 //Research Flags
 const bool ANCHOR_POINTS = false;
-const bool SITE_FIDELITY = false;
+const bool SITE_FIDELITY = true;
 const bool RECRUITMENT = false;
 
 
@@ -1741,39 +1741,22 @@ void BehaviourStateMachine(const ros::TimerEvent&)
   {
     humanTime();
 
-    logicController.SetCurrentTimeInMilliSecs( GetROSTimeInMilliSecs() );
+    //logicController.SetCurrentTimeInMilliSecs( GetROSTimeInMilliSecs() );
 
     // publish current state for the operator to see
     state_machine_message.data = "WAITING";
 
-    // ask the logicController to get the waypoints that have been
-    // reached.
-    std::vector<int> cleared_waypoints = logicController.GetClearedWaypoints();
-
-    for(std::vector<int>::iterator it = cleared_waypoints.begin();
-        it != cleared_waypoints.end(); it++)
-    {
-      swarmie_msgs::Waypoint wpt;
-      wpt.action = swarmie_msgs::Waypoint::ACTION_REACHED;
-      wpt.id = *it;
-      waypointFeedbackPublisher.publish(wpt);
-    }
-    result = logicController.DoWork();	//ask logic controller to run
-    if(result.type != behavior || result.b != wait)
-    {
-      // if the logic controller requested that the robot drive, then
-      // drive. Otherwise there are no manual waypoints and the robot
-      // should sit idle. (ie. only drive according to joystick
-      // input).
-      sendDriveCommand(result.pd.left,result.pd.right);
-    }
+    //openFingers();
+    state_machine_state = INIT;
   }
 
   // publish state machine string for user, only if it has changed, though
-  if (strcmp(state_machine_message.data.c_str(), prev_state_machine) != 0)
+  state_machine_publisher.publish(state_machine_message);
+
+  if (last_state.compare(state_machine_message.data) != 0)
   {
-    state_machine_publisher.publish(state_machine_message);
-    sprintf(prev_state_machine, "%s", state_machine_message.data.c_str());
+    last_state = state_machine_message.data;
+    StateLogger((state_machine_message.data));
   }
 }
 
@@ -1792,86 +1775,262 @@ void sendDriveCommand(double left, double right)
 
 void AprilTagHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& message) {
 
-  // Don't pass April tag data to the logic controller if the robot is not in autonomous mode.
-  // This is to make sure autonomous behaviours are not triggered while the rover is in manual mode. 
-  if(current_mode == 0 || current_mode == 1) 
-  { 
-    return; 
-  }
+    float sum_x = 0.0;
+    float sum_y = 0.0;
+    float sum_z = 0.0;
+    int count_home_tags = 0;
+    count_resource_tags = 0;
+    int in_home_tags = 0;
+    int out_home_tags = 0;
+    //Tag average_home_tag; //moved to global
+    Tag chosen_tag;
+    Tag chosen_tag_not_held;
+    float distance_to_closest_resource_tag = std::numeric_limits<double>::max();
+    float distance_to_closest_resource_tag_not_held = std::numeric_limits<double>::max();
+    int index_of_closest_resource_tag = -1;
+    int index_of_closest_resource_tag_not_held = -1;
+    
+    if (message->detections.size() > 0) {
+        vector<Tag> home_tags;
+        vector<Tag> resource_tags;
+        vector<Tag> candidate_resource_tags;
+        vector<Tag> candidate_resource_tags_not_held;
+        for (int i = 0; i < message->detections.size(); i++) {
 
-  if (message->detections.size() > 0) {
-    vector<Tag> tags;
+            // Package up the ROS AprilTag data into our own type that does not rely on ROS.
+            Tag detected_tag;
+            detected_tag.setID( message->detections[i].id );
 
-    for (int i = 0; i < message->detections.size(); i++) {
+            // Pass the position of the AprilTag
+            geometry_msgs::PoseStamped tagPose = message->detections[i].pose;
+            detected_tag.setPosition( make_tuple( tagPose.pose.position.x,
+                                     tagPose.pose.position.y,
+                                     tagPose.pose.position.z ) );
 
-      // Package up the ROS AprilTag data into our own type that does not rely on ROS.
-      Tag loc;
-      loc.setID( message->detections[i].id );
+            // Pass the orientation of the AprilTag
+            detected_tag.setOrientation( ::boost::math::quaternion<float>( tagPose.pose.orientation.x,
+                                                              tagPose.pose.orientation.y,
+                                                              tagPose.pose.orientation.z,
+                                                              tagPose.pose.orientation.w ) );
+        
 
-      // Pass the position of the AprilTag
-      geometry_msgs::PoseStamped tagPose = message->detections[i].pose;
-      loc.setPosition( make_tuple( tagPose.pose.position.x,
-				   tagPose.pose.position.y,
-				   tagPose.pose.position.z ) );
+            
 
-      // Pass the orientation of the AprilTag
-      loc.setOrientation( ::boost::math::quaternion<float>( tagPose.pose.orientation.x,
-							    tagPose.pose.orientation.y,
-							    tagPose.pose.orientation.z,
-							    tagPose.pose.orientation.w ) );
-      tags.push_back(loc);
+            if (message->detections[i].id == 256) {
+                count_home_tags++;
+		        if (detected_tag.calcYaw() < 0)
+            	{
+                    in_home_tags++;
+            	}
+                else {
+                    out_home_tags++;
+                }
+
+                sum_x = sum_x + detected_tag.getPositionX();
+                sum_y = sum_y + detected_tag.getPositionY();
+                sum_z = sum_z + detected_tag.getPositionZ();
+                home_tags.push_back(detected_tag);
+            }
+            else
+            {
+                count_resource_tags++;
+                double distant_to_detected_tag = hypot(hypot(detected_tag.getPositionX(), detected_tag.getPositionY()), detected_tag.getPositionZ());
+                if(fabs(detected_tag.getPositionX())<0.25){
+                    candidate_resource_tags.push_back(detected_tag);
+                    if(detected_tag.getPositionY()<-.02){
+                        candidate_resource_tags_not_held.push_back(detected_tag);
+                    }
+                }
+                else if (distance_to_closest_resource_tag > distant_to_detected_tag){
+                    index_of_closest_resource_tag = i;
+                    distance_to_closest_resource_tag = distant_to_detected_tag;
+                    if(detected_tag.getPositionY()<-.02){
+                        distance_to_closest_resource_tag_not_held = distant_to_detected_tag;
+                        index_of_closest_resource_tag_not_held = distant_to_detected_tag;
+                    }
+                }
+                resource_tags.push_back(detected_tag);
+            }
+        } // for loop end
+
+        if (in_home_tags > out_home_tags)
+        {   
+            SEARCH_K = -1;
+            inside_home = true;
+        }
+        else
+        {
+            SEARCH_K = 1;
+            inside_home = false;
+        }
+
+        if (count_home_tags > 0) {
+            home_encountered = true;
+
+            average_home_tag.setPositionX(sum_x / (count_home_tags));
+            average_home_tag.setPositionY(sum_y / (count_home_tags));
+            average_home_tag.setPositionZ(sum_z / (count_home_tags));
+
+            float distance_to_home_tag_from_camera;
+
+            home_tag_yaw_error = 0.0;
+            // using a^2 + b^2 = c^2 to find the distance to the block
+            // 0.195 is the height of the camera lens above the ground in cm.
+            //
+            // a is the linear distance from the robot to the block, c is the
+            // distance from the camera lens, and b is the height of the
+            // camera above the ground.
+            distance_to_home_tag_from_camera = hypot(hypot(average_home_tag.getPositionX(), average_home_tag.getPositionY()),
+                                            average_home_tag.getPositionZ());
+
+
+            if ((distance_to_home_tag_from_camera * distance_to_home_tag_from_camera - CAMERA_HEIGHT_IN_CM * CAMERA_HEIGHT_IN_CM) > 0) {
+                distance_to_home_tag = sqrt(distance_to_home_tag_from_camera * distance_to_home_tag_from_camera - CAMERA_HEIGHT_IN_CM * CAMERA_HEIGHT_IN_CM);
+            } else {
+                float epsilon = 0.00001; // A small non-zero positive number
+                distance_to_home_tag = epsilon;
+            }
+            home_tag_yaw_error = atan((average_home_tag.getPositionX() + CAMERA_OFFSET_CORRECTION) / distance_to_home_tag) * 1.05; //angle to block from bottom center of chassis on the horizontal.
+
+            if (home_tag_yaw_error < -0.1 ){
+              home_tag_side = LEFT;
+            }
+            else if(home_tag_yaw_error >= -0.1 && home_tag_yaw_error <= 0.1){
+              home_tag_side = CENTER;
+            }
+            else{
+              home_tag_side = RIGHT;
+            }
+        }
+
+        if (count_resource_tags > 0) {
+            resource_encountered = true;
+
+            if(candidate_resource_tags.size() > 0) {
+                float closest_candidate_tag_distance = std::numeric_limits<double>::max(); 
+                int target_idx = -1;
+                //this loop selects the closest visible block that is near the center of the screen to makes goals for it
+                for ( int i = 0; i < candidate_resource_tags.size(); i++ ) {
+                    float current_tag_distance = hypot(hypot(candidate_resource_tags[i].getPositionX(), candidate_resource_tags[i].getPositionY()), candidate_resource_tags[i].getPositionZ());
+                    if (closest_candidate_tag_distance > current_tag_distance)
+                    {
+                        target_idx = i;
+                        closest_candidate_tag_distance = current_tag_distance;
+                    }
+                    chosen_tag = candidate_resource_tags[target_idx];
+                }    
+            } else {
+                chosen_tag = resource_tags[index_of_closest_resource_tag];
+            }
+
+            //want tag that is close to center but not in gripper
+            if(candidate_resource_tags_not_held.size() > 0) {
+                float closest_candidate_tag_distance_not_held = std::numeric_limits<double>::max();
+                int target_idx = -1;
+                for ( int i = 0; i < candidate_resource_tags.size(); i++ ) {
+                    float current_tag_distance = hypot(hypot(candidate_resource_tags_not_held[i].getPositionX(), candidate_resource_tags_not_held[i].getPositionY()), candidate_resource_tags_not_held[i].getPositionZ());
+                    if (closest_candidate_tag_distance_not_held > current_tag_distance) {
+                        target_idx = i;
+                        closest_candidate_tag_distance_not_held = current_tag_distance;
+                    }
+                    chosen_tag_not_held = candidate_resource_tags_not_held[target_idx];
+                }
+            }
+            else {
+                chosen_tag_not_held = resource_tags[index_of_closest_resource_tag_not_held];
+            }
+
+            float distance_to_resource_tag_from_camera;
+            float distance_to_resource_tag_from_camera_not_held;
+
+            resource_tag_yaw_error = 0.0;
+            // using a^2 + b^2 = c^2 to find the distance to the block
+            // 0.195 is the height of the camera lens above the ground in cm.
+            //
+            // a is the linear distance from the robot to the block, c is the
+            // distance from the camera lens, and b is the height of the
+            // camera above the ground.
+            distance_to_resource_tag_from_camera = hypot(hypot(chosen_tag.getPositionX(), chosen_tag.getPositionY()),
+                                            chosen_tag.getPositionZ());
+
+            if ((distance_to_resource_tag_from_camera * distance_to_resource_tag_from_camera - CAMERA_HEIGHT_IN_CM * CAMERA_HEIGHT_IN_CM) > 0) {
+                distance_to_resource_tag = sqrt(distance_to_resource_tag_from_camera * distance_to_resource_tag_from_camera - CAMERA_HEIGHT_IN_CM * CAMERA_HEIGHT_IN_CM);
+            } else {
+                float epsilon = 0.00001; // A small non-zero positive number
+                distance_to_resource_tag = epsilon;
+            }
+            resource_tag_yaw_error = CAMERA_OFFSET_CORRECTION + chosen_tag.getPositionX();
+            center_resource_distance = distance_to_resource_tag;
+
+
+            // lol wut
+
+
+            distance_to_resource_tag_from_camera_not_held = hypot(hypot(chosen_tag.getPositionX(), chosen_tag.getPositionY()),
+                                            chosen_tag.getPositionZ());
+
+            if ((distance_to_resource_tag_from_camera_not_held * distance_to_resource_tag_from_camera_not_held - CAMERA_HEIGHT_IN_CM * CAMERA_HEIGHT_IN_CM) > 0) {
+                distance_to_resource_tag_not_held = sqrt(distance_to_resource_tag_from_camera_not_held * distance_to_resource_tag_from_camera_not_held - CAMERA_HEIGHT_IN_CM * CAMERA_HEIGHT_IN_CM);
+            } else {
+                float epsilon = 0.00001; // A small non-zero positive number
+                distance_to_resource_tag_not_held = epsilon;
+            }
+            resource_tag_yaw_error_not_held = CAMERA_OFFSET_CORRECTION + chosen_tag_not_held.getPositionX();
+            no_resource_tags_counter = 0;
+            
+        }
     }
-
-    // To enable recruitment uncomment these lines.
-    // Point curr_loc;
-    // curr_loc.x = current_location_ekf.x;
-    // curr_loc.y = current_location_ekf.y;
-    // positionPublisher->setDetections(tags, curr_loc);
-
-    logicController.SetAprilTags(tags);
-  }
-  
+    else
+    {
+        //no tags in screen
+        no_resource_tags_counter++;
+        center_resource_distance = 0.0;
+    }
 }
 
 void ModeHandler(const std_msgs::UInt8::ConstPtr& message) {
-  current_mode = message->data;
-  if(current_mode == 2 || current_mode == 3) {
-    logicController.SetModeAuto();
-  }
-  else {
-    logicController.SetModeManual();
-  }
-  sendDriveCommand(0.0, 0.0);
+    current_mode = message->data;
+    sendDriveCommand(0.0, 0.0);
 }
 
-void SonarHandler(const sensor_msgs::Range::ConstPtr& sonarLeft, const sensor_msgs::Range::ConstPtr& sonarCenter, const sensor_msgs::Range::ConstPtr& sonarRight) {
-  
-  logicController.SetSonarData(sonarLeft->range, sonarCenter->range, sonarRight->range);
-  
+void SonarHandler(const sensor_msgs::Range::ConstPtr& sonar_left, const sensor_msgs::Range::ConstPtr& sonar_center, const sensor_msgs::Range::ConstPtr& sonar_right) {
+
+    //if any sonar is below the trigger distance set physical obstacle true
+
+    if ( sonar_left->range < TRIGGER_DISTANCE || sonar_center->range < TRIGGER_DISTANCE || sonar_right->range < TRIGGER_DISTANCE ) {
+        obstacle_encountered = true;
+        if (sonar_left->range < TRIGGER_DISTANCE) {
+            obs_side = LEFT;
+        }
+        else if (sonar_right->range < TRIGGER_DISTANCE) {
+            obs_side = RIGHT;
+        }
+        else if (sonar_center->range < TRIGGER_DISTANCE) {
+            if (sonar_center->range < SONAR_RESOURCE_RANGE_THRESHOLD) {
+                center_sonar_distance = sonar_center->range;
+            }
+            obs_side = CENTER;
+        }
+    }
 }
 
 void OdometryHandler(const nav_msgs::Odometry::ConstPtr& message) {
-  //Get (x,y) location directly from pose
-  current_location_odom.x = message->pose.pose.position.x;
-  current_location_odom.y = message->pose.pose.position.y;
-  
-  //Get theta rotation by converting quaternion orientation to pitch/roll/yaw
-  tf::Quaternion q(message->pose.pose.orientation.x, message->pose.pose.orientation.y, message->pose.pose.orientation.z, message->pose.pose.orientation.w);
-  tf::Matrix3x3 m(q);
-  double roll, pitch, yaw;
-  m.getRPY(roll, pitch, yaw);
-  current_location_odom.theta = yaw;
-  
-  linear_velocity = message->twist.twist.linear.x;
-  angular_velocity = message->twist.twist.angular.z;
-  
-  
-  Point currentLoc;
-  currentLoc.x = current_location_odom.x;
-  currentLoc.y = current_location_odom.y;
-  currentLoc.theta = current_location_odom.theta;
-  logicController.SetPositionData(currentLoc);
-  logicController.SetVelocityData(linear_velocity, angular_velocity);
+    //Get (x,y) location directly from pose
+    current_location_odom.x = message->pose.pose.position.x + location_offset_odom.x;
+    current_location_odom.y = message->pose.pose.position.y + location_offset_odom.y;
+
+      
+    //Get theta rotation by converting quaternion orientation to pitch/roll/yaw
+    tf::Quaternion q(message->pose.pose.orientation.x, message->pose.pose.orientation.y, message->pose.pose.orientation.z, message->pose.pose.orientation.w);
+    tf::Matrix3x3 m(q);
+    double roll, pitch, yaw;
+    m.getRPY(roll, pitch, yaw);
+    current_location_odom.theta = yaw; 
+    if (SIMULATOR) {
+        current_location_ekf.x = current_location_odom.x;
+        current_location_ekf.y = current_location_odom.y;
+        current_location_ekf.theta = current_location_odom.theta;
+    }
 }
 
 // Allows a virtual fence to be defined and enabled or disabled through ROS
@@ -1922,53 +2081,45 @@ void OdometryHandler(const nav_msgs::Odometry::ConstPtr& message) {
 }*/
 
 void EKFHandler(const nav_msgs::Odometry::ConstPtr& message) {
-  //Get (x,y) location directly from pose
-  current_location_ekf.x = message->pose.pose.position.x;
-  current_location_ekf.y = message->pose.pose.position.y;
-  
-  //Get theta rotation by converting quaternion orientation to pitch/roll/yaw
-  tf::Quaternion q(message->pose.pose.orientation.x, message->pose.pose.orientation.y, message->pose.pose.orientation.z, message->pose.pose.orientation.w);
-  tf::Matrix3x3 m(q);
-  double roll, pitch, yaw;
-  m.getRPY(roll, pitch, yaw);
-  current_location_ekf.theta = yaw;
-  
-  linear_velocity = message->twist.twist.linear.x;
-  angular_velocity = message->twist.twist.angular.z;
-  
-  Point curr_loc;
-  curr_loc.x = current_location_ekf.x;
-  curr_loc.y = current_location_ekf.y;
-  curr_loc.theta = current_location_ekf.theta;
-  logicController.SetMapPositionData(curr_loc);
-  logicController.SetMapVelocityData(linear_velocity, angular_velocity);
+    if (!SIMULATOR) {
+        //Get (x,y) location directly from pose
+        current_location_ekf.x = message->pose.pose.position.x + location_offset_ekf.x;
+        current_location_ekf.y = message->pose.pose.position.y + location_offset_ekf.y;
+        //Get theta rotation by converting quaternion orientation to pitch/roll/yaw
+        tf::Quaternion q(message->pose.pose.orientation.x, message->pose.pose.orientation.y, message->pose.pose.orientation.z, message->pose.pose.orientation.w);
+        tf::Matrix3x3 m(q);
+        double roll, pitch, yaw;
+        m.getRPY(roll, pitch, yaw);
+        current_location_ekf.theta = yaw;
+        // cout << published_name << ":  " << current_location_ekf.x << ", " << current_location_ekf.y << endl;
+    }
 }
 
 void JoystickCommandHandler(const sensor_msgs::Joy::ConstPtr& message) {
-  const int max_motor_cmd = 255;
-  if (current_mode == 0 || current_mode == 1) {	//takes data coming from joystick and stores into linear and angular variables
-    float linear  = abs(message->axes[4]) >= 0.1 ? message->axes[4]*max_motor_cmd : 0.0;
-    float angular = abs(message->axes[3]) >= 0.1 ? message->axes[3]*max_motor_cmd : 0.0;
+    const int max_motor_cmd = 255;
+    if (current_mode == 0 || current_mode == 1) {	//takes data coming from joystick and stores into linear and angular variables
+        float linear  = abs(message->axes[4]) >= 0.1 ? message->axes[4]*max_motor_cmd : 0.0;
+        float angular = abs(message->axes[3]) >= 0.1 ? message->axes[3]*max_motor_cmd : 0.0;
 
-    float left = linear - angular;
-    float right = linear + angular;
-    //check to see if commands exceed MAX values, and if so set them to hard coded MAX value
-    if(left > max_motor_cmd) {	
-      left = max_motor_cmd;
-    }
-    else if(left < -max_motor_cmd) {
-      left = -max_motor_cmd;
-    }
+        float left = linear - angular;
+        float right = linear + angular;
+        //check to see if commands exceed MAX values, and if so set them to hard coded MAX value
+        if(left > max_motor_cmd) {	
+            left = max_motor_cmd;
+        }
+        else if(left < -max_motor_cmd) {
+            left = -max_motor_cmd;
+        }
 
-    if(right > max_motor_cmd) {
-      right = max_motor_cmd;
-    }
-    else if(right < -max_motor_cmd) {
-      right = -max_motor_cmd;
-    }
+        if(right > max_motor_cmd) {
+            right = max_motor_cmd;
+        }
+        else if(right < -max_motor_cmd) {
+            right = -max_motor_cmd;
+        }
 
-    sendDriveCommand(left, right);
-  }
+        sendDriveCommand(left, right); //add some fraction to make manual mode slower/faster
+    }
 }
 
 
@@ -1978,7 +2129,7 @@ void PublishStatusTimerEventHandler(const ros::TimerEvent&) {
   status_publisher.publish(msg);
 }
 
-void manualWaypointHandler(const swarmie_msgs::Waypoint& message) {
+/*void manualWaypointHandler(const swarmie_msgs::Waypoint& message) {
   Point wp;
   wp.x = message.x;
   wp.y = message.y;
@@ -1991,7 +2142,7 @@ void manualWaypointHandler(const swarmie_msgs::Waypoint& message) {
     logicController.RemoveManualWaypoint(message.id);
     break;
   }
-}
+}*/
 
 void RecruitmentHandler(const swarmie_msgs::Recruitment& msg)
 {
@@ -1999,7 +2150,7 @@ void RecruitmentHandler(const swarmie_msgs::Recruitment& msg)
       Point p;
       p.x = msg.x;
       p.y = msg.y;
-      logicController.gotRecruitmentMessage(p);
+      //logicController.gotRecruitmentMessage(p);
    }
 }
 
@@ -2382,7 +2533,7 @@ int ContainsClaimedAnchorPoints(geometry_msgs::Pose2D anchor_point)
 }
 
 void StateLogger(string state) {
-    string file_path = "/home/student/Desktop/swarmathon_2018/" + published_name + "_state_log_" + std::to_string(timer_start_time) + ".txt"; 
+    string file_path = "/home/csadmin/swarmathon_2018/" + published_name + "_state_log_" + std::to_string(timer_start_time) + ".txt"; 
     ofstream world_file; 
  
     world_file.open(file_path, ios::app); 
