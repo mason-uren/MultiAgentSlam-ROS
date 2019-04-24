@@ -1903,7 +1903,9 @@ void AprilTagHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& mess
             }
         }
         else {
-          average_home_tag.setPosition(1000,1000,1000);
+          average_home_tag.setPositionX(1000);
+          average_home_tag.setPositionY(1000);
+          average_home_tag.setPositionZ(1000);
         }
 
         if (count_resource_tags > 0) {
