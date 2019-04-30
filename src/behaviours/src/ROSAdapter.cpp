@@ -24,6 +24,7 @@
 #include "swarmie_msgs/Waypoint.h"
 #include "swarmie_msgs/Recruitment.h"
 #include "swarmie_msgs/Skid.h"
+#include "gazebo_msgs/ModelStates.h"
 
 // Include Controllers
 //#include "LogicController.h"
@@ -123,8 +124,8 @@ const float CAMERA_HEIGHT_IN_CM = 0.195;
 
 // used for calling code once but not in main
 bool initilized = false;	//switched to true after running through state machine the first time, initializes base values
-
-//bool dropOffMode = false;	//switched to true after starting dropOff state
+bool simulatorInitalized = false;
+bool pickupAlignInited = true;
 
 float linear_velocity = 0;	//forward speed, POSITIVE = forward, NEGATIVE = backward
 float angular_velocity = 0;	//turning speed, POSITIVE = left, NEGATIVE = right
@@ -145,7 +146,7 @@ geometry_msgs::Twist velocity;
 char host[128];		//rovers hostname
 string published_name;	//published hostname
 
-
+float start_theta = 0.0;
 
 char prev_state_machine[128];
 
@@ -178,6 +179,7 @@ ros::Subscriber ekf_subscriber;			//receives GPS data
 ros::Subscriber recruitment_subscriber;
 //ros::Subscriber claimed_anchor_point_subscriber;
 //ros::Subscriber unclaimed_anchor_point_subscriber;
+ros::Subscriber gazebo_status_subscriber;
 
 // Timers
 ros::Timer state_machine_timer;
@@ -211,6 +213,7 @@ void PublishStatusTimerEventHandler(const ros::TimerEvent& event);			//Publishes
 void PublishHeartBeatTimerEventHandler(const ros::TimerEvent& event);			
 void SonarHandler(const sensor_msgs::Range::ConstPtr& sonarLeft, const sensor_msgs::Range::ConstPtr& sonarCenter, const sensor_msgs::Range::ConstPtr& sonarRight);	//handles ultrasound data and stores data
 void RecruitmentHandler(const swarmie_msgs::Recruitment& msg);
+void GazeboStatusHandler(const gazebo_msgs::ModelStates::ConstPtr& msg);
 
 void BehaviourStateMachine(const ros::TimerEvent&);					//Upper most state machine, calls logic controller to perform all actions
 
@@ -269,7 +272,7 @@ void StateLogger(string state);
 #define CLUSTER_TRAVERSE_FORWARD 34
 //#define CLUSTER_SWEEP 35
 
-const bool SIMULATOR = true;
+bool SIMULATOR = false;
 
 //Research Flags
 const bool ANCHOR_POINTS = false;
@@ -290,64 +293,124 @@ bool resource_held = false;
 
 //higher K values means faster movement
 float SEARCH_K = 1;
-const float OBS_K = .2;
-const float PICKUP_ALIGN_K = .1;
-const float PICKUP_FORWARD_K = .2;
-const float PICKUP_BLIND_K = .2;
-const float PICKUP_BACKUP_K = .3;
-const float ROTATE_90_K = .1;
-const float ANCHOR_POINT_ALIGN_K = .2;
-const float ANCHOR_POINT_FORWARD_K = .25;
-const float ANCHOR_POINT_TRAVERSE_ROTATE_K = .2;
-const float ANCHOR_POINT_TRAVERSE_FORWARD_K = .3;
-const float GO_HOME_ALIGN_K = .2;
-const float GO_HOME_FORWARD_K = .3;
-const float RESOURCES_COVERING_HOME_ALIGN_K = .3;
-const float RESOURCES_COVERING_HOME_FORWARD_K = .4;
-const float RESOURCES_COVERING_HOME_BLIND_K = .05;
-const float RESOURCES_COVERING_HOME_BACKUP_K = .1;
-const float GO_HOME_TRAVERSE_ROTATE_K = .1;
-const float GO_HOME_TRAVERSE_FORWARD_K = .3;
-const float DROPOFF_ALIGN_K = .2;
-const float DROPOFF_FORWARD_K = .4;
-const float DROPOFF_BACKUP_K = .1;
-const float CLUSTER_ALIGN_K = .2;
-const float CLUSTER_FORWARD_K = .25;
-const float SEARCH_HOME_ROTATE_K = .1;
-const float SEARCH_HOME_FORWARD_K = .1;
+float OBS_K = .2;
+float PICKUP_ALIGN_K = .1;
+float PICKUP_ALIGN_LOW_K = 0.875;
+float PICKUP_FORWARD_K = .2;
+float PICKUP_BLIND_K = .2;
+float PICKUP_BACKUP_K = .3;
+float ROTATE_90_K = .1;
+float ANCHOR_POINT_ALIGN_K = .2;
+float ANCHOR_POINT_FORWARD_K = .25;
+float ANCHOR_POINT_TRAVERSE_ROTATE_K = .2;
+float ANCHOR_POINT_TRAVERSE_FORWARD_K = .3;
+float GO_HOME_ALIGN_K = .2;
+float GO_HOME_FORWARD_K = .3;
+float RESOURCES_COVERING_HOME_ALIGN_K = .3;
+float RESOURCES_COVERING_HOME_FORWARD_K = .4;
+float RESOURCES_COVERING_HOME_BLIND_K = .05;
+float RESOURCES_COVERING_HOME_BACKUP_K = .1;
+float GO_HOME_TRAVERSE_ROTATE_K = .1;
+float GO_HOME_TRAVERSE_FORWARD_K = .3;
+float DROPOFF_ALIGN_K = .2;
+float DROPOFF_FORWARD_K = .4;
+float DROPOFF_BACKUP_K = .1;
+float CLUSTER_ALIGN_K = .2;
+float CLUSTER_FORWARD_K = .25;
+float SEARCH_HOME_ROTATE_K = .1;
+float SEARCH_HOME_FORWARD_K = .1;
 
-const float OBS_THRESHOLD = .6;
-const float PICKUP_ALIGN_THRESHOLD = .03;
-const float PICKUP_DISTANCE_THRESHOLD = .01;
-const float PICKUP_BLIND_THRESHOLD = .02;
-const float PICKUP_BACKUP_THRESHOLD = .05;
-const float ROTATE_90_THRESHOLD = .1;
-const float SONAR_RESOURCE_RANGE_THRESHOLD = .1;
-const float ANCHOR_POINT_ALIGN_THRESHOLD = .2;
-const float ANCHOR_POINT_FORWARD_THRESHOLD = .2;
-const float ANCHOR_POINT_TRAVERSE_ROTATE_THRESHOLD = .2;
-const float ANCHOR_POINT_TRAVERSE_FORWARD_THRESHOLD = .1;
-const float GO_HOME_ALIGN_THRESHOLD = .2;
-const float GO_HOME_FORWARD_THRESHOLD = .2;
-const float RESOURCES_COVERING_HOME_ALIGN_THRESHOLD = .1;
-const float RESOURCES_COVERING_HOME_THRESHOLD = .1;
-const float RESOURCES_COVERING_HOME_BLIND_THRESHOLD = .1;
-const float RESOURCES_COVERING_HOME_BACKUP_THRESHOLD = .1;
-const float GO_HOME_TRAVERSE_ROTATE_THRESHOLD = .1;
-const float GO_HOME_TRAVERSE_FORWARD_THRESHOLD = .1;
-const float DROPOFF_ALIGN_THRESHOLD = .1;
-const float DROPOFF_FORWARD_THRESHOLD = .01;
-const float CLUSTER_ALIGN_THRESHOLD = .2;
-const float SEARCH_HOME_ROTATE_THRESHOLD = .007;
+float OBS_THRESHOLD = .6;
+float PICKUP_ALIGN_THRESHOLD = .03;
+float PICKUP_DISTANCE_THRESHOLD = .01;
+float PICKUP_BLIND_THRESHOLD = .02;
+float PICKUP_BACKUP_THRESHOLD = .05;
+float ROTATE_90_THRESHOLD = .1;
+float SONAR_RESOURCE_RANGE_THRESHOLD = .1;
+float ANCHOR_POINT_ALIGN_THRESHOLD = .2;
+float ANCHOR_POINT_FORWARD_THRESHOLD = .2;
+float ANCHOR_POINT_TRAVERSE_ROTATE_THRESHOLD = .2;
+float ANCHOR_POINT_TRAVERSE_FORWARD_THRESHOLD = .1;
+float GO_HOME_ALIGN_THRESHOLD = .2;
+float GO_HOME_FORWARD_THRESHOLD = .2;
+float RESOURCES_COVERING_HOME_ALIGN_THRESHOLD = .1;
+float RESOURCES_COVERING_HOME_THRESHOLD = .1;
+float RESOURCES_COVERING_HOME_BLIND_THRESHOLD = .1;
+float RESOURCES_COVERING_HOME_BACKUP_THRESHOLD = .1;
+float GO_HOME_TRAVERSE_ROTATE_THRESHOLD = .1;
+float GO_HOME_TRAVERSE_FORWARD_THRESHOLD = .1;
+float DROPOFF_ALIGN_THRESHOLD = .1;
+float DROPOFF_FORWARD_THRESHOLD = .01;
+float CLUSTER_ALIGN_THRESHOLD = .2;
+float SEARCH_HOME_ROTATE_THRESHOLD = .007;
 
 float TRIGGER_DISTANCE = 0.6;
 
-Tag average_home_tag;
+int TRAVERSAL_ROTATION_DEGREES = 20;
+float TRAVERSE_FORWARD_DISTANCE = .5;
+float HOME_FIELD_DISTANCE = 0;
+float RECRUITMENT_THRESHOLD = 7;
 
-const int TRAVERSAL_ROTATION_DEGREES = 20;
-const float TRAVERSE_FORWARD_DISTANCE = .5;
-const float HOME_FIELD_DISTANCE = 1.0;
-const float RECRUITMENT_THRESHOLD = 7;
+void initalizeSimVariables() {
+	SEARCH_K = 1;
+	OBS_K = .3;
+	PICKUP_ALIGN_K = .475;// was .1 HFQ
+	PICKUP_ALIGN_LOW_K = 0.875;
+	PICKUP_FORWARD_K = .35; // JTI was 0.2
+	PICKUP_BLIND_K = .5;//was .2 HFQ
+	PICKUP_BACKUP_K = .5;//was .3 HFQ
+	ROTATE_90_K = .1;
+	ANCHOR_POINT_ALIGN_K = .35; // was .2 ath
+	ANCHOR_POINT_FORWARD_K = .25;
+	ANCHOR_POINT_TRAVERSE_ROTATE_K = .4;
+	ANCHOR_POINT_TRAVERSE_FORWARD_K = .3;
+	GO_HOME_ALIGN_K = .2;
+	GO_HOME_FORWARD_K = .3;
+	RESOURCES_COVERING_HOME_ALIGN_K = .3;
+	RESOURCES_COVERING_HOME_FORWARD_K = .4;
+	RESOURCES_COVERING_HOME_BLIND_K = .05;
+	RESOURCES_COVERING_HOME_BACKUP_K = .1;
+	GO_HOME_TRAVERSE_ROTATE_K = .3;
+	GO_HOME_TRAVERSE_FORWARD_K = .3;
+	DROPOFF_ALIGN_K = .2;
+	DROPOFF_FORWARD_K = .4;
+	DROPOFF_BACKUP_K = .1;
+	CLUSTER_ALIGN_K = .2;
+	CLUSTER_FORWARD_K = .25;
+	SEARCH_HOME_ROTATE_K = .1;
+	SEARCH_HOME_FORWARD_K = .1;
+	
+	OBS_THRESHOLD = 1.0;
+	PICKUP_ALIGN_THRESHOLD = .04;// was .03 HFQ
+	PICKUP_DISTANCE_THRESHOLD = .15; // JTI was 0.01
+	PICKUP_BLIND_THRESHOLD = .02;
+	PICKUP_BACKUP_THRESHOLD = .05;
+	ROTATE_90_THRESHOLD = .1;
+	SONAR_RESOURCE_RANGE_THRESHOLD = .1;
+	ANCHOR_POINT_ALIGN_THRESHOLD = .25;
+	ANCHOR_POINT_FORWARD_THRESHOLD = .2;
+	ANCHOR_POINT_TRAVERSE_ROTATE_THRESHOLD = .2;
+	ANCHOR_POINT_TRAVERSE_FORWARD_THRESHOLD = .1;
+	GO_HOME_ALIGN_THRESHOLD = .2;
+	GO_HOME_FORWARD_THRESHOLD = .2;
+	RESOURCES_COVERING_HOME_ALIGN_THRESHOLD = .1;
+	RESOURCES_COVERING_HOME_THRESHOLD = .1;
+	RESOURCES_COVERING_HOME_BLIND_THRESHOLD = .1;
+	RESOURCES_COVERING_HOME_BACKUP_THRESHOLD = .1;
+	GO_HOME_TRAVERSE_ROTATE_THRESHOLD = .1;
+	GO_HOME_TRAVERSE_FORWARD_THRESHOLD = .1;
+	DROPOFF_ALIGN_THRESHOLD = .1;
+	DROPOFF_FORWARD_THRESHOLD = .01;
+	CLUSTER_ALIGN_THRESHOLD = .2;
+	SEARCH_HOME_ROTATE_THRESHOLD = .1;
+	
+	TRAVERSAL_ROTATION_DEGREES = 20;
+	TRAVERSE_FORWARD_DISTANCE = .5;
+	HOME_FIELD_DISTANCE = 1.0;
+	RECRUITMENT_THRESHOLD = 7;
+}
+
+Tag average_home_tag;
 
 float home_tag_yaw_error = 0.0;
 float resource_tag_yaw_error = 0.0;
@@ -364,13 +427,15 @@ int search_wait_counter = 0;
 int resource_held_counter = 0;
 int resource_check_wait_counter = 10;
 int wrist_raise_counter = 10;
+int lost_frame_count = 0;
+int count_home_tags = 0;
 
 const int MAX_TAG_COUNT = 16;
 const int NO_TAGS_COUNTER_THRESHOLD = 20;
 const int PICK_UP_BREAKOUT_THRESHOLD = 900;
-const int ANCHOR_POINT_BREAKOUT_THRESHOLD = 3000;
+const int ANCHOR_POINT_BREAKOUT_THRESHOLD = 125; //5,250
 const int DROP_OFF_BREAKOUT_THRESHOLD = 300;
-const int CLUSTER_BREAKOUT_THRESHOLD = 3000;
+const int CLUSTER_BREAKOUT_THRESHOLD = 125;
 
 int breakout_counter = 0;
 
@@ -444,6 +509,7 @@ int main(int argc, char **argv) {
   april_tag_subscriber = mNH.subscribe((published_name + "/targets"), 10, AprilTagHandler);					//receives tag data
   odometry_subscriber = mNH.subscribe((published_name + "/odom/filtered"), 10, OdometryHandler);				//receives ODOM data
   ekf_subscriber = mNH.subscribe((published_name + "/odom/ekf"), 10, EKFHandler);						//receives GPS data
+  gazebo_status_subscriber = mNH.subscribe(("/gazebo/link_states"), 10, GazeboStatusHandler);			//receives data if in simulator
   //virtualFenceSubscriber = mNH.subscribe(("/virtualFence"), 10, virtualFenceHandler);					//receives data for vitrual boundaries
   //manualWaypointSubscriber = mNH.subscribe((published_name + "/waypoints/cmd"), 10, manualWaypointHandler);		//receives manual waypoints given from GUI
   message_filters::Subscriber<sensor_msgs::Range> sonarLeftSubscriber(mNH, (published_name + "/sonarLeft"), 10);
@@ -608,13 +674,6 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                         desired_heading = GetNewHeading(home_tag_side);
                         state_machine_state = SEARCH_OBSTACLE_AVOIDANCE;
                     }
-                    else if (obstacle_encountered)
-                    {
-                        linear_velocity = 0.0;
-                        angular_velocity = 0.0;
-                        desired_heading = GetNewHeading(obs_side);
-                        state_machine_state = SEARCH_OBSTACLE_AVOIDANCE;
-                    }
                     else if (resource_encountered && hypot(current_location_odom.x - home_goal_location.x, current_location_odom.y - home_goal_location.y) > .55)
                     {
                         //desired alignment heading is set in AprilTagHandler "resource_tag_yaw_error"
@@ -622,7 +681,13 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                         angular_velocity = 0.0;
                         breakout_counter = 0;
                         state_machine_state = PICKUP_ALIGN;             
-
+                    }
+                    else if (obstacle_encountered)
+                    {
+                        linear_velocity = 0.0;
+                        angular_velocity = 0.0;
+                        desired_heading = GetNewHeading(obs_side);
+                        state_machine_state = SEARCH_OBSTACLE_AVOIDANCE;
                     }
                 }
                 if (escaping_home_counter >= 58)
@@ -664,6 +729,10 @@ void BehaviourStateMachine(const ros::TimerEvent&)
             case PICKUP_ALIGN:
             {
                 state_machine_message.data = "PICKUP_ALIGN";
+                if(!pickupAlignInited) {
+					start_theta = resource_tag_yaw_error;
+					pickupAlignInited = true;
+				}
                 if (home_encountered)
                 {
                     linear_velocity = 0.0;
@@ -672,7 +741,7 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     breakout_counter = 0;
                     state_machine_state = SEARCH_OBSTACLE_AVOIDANCE; 
                 }
-                else if (obstacle_encountered)
+                else if (obstacle_encountered && SIMULATOR)
                 {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
@@ -684,10 +753,10 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     openFingers();
                     lowerWrist();
                     cout << "aligned" << endl;
-
+                    resource_encountered = true;
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
-                    
+                    lost_frame_count = 0;
                     state_machine_state = PICKUP_FORWARD;
 
                     if (no_resource_tags_counter > NO_TAGS_COUNTER_THRESHOLD)
@@ -717,7 +786,11 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                         state_machine_state = PICKUP_ROTATE_90;
                     }
                     linear_velocity = 0.0;
-                    angular_velocity = -PICKUP_ALIGN_K * (resource_tag_yaw_error); //if pos k, will turn opposite direction
+                    if(fabs(start_theta - resource_tag_yaw_error) > 0.5) {
+                        angular_velocity = -PICKUP_ALIGN_K * (resource_tag_yaw_error); //if pos k, will turn opposite direction
+					} else {
+						angular_velocity = -PICKUP_ALIGN_LOW_K * (resource_tag_yaw_error);
+					}
                 }  
                 if(PickupBreakout()) {
                     ResetFlags();
@@ -794,7 +867,7 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     breakout_counter = 0;
                     state_machine_state = SEARCH_OBSTACLE_AVOIDANCE; 
                 }
-                else if (obstacle_encountered)
+                else if (obstacle_encountered && SIMULATOR)
                 {
                     resource_encountered = false;
                     linear_velocity = 0.0;
@@ -804,8 +877,14 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     breakout_counter = 0;
                     state_machine_state = SEARCH_OBSTACLE_AVOIDANCE;
                 }
-                else if (distance_to_resource_tag < PICKUP_DISTANCE_THRESHOLD) { //firedrill; stop moving, drop claw, roll forward
+				/*else if (distance_to_resource_tag < 0) {
+					lost_frame_count++;
+					linear_velocity = 0.2;
+                    angular_velocity =  0.0;
+				}*/
+                else if (distance_to_resource_tag < PICKUP_DISTANCE_THRESHOLD || lost_frame_count > 3) { //firedrill; stop moving, drop claw, roll forward
                     cout << "distance travelled going to blind driving" << endl;
+                    lost_frame_count = 0;
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     pickup_goal_location.x = current_location_odom.x + (distance_to_resource_tag + .09) * cos(current_location_odom.theta);
@@ -814,9 +893,14 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     starting_drive_location.x = current_location_odom.x;
                     starting_drive_location.y = current_location_odom.y;
                     //still need to set sonar back but do it after blind drive and after closing fingers
-                    state_machine_state = PICKUP_BLIND_DRIVE;
+                    if(SIMULATOR) {
+						state_machine_state = PICKUP_BLIND_DRIVE;
+					} else {
+						state_machine_state = PICKUP_CLOSE_GRIPPER;
+					}
                 }
                 else {
+					//lost_frame_count = 0;
                     linear_velocity = PICKUP_FORWARD_K * (distance_to_resource_tag);
                     angular_velocity =  -PICKUP_ALIGN_K * (resource_tag_yaw_error); //if pos k, will turn opposite direction
                 }
@@ -920,7 +1004,8 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     else if (no_resource_tags_counter == 0) { //not holding but there are tags in view
                         cout << "done waiting not holding a cube, but still see a tag" << endl;
                         resource_encountered = false;
-                        state_machine_state = PICKUP_ALIGN;
+                        //state_machine_state = PICKUP_ALIGN;
+                        state_machine_state = RESOURCE_HELD_CHECK;
                     }
                     else { // no tags seen in view and not holding
                         cout << "done waiting not holding a cube, dont see any tags" << endl;
@@ -960,10 +1045,6 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                 }
                 else {
                     angular_velocity = ANCHOR_POINT_ALIGN_K * Wrap(desired_heading - current_location_odom.theta);                   
-                }
-                if(AnchorPointBreakout()){
-                    ResetFlags();
-                    state_machine_state = SEARCH_HOME;
                 }
                 break;
             }
@@ -1011,15 +1092,6 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                         resource_held_counter++;
                     }
                 }
-                if(AnchorPointBreakout()){
-                    ResetFlags();
-                    // geometry_msgs::Pose2D temp_anchor;
-                    // temp_anchor.x = anchor_location.x;
-                    // temp_anchor.y = anchor_location.y;
-                    // temp_anchor.theta = anchor_location.theta;
-                    // unclaim_anchor_point_publisher.publish(temp_anchor);
-                    state_machine_state = SEARCH_HOME;
-                }
                 break;
             }
             case RESOURCE_HELD_CHECK:
@@ -1043,7 +1115,7 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                 }
                 else {
                     resource_check_wait_counter--;
-                    if (center_resource_distance < .0015 && center_resource_distance != 0 || center_sonar_distance < SONAR_RESOURCE_RANGE_THRESHOLD) {
+                    if ((center_resource_distance < .0015 && center_resource_distance != 0 || center_sonar_distance < SONAR_RESOURCE_RANGE_THRESHOLD) && (count_resource_tags > 0 || SIMULATOR)) {
                         resource_held = true;
                     }
                 }
@@ -1340,20 +1412,18 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     traverse_goal_location.x = current_location_odom.x + desired_distance * cos(current_location_odom.theta);
                     traverse_goal_location.y = current_location_odom.y + desired_distance * sin(current_location_odom.theta);
                     obstacle_encountered = false;
-                    state_machine_state = ANCHOR_POINT_TRAVERSE_FORWARD;
+					if(AnchorPointBreakout()){
+						ResetFlags();
+						lost_home = true;
+						state_machine_state = SEARCH_HOME;
+					}
+					else {
+						state_machine_state = ANCHOR_POINT_TRAVERSE_FORWARD;
+					}
                 }
                 else {
                     angular_velocity = ANCHOR_POINT_TRAVERSE_ROTATE_K * Wrap(desired_heading - current_location_odom.theta);
                     linear_velocity = 0.0;
-                }
-                if(AnchorPointBreakout()){
-                    ResetFlags();
-                    // geometry_msgs::Pose2D temp_anchor;
-                    // temp_anchor.x = anchor_location.x;
-                    // temp_anchor.y = anchor_location.y;
-                    // temp_anchor.theta = anchor_location.theta;
-                    // unclaim_anchor_point_publisher.publish(temp_anchor);
-                    state_machine_state = SEARCH_HOME;
                 }
                 break;
             }
@@ -1365,7 +1435,14 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                         linear_velocity = 0.0;
                         desired_heading = Wrap(current_location_odom.theta + ((M_PI/180)*TRAVERSAL_ROTATION_DEGREES));
                         cout << "another obstacle in anchor point traverse forward" << endl;
-                        state_machine_state = ANCHOR_POINT_TRAVERSE_ROTATE;
+						if(AnchorPointBreakout()){
+							ResetFlags();
+							lost_home = true;
+							state_machine_state = SEARCH_HOME;
+						}
+						else {
+							state_machine_state = ANCHOR_POINT_TRAVERSE_ROTATE;
+						}
                 }
                 else if (hypot(traverse_goal_location.x - current_location_odom.x, traverse_goal_location.y - current_location_odom.y) < ANCHOR_POINT_TRAVERSE_FORWARD_THRESHOLD) {
                     angular_velocity = 0.0;
@@ -1376,15 +1453,6 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                 else {
                     angular_velocity = 0.0;
                     linear_velocity = ANCHOR_POINT_TRAVERSE_FORWARD_K * (hypot(traverse_goal_location.x - current_location_odom.x, traverse_goal_location.y - current_location_odom.y)); 
-                }
-                if(AnchorPointBreakout()){
-                    ResetFlags();
-                    // geometry_msgs::Pose2D temp_anchor;
-                    // temp_anchor.x = anchor_location.x;
-                    // temp_anchor.y = anchor_location.y;
-                    // temp_anchor.theta = anchor_location.theta;
-                    // unclaim_anchor_point_publisher.publish(temp_anchor);
-                    state_machine_state = SEARCH_HOME;
                 }
                 break;
             }
@@ -1447,6 +1515,9 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     starting_drive_location.y = current_location_odom.y;
                     state_machine_state = DROPOFF_FORWARD;
                 }
+				else if(count_home_tags == 0) {
+					state_machine_state = SEARCH_HOME;
+				}
                 else {
                     angular_velocity = -DROPOFF_ALIGN_K * home_tag_yaw_error;
                 }
@@ -1560,15 +1631,6 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     breakout_counter = 0;
                     state_machine_state = SEARCH;
                 }
-                if(ClusterBreakout()){
-                    ResetFlags();
-                    geometry_msgs::Pose2D temp_anchor;
-                    temp_anchor.x = anchor_location.x;
-                    temp_anchor.y = anchor_location.y;
-                    temp_anchor.theta = anchor_location.theta;
-                    //unclaim_anchor_point_publisher.publish(temp_anchor);
-                    state_machine_state = SEARCH;
-                }
                 break;
             }
             case CLUSTER_FORWARD:
@@ -1607,10 +1669,6 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                 else {
                     linear_velocity = CLUSTER_FORWARD_K * hypot(cluster_location.x - current_location_odom.x, cluster_location.y - current_location_odom.y);
                     angular_velocity = CLUSTER_ALIGN_K * Wrap(desired_heading - current_location_odom.theta);
-                }
-                if(ClusterBreakout()){
-                    ResetFlags();
-                    state_machine_state = SEARCH;
                 }
                 break;
             }
@@ -1658,15 +1716,15 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     traverse_goal_location.y = current_location_odom.y + desired_distance * sin(current_location_odom.theta);
                     obstacle_encountered = false;
                     home_encountered = false;
-                    state_machine_state = CLUSTER_TRAVERSE_FORWARD;
+                    if(ClusterBreakout()){
+                        ResetFlags();
+                        state_machine_state = SEARCH;
+                    }
+                    else state_machine_state = CLUSTER_TRAVERSE_FORWARD;
                 }
                 else {
                     angular_velocity = .4 * Wrap(desired_heading - current_location_odom.theta);
                     linear_velocity = 0.0;
-                }
-                if(ClusterBreakout()){
-                    ResetFlags();
-                    state_machine_state = SEARCH;
                 }
                 break;
             }
@@ -1678,6 +1736,10 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     linear_velocity = 0.0;
                     desired_heading = Wrap(current_location_odom.theta + ((M_PI/180)*TRAVERSAL_ROTATION_DEGREES));
                     cout << "another obstacle in anchor point traverse forward" << endl;
+					if(ClusterBreakout()){
+						ResetFlags();
+						state_machine_state = SEARCH;
+					}
                     state_machine_state = CLUSTER_TRAVERSE_ROTATE;
                 }
                 else if (home_encountered) {
@@ -1685,7 +1747,11 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     linear_velocity = 0.0;
                     desired_heading = Wrap(current_location_odom.theta + ((M_PI/180)*TRAVERSAL_ROTATION_DEGREES));
                     cout << "home was seen during traversal towards cluster_location" << endl;
-                    state_machine_state = CLUSTER_TRAVERSE_ROTATE;
+					if(ClusterBreakout()){
+						ResetFlags();
+						state_machine_state = SEARCH;
+					}
+					else state_machine_state = CLUSTER_TRAVERSE_ROTATE;
                 }
                 else if (hypot(traverse_goal_location.x - current_location_odom.x, traverse_goal_location.y - current_location_odom.y) < ANCHOR_POINT_TRAVERSE_FORWARD_THRESHOLD) {
                     angular_velocity = 0.0;
@@ -1696,10 +1762,6 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                 else {
                     angular_velocity = 0.0;
                     linear_velocity = .3 * (hypot(traverse_goal_location.x - current_location_odom.x, traverse_goal_location.y - current_location_odom.y)); 
-                }
-                if(ClusterBreakout()){
-                    ResetFlags();
-                    state_machine_state = SEARCH;
                 }
                 break;
             }
@@ -1778,7 +1840,7 @@ void AprilTagHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& mess
     float sum_x = 0.0;
     float sum_y = 0.0;
     float sum_z = 0.0;
-    int count_home_tags = 0;
+    count_home_tags = 0;
     count_resource_tags = 0;
     int in_home_tags = 0;
     int out_home_tags = 0;
@@ -1817,52 +1879,54 @@ void AprilTagHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& mess
             
 
             if (message->detections[i].id == 256) {
-                count_home_tags++;
-		        if (detected_tag.calcYaw() < 0)
-            	{
-                    in_home_tags++;
-            	}
-                else {
-                    out_home_tags++;
-                }
+              count_home_tags++;
+		      if (detected_tag.calcYaw() < 0)
+              {
+                in_home_tags++;
+			  }
+              else {
+                out_home_tags++;
+              }
 
-                sum_x = sum_x + detected_tag.getPositionX();
-                sum_y = sum_y + detected_tag.getPositionY();
-                sum_z = sum_z + detected_tag.getPositionZ();
-                home_tags.push_back(detected_tag);
+              sum_x = sum_x + detected_tag.getPositionX();
+              sum_y = sum_y + detected_tag.getPositionY();
+              sum_z = sum_z + detected_tag.getPositionZ();
+              home_tags.push_back(detected_tag);
             }
             else
             {
-                count_resource_tags++;
-                double distant_to_detected_tag = hypot(hypot(detected_tag.getPositionX(), detected_tag.getPositionY()), detected_tag.getPositionZ());
-                if(fabs(detected_tag.getPositionX())<0.25){
-                    candidate_resource_tags.push_back(detected_tag);
-                    if(detected_tag.getPositionY()<-.02){
-                        candidate_resource_tags_not_held.push_back(detected_tag);
-                    }
-                }
-                else if (distance_to_closest_resource_tag > distant_to_detected_tag){
-                    index_of_closest_resource_tag = i;
-                    distance_to_closest_resource_tag = distant_to_detected_tag;
-                    if(detected_tag.getPositionY()<-.02){
-                        distance_to_closest_resource_tag_not_held = distant_to_detected_tag;
-                        index_of_closest_resource_tag_not_held = distant_to_detected_tag;
-                    }
-                }
-                resource_tags.push_back(detected_tag);
+              count_resource_tags++;
+              double distant_to_detected_tag = hypot(hypot(detected_tag.getPositionX(), detected_tag.getPositionY()), detected_tag.getPositionZ());
+              if(fabs(detected_tag.getPositionX())<0.25){
+                  candidate_resource_tags.push_back(detected_tag);
+                  if(detected_tag.getPositionY()<-.02){
+                      candidate_resource_tags_not_held.push_back(detected_tag);
+                  }
+              }
+              else if (distance_to_closest_resource_tag > distant_to_detected_tag){
+                  index_of_closest_resource_tag = i;
+                  distance_to_closest_resource_tag = distant_to_detected_tag;
+                  if(detected_tag.getPositionY()<-.02){
+                      distance_to_closest_resource_tag_not_held = distant_to_detected_tag;
+                      index_of_closest_resource_tag_not_held = distant_to_detected_tag;
+                  }
+              }
+              resource_tags.push_back(detected_tag);
             }
         } // for loop end
 
-        if (in_home_tags > out_home_tags)
-        {   
-            SEARCH_K = -1;
-            inside_home = true;
-        }
-        else
-        {
-            SEARCH_K = 1;
-            inside_home = false;
-        }
+		if(SIMULATOR) {
+			if (in_home_tags > out_home_tags)
+			{   
+				SEARCH_K = -1;
+				inside_home = true;
+			}
+			else
+			{
+				SEARCH_K = 1;
+				inside_home = false;
+			}
+		}
 
         if (count_home_tags > 0) {
             home_encountered = true;
@@ -1990,6 +2054,8 @@ void AprilTagHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& mess
         //no tags in screen
         no_resource_tags_counter++;
         center_resource_distance = 0.0;
+		lost_frame_count++;
+		count_home_tags = 0;
     }
 }
 
@@ -2002,7 +2068,7 @@ void SonarHandler(const sensor_msgs::Range::ConstPtr& sonar_left, const sensor_m
 
     //if any sonar is below the trigger distance set physical obstacle true
 
-    if ( sonar_left->range < TRIGGER_DISTANCE || sonar_center->range < TRIGGER_DISTANCE || sonar_right->range < TRIGGER_DISTANCE ) {
+    if ( sonar_left->range < TRIGGER_DISTANCE || (sonar_center->range < TRIGGER_DISTANCE && (!resource_held || SIMULATOR)) || sonar_right->range < TRIGGER_DISTANCE ) {
         obstacle_encountered = true;
         if (sonar_left->range < TRIGGER_DISTANCE) {
             obs_side = LEFT;
@@ -2010,7 +2076,7 @@ void SonarHandler(const sensor_msgs::Range::ConstPtr& sonar_left, const sensor_m
         else if (sonar_right->range < TRIGGER_DISTANCE) {
             obs_side = RIGHT;
         }
-        else if (sonar_center->range < TRIGGER_DISTANCE) {
+        else if (sonar_center->range < TRIGGER_DISTANCE && (!resource_held || SIMULATOR)) {
             if (sonar_center->range < SONAR_RESOURCE_RANGE_THRESHOLD) {
                 center_sonar_distance = sonar_center->range;
             }
@@ -2374,7 +2440,7 @@ float GetNewHeading(int side) {
 
 void openFingers() {
     std_msgs::Float32 angle;
-    angle.data = M_PI_2; //open fingers;
+    angle.data = (4/3) * M_PI_2; //open fingers;
     finger_angle_publisher.publish(angle);
 }
 
@@ -2546,4 +2612,12 @@ void StateLogger(string state) {
         world_file << state << " " << std::to_string(GetROSTimeInMilliSecs()) << "\n"; 
         world_file.close(); 
     }  
+}
+
+void GazeboStatusHandler(const gazebo_msgs::ModelStates::ConstPtr& msg) {
+	if(!simulatorInitalized) {
+		SIMULATOR = true;
+		simulatorInitalized = true;
+		initalizeSimVariables();
+	}
 }
