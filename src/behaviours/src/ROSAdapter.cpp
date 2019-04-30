@@ -1515,9 +1515,6 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     starting_drive_location.y = current_location_odom.y;
                     state_machine_state = DROPOFF_FORWARD;
                 }
-				else if(count_home_tags == 0) {
-					state_machine_state = SEARCH_HOME;
-				}
                 else {
                     angular_velocity = -DROPOFF_ALIGN_K * home_tag_yaw_error;
                 }
