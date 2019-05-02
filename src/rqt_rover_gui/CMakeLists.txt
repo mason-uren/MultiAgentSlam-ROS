@@ -24,6 +24,8 @@ set(version_file "${CMAKE_CURRENT_BINARY_DIR}/Version.cpp")
 
 set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS}")
 
+cmake_policy(SET CMP0054 OLD)
+
 find_package(catkin REQUIRED COMPONENTS 
   rqt_gui
   rqt_gui_cpp

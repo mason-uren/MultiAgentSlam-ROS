@@ -1,0 +1,2 @@
+Offset loc_translation
+float32 orientation

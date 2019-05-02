@@ -26,13 +26,36 @@
 #include "swarmie_msgs/Skid.h"
 #include "gazebo_msgs/ModelStates.h"
 
+/*
+ * Distributed SLAM
+ * - ROS messages
+ * - Adapter inclusion
+ */
+#include <ros_slam_msgs/Feature.h>
+#include <ros_slam_msgs/Pose.h>
+#include <ros_slam_msgs/Offset.h>
+#include <ros_slam_msgs/Classifier.h>
+#include <ros_slam_msgs/FeatureSet.h>
+#include <ros_slam_msgs/Belief.h>
+#include <ros_slam_msgs/Transformation.h>
+#include <ros_slam_msgs/AgentPairs.h>
+#include <ros_slam_msgs/AuxFeatureSet.h>
+#include <ros_slam_msgs/AuxBeliefs.h>
+#include <ros_slam_msgs/TransformationPairs.h>
+// Adapter
+#include "../../distributed_slam/src/Adapter.h"
+// Logger
+#include "../../slam_logger/include/Logger.h"
+
+
 // Include Controllers
 //#include "LogicController.h"
 #include "Controller.h"
 #include <vector>
 #include <cmath>
 #include <math.h>
-#include <algorithm> 
+#include <algorithm>
+#include <vector>
 
 #include "Point.h"
 #include "Tag.h"
@@ -60,118 +83,126 @@ using namespace std;
 // a RangeShape using invalid dimensions
 class ROSAdapterRangeShapeInvalidTypeException : public std::exception {
 public:
-  ROSAdapterRangeShapeInvalidTypeException(std::string msg) {
-    this->msg = msg;
-  }
-  
-  virtual const char* what() const throw()
-  {
-    std::string message = "Invalid RangeShape type provided: " + msg;
-    return message.c_str();
-  }
-  
+    ROSAdapterRangeShapeInvalidTypeException(std::string msg) {
+        this->msg = msg;
+    }
+
+    virtual const char *what() const throw() {
+        std::string message = "Invalid RangeShape type provided: " + msg;
+        return message.c_str();
+    }
+
 private:
-  std::string msg;
+    std::string msg;
 };
 
 
 // Random number generator
-random_numbers::RandomNumberGenerator* rng;
+random_numbers::RandomNumberGenerator *rng;
 
 std_msgs::UInt8 collision_msg;
 // Create logic controller
 
 //LogicController logicController;
 
-void humanTime();	//translates time into human time
+void humanTime();    //translates time into human time
 
 // Behaviours Logic Functions
 void sendDriveCommand(double linear_velocity, double angular_velocity);
-void openFingers(); 	// Open fingers to 90 degrees
-void closeFingers();	// Close fingers to 0 degrees
-void raiseWrist();  	// Return wrist back to 0 degrees
-void lowerWrist();  	// Lower wrist to 50 degrees
+
+void openFingers();    // Open fingers to 90 degrees
+void closeFingers();    // Close fingers to 0 degrees
+void raiseWrist();    // Return wrist back to 0 degrees
+void lowerWrist();    // Lower wrist to 50 degrees
 void centerWrist();
-void resultHandler();	// Not Used/Dead Code, prototype has no definition
+
+void resultHandler();    // Not Used/Dead Code, prototype has no definition
 
 
-Point updateCenterLocation();		//calls transformMapCenterToOdom, returns a center location in ODOM frame
-void transformMapCentertoOdom();	//checks ODOMs perceived idea of where the center is with a stored GPS center coordinate and adjusts ODOM center value to account for drift
+Point updateCenterLocation();        //calls transformMapCenterToOdom, returns a center location in ODOM frame
+void
+transformMapCentertoOdom();    //checks ODOMs perceived idea of where the center is with a stored GPS center coordinate and adjusts ODOM center value to account for drift
 
-PositionPublisher* positionPublisher;
+PositionPublisher *positionPublisher;
 
 // Numeric Variables for rover positioning
-geometry_msgs::Pose2D current_location_odom;		//current location using ODOM
-geometry_msgs::Pose2D current_location_ekf;	//current location using GPS
-geometry_msgs::Pose2D current_location_avg;	//an average of the robots current location
+geometry_msgs::Pose2D current_location_odom;        //current location using ODOM
+geometry_msgs::Pose2D current_location_ekf;    //current location using GPS
+geometry_msgs::Pose2D current_location_avg;    //an average of the robots current location
 Point location_offset_odom;
 Point location_offset_ekf;
 
 
-geometry_msgs::Pose2D centerLocation;		//Not used, dead code
-geometry_msgs::Pose2D centerLocationMap;	//A GPS point of the center location, used to help reduce drift from ODOM
-geometry_msgs::Pose2D centerLocationOdom;	//The centers location based on ODOM
-geometry_msgs::Pose2D centerLocationMapRef;	//Variable used in TransformMapCenterToOdom, can be moved to make it local instead of global
+geometry_msgs::Pose2D centerLocation;        //Not used, dead code
+geometry_msgs::Pose2D centerLocationMap;    //A GPS point of the center location, used to help reduce drift from ODOM
+geometry_msgs::Pose2D centerLocationOdom;    //The centers location based on ODOM
+geometry_msgs::Pose2D centerLocationMapRef;    //Variable used in TransformMapCenterToOdom, can be moved to make it local instead of global
 
 int current_mode = 0;
 
-const float BEHAVIOR_LOOP_TIME_STEP = 0.1; 	//time between the behaviour loop calls
-const float STATUS_PUBLISH_INTERVAL = 1;	//time between publishes
-const float HEARTBEAT_PUBLISH_INTERVAL = 2;	//time between heartbeat publishes
-const float waypointTolerance = 0.1; 		//10 cm tolerance.
+/*
+ * Distributed SLAM
+ * - constexpr
+ */
+constexpr float SLAM_TIME_STEP = float(0.1);
+
+const float BEHAVIOR_LOOP_TIME_STEP = 0.1;    //time between the behaviour loop calls
+const float STATUS_PUBLISH_INTERVAL = 1;    //time between publishes
+const float HEARTBEAT_PUBLISH_INTERVAL = 2;    //time between heartbeat publishes
+const float waypointTolerance = 0.1;        //10 cm tolerance.
 const float CAMERA_OFFSET_CORRECTION = 0.020;
 const float CAMERA_HEIGHT_IN_CM = 0.195;
 
 // used for calling code once but not in main
-bool initilized = false;	//switched to true after running through state machine the first time, initializes base values
+bool initilized = false;    //switched to true after running through state machine the first time, initializes base values
 bool simulatorInitalized = false;
 bool pickupAlignInited = true;
 
-float linear_velocity = 0;	//forward speed, POSITIVE = forward, NEGATIVE = backward
-float angular_velocity = 0;	//turning speed, POSITIVE = left, NEGATIVE = right
+float linear_velocity = 0;    //forward speed, POSITIVE = forward, NEGATIVE = backward
+float angular_velocity = 0;    //turning speed, POSITIVE = left, NEGATIVE = right
 
-float prevWrist = 0;	//last wrist angle
-float prevFinger = 0;	//last finger angle
-long int start_time = 0;	//stores time when robot is swtiched on
-float minutes_time = 0;	//time in minutes
-float hours_time = 0;	//time in hours
+float prevWrist = 0;    //last wrist angle
+float prevFinger = 0;    //last finger angle
+long int start_time = 0;    //stores time when robot is swtiched on
+float minutes_time = 0;    //time in minutes
+float hours_time = 0;    //time in hours
 
 float drift_tolerance = 0.5; // the perceived difference between ODOM and GPS values before shifting the values up or down, in meters
 
-Result result;		//result struct for passing and storing values to drive robot
+Result result;        //result struct for passing and storing values to drive robot
 
-std_msgs::String msg;	//used for passing messages to the GUI
+std_msgs::String msg;    //used for passing messages to the GUI
 
 geometry_msgs::Twist velocity;
-char host[128];		//rovers hostname
-string published_name;	//published hostname
+char host[128];        //rovers hostname
+string published_name;    //published hostname
 
 float start_theta = 0.0;
 
 char prev_state_machine[128];
 
 // Publishers
-ros::Publisher state_machine_publisher;		//publishes state machine status
-ros::Publisher status_publisher;		//publishes rover status
-ros::Publisher finger_angle_publisher;		//publishes gripper angle to move gripper fingers
-ros::Publisher wrist_angle_publisher;		//publishes wrist angle to move wrist
-ros::Publisher infoLogPublisher;		//publishes a message to the infolog box on GUI
-ros::Publisher drive_control_publisher;		//publishes motor commands to the motors
-ros::Publisher heartbeat_publisher;		//publishes ROSAdapters status via its "heartbeat"
+ros::Publisher state_machine_publisher;        //publishes state machine status
+ros::Publisher status_publisher;        //publishes rover status
+ros::Publisher finger_angle_publisher;        //publishes gripper angle to move gripper fingers
+ros::Publisher wrist_angle_publisher;        //publishes wrist angle to move wrist
+ros::Publisher infoLogPublisher;        //publishes a message to the infolog box on GUI
+ros::Publisher drive_control_publisher;        //publishes motor commands to the motors
+ros::Publisher heartbeat_publisher;        //publishes ROSAdapters status via its "heartbeat"
 ros::Publisher obstaclePublisher;
 // Publishes swarmie_msgs::Waypoint messages on "/<robot>/waypooints"
 // to indicate when waypoints have been reached.
-ros::Publisher waypointFeedbackPublisher;	//publishes a waypoint to travel to if the rover is given a waypoint in manual mode
+ros::Publisher waypointFeedbackPublisher;    //publishes a waypoint to travel to if the rover is given a waypoint in manual mode
 //ros::Publisher claim_anchor_point_publisher;
 //ros::Publisher unclaim_anchor_point_publisher;
 ros::Publisher recruitment_publisher;
 
 // Subscribers
-ros::Subscriber joystick_subscriber;			//receives joystick information
-ros::Subscriber mode_subscriber; 		//receives mode from GUI
-ros::Subscriber april_tag_subscriber;		//receives tag data
-ros::Subscriber odometry_subscriber;		//receives ODOM data
-ros::Subscriber ekf_subscriber;			//receives GPS data
+ros::Subscriber joystick_subscriber;            //receives joystick information
+ros::Subscriber mode_subscriber;        //receives mode from GUI
+ros::Subscriber april_tag_subscriber;        //receives tag data
+ros::Subscriber odometry_subscriber;        //receives ODOM data
+ros::Subscriber ekf_subscriber;            //receives GPS data
 //ros::Subscriber virtualFenceSubscriber;		//receives data for vitrual boundaries
 // manualWaypointSubscriber listens on "/<robot>/waypoints/cmd" for
 // swarmie_msgs::Waypoint messages.
@@ -180,6 +211,32 @@ ros::Subscriber recruitment_subscriber;
 //ros::Subscriber claimed_anchor_point_subscriber;
 //ros::Subscriber unclaimed_anchor_point_subscriber;
 ros::Subscriber gazebo_status_subscriber;
+
+
+
+
+/*
+ * Distributed SLAM
+ * - Publishers
+ * - Subscribers
+ * - Global Variables
+ */
+// SLAM Publishers
+ros::Publisher roverInstancePublisher;
+ros::Publisher featureSetPublisher;
+ros::Publisher transformationPublisher;
+// SLAM Subscribers
+ros::Subscriber kinematicsSubscriber;
+ros::Subscriber sonarSubscriber;
+ros::Subscriber auxilaryRoverSubscriber;
+ros::Subscriber featureSetSubscriber;
+ros::Subscriber transformationSubscriber;
+// Timers
+ros::Timer slamEventTrigger;
+// SLAM Global Variables
+static bool canReadLocation(true);
+static POSE slamRoverPose(POSE{});
+
 
 // Timers
 ros::Timer state_machine_timer;
@@ -201,38 +258,93 @@ tf::TransformListener *transform_listener;
 void SigintEventHandler(int signal);
 
 //Callback handlers
-void JoystickCommandHandler(const sensor_msgs::Joy::ConstPtr& message);				//for joystick control
-void ModeHandler(const std_msgs::UInt8::ConstPtr& message);				//for detecting which mode the robot needs to be in
-void AprilTagHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& tagInfo);	//receives and stores April Tag Data using the TAG class
-void OdometryHandler(const nav_msgs::Odometry::ConstPtr& message);			//receives and stores ODOM information
-void EKFHandler(const nav_msgs::Odometry::ConstPtr& message);				//receives and stores GPS information
+void JoystickCommandHandler(const sensor_msgs::Joy::ConstPtr &message);                //for joystick control
+void ModeHandler(
+        const std_msgs::UInt8::ConstPtr &message);                //for detecting which mode the robot needs to be in
+void AprilTagHandler(
+        const apriltags_ros::AprilTagDetectionArray::ConstPtr &tagInfo);    //receives and stores April Tag Data using the TAG class
+void OdometryHandler(const nav_msgs::Odometry::ConstPtr &message);            //receives and stores ODOM information
+void EKFHandler(const nav_msgs::Odometry::ConstPtr &message);                //receives and stores GPS information
 // TODO: Figure out what virtualFenceHandler and manualWaypointHandler are and how to migrate them
 //void virtualFenceHandler(const std_msgs::Float32MultiArray& message);			//Used to set an invisible boundary for robots to keep them from traveling outside specific bounds
 //void manualWaypointHandler(const swarmie_msgs::Waypoint& message);			//Receives a waypoint (from GUI) and sets the coordinates
-void PublishStatusTimerEventHandler(const ros::TimerEvent& event);			//Publishes "ONLINE" when rover is successfully connected
-void PublishHeartBeatTimerEventHandler(const ros::TimerEvent& event);			
-void SonarHandler(const sensor_msgs::Range::ConstPtr& sonarLeft, const sensor_msgs::Range::ConstPtr& sonarCenter, const sensor_msgs::Range::ConstPtr& sonarRight);	//handles ultrasound data and stores data
-void RecruitmentHandler(const swarmie_msgs::Recruitment& msg);
-void GazeboStatusHandler(const gazebo_msgs::ModelStates::ConstPtr& msg);
+void PublishStatusTimerEventHandler(
+        const ros::TimerEvent &event);            //Publishes "ONLINE" when rover is successfully connected
+void PublishHeartBeatTimerEventHandler(const ros::TimerEvent &event);
 
-void BehaviourStateMachine(const ros::TimerEvent&);					//Upper most state machine, calls logic controller to perform all actions
+void SonarHandler(const sensor_msgs::Range::ConstPtr &sonarLeft, const sensor_msgs::Range::ConstPtr &sonarCenter,
+                  const sensor_msgs::Range::ConstPtr &sonarRight);    //handles ultrasound data and stores data
+void RecruitmentHandler(const swarmie_msgs::Recruitment &msg);
+
+void GazeboStatusHandler(const gazebo_msgs::ModelStates::ConstPtr &msg);
+
+void BehaviourStateMachine(
+        const ros::TimerEvent &);                    //Upper most state machine, calls logic controller to perform all actions
+
+
+
+
+/*
+ * Distributed SLAM
+ * - Callback Handlers
+ * - helper functions
+ */
+void slamKinematicsHandler(const nav_msgs::Odometry::ConstPtr &kinematics);
+
+void slamSonarHandler(
+        const sensor_msgs::Range::ConstPtr &sonarLeft,
+        const sensor_msgs::Range::ConstPtr &sonarCenter,
+        const sensor_msgs::Range::ConstPtr &sonarRight);
+
+void slamHandler(const ros::TimerEvent &event);
+
+void slamAuxRoverHandler(const ros_slam_msgs::AuxBeliefs::ConstPtr &auxBelief);
+
+void slamFeatureSetHandler(const ros_slam_msgs::AuxFeatureSet::ConstPtr &auxFeatureSet);
+
+void slamTransformationHandler(const ros_slam_msgs::TransformationPairs::ConstPtr &transformationPairs);
+
+void slamPublishFeatureSet(const std::array<FEATURE, FEATURE_LIMIT> &featureSet, const CLASSIFIER &classifier);
+
+void slamPublishBelief(const BELIEF &belief);
+
+void slamPublishTransformation(const POSE &trans, const std::string &targetRover);
+
+POSE ekfPose(const nav_msgs::Odometry::ConstPtr &kinematics);
+
+
 
 // Converts the time passed as reported by ROS (which takes Gazebo simulation rate into account) into milliseconds as an integer.
 long int GetROSTimeInMilliSecs();
+
 void ActuatorOutput(float linear_velocity_out, float angular_velocity_out);
+
 int SaturationCheck(int direction, int sat);
+
 float Wrap(float theta);
+
 float GetNewHeading(int side);
+
 Point ClosestAnchorPoint();
+
 bool CheckDriveDistance(float desired_distance);
+
 void SubtractLocationOffset();
+
 void AddLocationOffset();
+
 bool PickupBreakout();
+
 bool AnchorPointBreakout();
+
 bool DropOffBreakout();
+
 bool ClusterBreakout();
+
 void ResetFlags();
+
 int ContainsClaimedAnchorPoints(geometry_msgs::Pose2D anchor_point);
+
 void StateLogger(string state);
 
 #define INIT 0
@@ -372,8 +484,8 @@ float DROPOFF_FORWARD_THRESHOLD = .01;
 float CLUSTER_ALIGN_THRESHOLD = .2;
 float SEARCH_HOME_ROTATE_THRESHOLD = .2;
 
-int   TRAVERSAL_ROTATION_DEGREES = 20;
-float TRIGGER_DISTANCE = 0.6; 
+int TRAVERSAL_ROTATION_DEGREES = 20;
+float TRIGGER_DISTANCE = 0.6;
 float TRAVERSE_FORWARD_DISTANCE = .5;
 float HOME_FIELD_DISTANCE = 1.0;
 float RECRUITMENT_THRESHOLD = 7;
@@ -411,94 +523,94 @@ float HOME_FIELD_DISTANCE = 0;
 float RECRUITMENT_THRESHOLD = 7;
 */
 void initalizeSimVariables() {
-	SEARCH_K = 1;
-	OBS_K = .2;
-	PICKUP_ALIGN_K = .1;
-	PICKUP_ALIGN_LOW_K = 0.875;
-	PICKUP_FORWARD_K = .2;
- 	PICKUP_BLIND_K = .2;
- 	PICKUP_BACKUP_K = .3;
- 	ROTATE_90_K = .1;
- 	ANCHOR_POINT_ALIGN_K = .2;
- 	ANCHOR_POINT_FORWARD_K = .25;
- 	ANCHOR_POINT_TRAVERSE_ROTATE_K = .2;
- 	ANCHOR_POINT_TRAVERSE_FORWARD_K = .3;
- 	GO_HOME_ALIGN_K = .2;
- 	GO_HOME_FORWARD_K = .3;
- 	RESOURCES_COVERING_HOME_ALIGN_K = .3;
- 	RESOURCES_COVERING_HOME_FORWARD_K = .4;
- 	RESOURCES_COVERING_HOME_BLIND_K = .05;
- 	RESOURCES_COVERING_HOME_BACKUP_K = .1;
- 	GO_HOME_TRAVERSE_ROTATE_K = .1;
- 	GO_HOME_TRAVERSE_FORWARD_K = .3;
- 	DROPOFF_ALIGN_K = .2;
- 	DROPOFF_FORWARD_K = .4;
-	DROPOFF_BACKUP_K = .1;
- 	CLUSTER_ALIGN_K = .2;
- 	CLUSTER_FORWARD_K = .25;
- 	SEARCH_HOME_ROTATE_K = .1;
- 	SEARCH_HOME_FORWARD_K = .1;
-	
-
-	OBS_THRESHOLD = .6;
- 	PICKUP_ALIGN_THRESHOLD = .03;
- 	PICKUP_DISTANCE_THRESHOLD = .01;
- 	PICKUP_BLIND_THRESHOLD = .02;
- 	PICKUP_BACKUP_THRESHOLD = .05;
- 	ROTATE_90_THRESHOLD = .1;
-	SONAR_RESOURCE_RANGE_THRESHOLD = .1;
-	ANCHOR_POINT_ALIGN_THRESHOLD = .2;
-	ANCHOR_POINT_FORWARD_THRESHOLD = .2;
-	ANCHOR_POINT_TRAVERSE_ROTATE_THRESHOLD = .2;
-	ANCHOR_POINT_TRAVERSE_FORWARD_THRESHOLD = .1;
-	GO_HOME_ALIGN_THRESHOLD = .2;
-	GO_HOME_FORWARD_THRESHOLD = .2;
-	RESOURCES_COVERING_HOME_ALIGN_THRESHOLD = .1;
-	RESOURCES_COVERING_HOME_THRESHOLD = .1;
-	RESOURCES_COVERING_HOME_BLIND_THRESHOLD = .1;
-	RESOURCES_COVERING_HOME_BACKUP_THRESHOLD = .1;
-	GO_HOME_TRAVERSE_ROTATE_THRESHOLD = .1;
-	GO_HOME_TRAVERSE_FORWARD_THRESHOLD = .1;
-	DROPOFF_ALIGN_THRESHOLD = .1;
-	DROPOFF_FORWARD_THRESHOLD = .01;
-	CLUSTER_ALIGN_THRESHOLD = .2;
-	SEARCH_HOME_ROTATE_THRESHOLD = .007;
+    SEARCH_K = 1;
+    OBS_K = .2;
+    PICKUP_ALIGN_K = .1;
+    PICKUP_ALIGN_LOW_K = 0.875;
+    PICKUP_FORWARD_K = .2;
+    PICKUP_BLIND_K = .2;
+    PICKUP_BACKUP_K = .3;
+    ROTATE_90_K = .1;
+    ANCHOR_POINT_ALIGN_K = .2;
+    ANCHOR_POINT_FORWARD_K = .25;
+    ANCHOR_POINT_TRAVERSE_ROTATE_K = .2;
+    ANCHOR_POINT_TRAVERSE_FORWARD_K = .3;
+    GO_HOME_ALIGN_K = .2;
+    GO_HOME_FORWARD_K = .3;
+    RESOURCES_COVERING_HOME_ALIGN_K = .3;
+    RESOURCES_COVERING_HOME_FORWARD_K = .4;
+    RESOURCES_COVERING_HOME_BLIND_K = .05;
+    RESOURCES_COVERING_HOME_BACKUP_K = .1;
+    GO_HOME_TRAVERSE_ROTATE_K = .1;
+    GO_HOME_TRAVERSE_FORWARD_K = .3;
+    DROPOFF_ALIGN_K = .2;
+    DROPOFF_FORWARD_K = .4;
+    DROPOFF_BACKUP_K = .1;
+    CLUSTER_ALIGN_K = .2;
+    CLUSTER_FORWARD_K = .25;
+    SEARCH_HOME_ROTATE_K = .1;
+    SEARCH_HOME_FORWARD_K = .1;
 
 
-	TRAVERSAL_ROTATION_DEGREES = 20;
-	TRAVERSE_FORWARD_DISTANCE = .5;
-	HOME_FIELD_DISTANCE = 0;
-	RECRUITMENT_THRESHOLD = 7;
+    OBS_THRESHOLD = .6;
+    PICKUP_ALIGN_THRESHOLD = .03;
+    PICKUP_DISTANCE_THRESHOLD = .01;
+    PICKUP_BLIND_THRESHOLD = .02;
+    PICKUP_BACKUP_THRESHOLD = .05;
+    ROTATE_90_THRESHOLD = .1;
+    SONAR_RESOURCE_RANGE_THRESHOLD = .1;
+    ANCHOR_POINT_ALIGN_THRESHOLD = .2;
+    ANCHOR_POINT_FORWARD_THRESHOLD = .2;
+    ANCHOR_POINT_TRAVERSE_ROTATE_THRESHOLD = .2;
+    ANCHOR_POINT_TRAVERSE_FORWARD_THRESHOLD = .1;
+    GO_HOME_ALIGN_THRESHOLD = .2;
+    GO_HOME_FORWARD_THRESHOLD = .2;
+    RESOURCES_COVERING_HOME_ALIGN_THRESHOLD = .1;
+    RESOURCES_COVERING_HOME_THRESHOLD = .1;
+    RESOURCES_COVERING_HOME_BLIND_THRESHOLD = .1;
+    RESOURCES_COVERING_HOME_BACKUP_THRESHOLD = .1;
+    GO_HOME_TRAVERSE_ROTATE_THRESHOLD = .1;
+    GO_HOME_TRAVERSE_FORWARD_THRESHOLD = .1;
+    DROPOFF_ALIGN_THRESHOLD = .1;
+    DROPOFF_FORWARD_THRESHOLD = .01;
+    CLUSTER_ALIGN_THRESHOLD = .2;
+    SEARCH_HOME_ROTATE_THRESHOLD = .007;
 
-	/*OBS_THRESHOLD = 1.0;
-	PICKUP_ALIGN_THRESHOLD = .04;// was .03 HFQ
-	PICKUP_DISTANCE_THRESHOLD = .15; // JTI was 0.01
-	PICKUP_BLIND_THRESHOLD = .02;
-	PICKUP_BACKUP_THRESHOLD = .05;
-	ROTATE_90_THRESHOLD = .1;
-	SONAR_RESOURCE_RANGE_THRESHOLD = .1;
-	ANCHOR_POINT_ALIGN_THRESHOLD = .25;
-	ANCHOR_POINT_FORWARD_THRESHOLD = .2;
-	ANCHOR_POINT_TRAVERSE_ROTATE_THRESHOLD = .2;
-	ANCHOR_POINT_TRAVERSE_FORWARD_THRESHOLD = .1;
-	GO_HOME_ALIGN_THRESHOLD = .2;
-	GO_HOME_FORWARD_THRESHOLD = .2;
-	RESOURCES_COVERING_HOME_ALIGN_THRESHOLD = .1;
-	RESOURCES_COVERING_HOME_THRESHOLD = .1;
-	RESOURCES_COVERING_HOME_BLIND_THRESHOLD = .1;
-	RESOURCES_COVERING_HOME_BACKUP_THRESHOLD = .1;
-	GO_HOME_TRAVERSE_ROTATE_THRESHOLD = .1;
-	GO_HOME_TRAVERSE_FORWARD_THRESHOLD = .1;
-	DROPOFF_ALIGN_THRESHOLD = .1;
-	DROPOFF_FORWARD_THRESHOLD = .01;
-	CLUSTER_ALIGN_THRESHOLD = .2;
-	SEARCH_HOME_ROTATE_THRESHOLD = .1;
 
-	TRAVERSAL_ROTATION_DEGREES = 20;
-	TRAVERSE_FORWARD_DISTANCE = .5;
-	HOME_FIELD_DISTANCE = 1.0;
-	RECRUITMENT_THRESHOLD = 7;
-	*/
+    TRAVERSAL_ROTATION_DEGREES = 20;
+    TRAVERSE_FORWARD_DISTANCE = .5;
+    HOME_FIELD_DISTANCE = 0;
+    RECRUITMENT_THRESHOLD = 7;
+
+    /*OBS_THRESHOLD = 1.0;
+    PICKUP_ALIGN_THRESHOLD = .04;// was .03 HFQ
+    PICKUP_DISTANCE_THRESHOLD = .15; // JTI was 0.01
+    PICKUP_BLIND_THRESHOLD = .02;
+    PICKUP_BACKUP_THRESHOLD = .05;
+    ROTATE_90_THRESHOLD = .1;
+    SONAR_RESOURCE_RANGE_THRESHOLD = .1;
+    ANCHOR_POINT_ALIGN_THRESHOLD = .25;
+    ANCHOR_POINT_FORWARD_THRESHOLD = .2;
+    ANCHOR_POINT_TRAVERSE_ROTATE_THRESHOLD = .2;
+    ANCHOR_POINT_TRAVERSE_FORWARD_THRESHOLD = .1;
+    GO_HOME_ALIGN_THRESHOLD = .2;
+    GO_HOME_FORWARD_THRESHOLD = .2;
+    RESOURCES_COVERING_HOME_ALIGN_THRESHOLD = .1;
+    RESOURCES_COVERING_HOME_THRESHOLD = .1;
+    RESOURCES_COVERING_HOME_BLIND_THRESHOLD = .1;
+    RESOURCES_COVERING_HOME_BACKUP_THRESHOLD = .1;
+    GO_HOME_TRAVERSE_ROTATE_THRESHOLD = .1;
+    GO_HOME_TRAVERSE_FORWARD_THRESHOLD = .1;
+    DROPOFF_ALIGN_THRESHOLD = .1;
+    DROPOFF_FORWARD_THRESHOLD = .01;
+    CLUSTER_ALIGN_THRESHOLD = .2;
+    SEARCH_HOME_ROTATE_THRESHOLD = .1;
+
+    TRAVERSAL_ROTATION_DEGREES = 20;
+    TRAVERSE_FORWARD_DISTANCE = .5;
+    HOME_FIELD_DISTANCE = 1.0;
+    RECRUITMENT_THRESHOLD = 7;
+    */
 }
 
 Tag average_home_tag;
@@ -573,85 +685,138 @@ string last_state = "";
 
 // TODO: Refactor names below this line to match surf code.
 int main(int argc, char **argv) {
-  
-  gethostname(host, sizeof (host));
-  string hostname(host);
-  
-  if (argc >= 2) {
-    published_name = argv[1];
-    cout << "Welcome to the world of tomorrow " << published_name
-         << "!  Behaviour turnDirectionule started." << endl;
-  } else {
-    published_name = hostname;
-    cout << "No Name Selected. Default is: " << published_name << endl;
-  }
-  
-  // NoSignalHandler so we can catch SIGINT ourselves and shutdown the node
-  ros::init(argc, argv, (published_name + "_BEHAVIOUR"), ros::init_options::NoSigintHandler);
-  ros::NodeHandle mNH;
-  positionPublisher = new PositionPublisher(mNH, published_name);
-  
-  // Register the SIGINT event handler so the node can shutdown properly
-  signal(SIGINT, SigintEventHandler);
-  
-  //subscribers
-  joystick_subscriber = mNH.subscribe((published_name + "/joystick"), 10, JoystickCommandHandler);					//receives joystick information
-  mode_subscriber = mNH.subscribe((published_name + "/mode"), 1, ModeHandler);						//receives mode from GUI
-  april_tag_subscriber = mNH.subscribe((published_name + "/targets"), 10, AprilTagHandler);					//receives tag data
-  odometry_subscriber = mNH.subscribe((published_name + "/odom/filtered"), 10, OdometryHandler);				//receives ODOM data
-  ekf_subscriber = mNH.subscribe((published_name + "/odom/ekf"), 10, EKFHandler);						//receives GPS data
-  gazebo_status_subscriber = mNH.subscribe(("/gazebo/link_states"), 10, GazeboStatusHandler);			//receives data if in simulator
-  //virtualFenceSubscriber = mNH.subscribe(("/virtualFence"), 10, virtualFenceHandler);					//receives data for vitrual boundaries
-  //manualWaypointSubscriber = mNH.subscribe((published_name + "/waypoints/cmd"), 10, manualWaypointHandler);		//receives manual waypoints given from GUI
-  message_filters::Subscriber<sensor_msgs::Range> sonarLeftSubscriber(mNH, (published_name + "/sonarLeft"), 10);
-  message_filters::Subscriber<sensor_msgs::Range> sonarCenterSubscriber(mNH, (published_name + "/sonarCenter"), 10);
-  message_filters::Subscriber<sensor_msgs::Range> sonarRightSubscriber(mNH, (published_name + "/sonarRight"), 10);
-  //recruitment_subscriber = mNH.subscribe("/detectionLocations", 10, RecruitmentHandler);
 
-  //publishers
-  state_machine_publisher = mNH.advertise<std_msgs::String>((published_name + "/state_machine"), 1, true);			//publishes state machine status
-  status_publisher = mNH.advertise<std_msgs::String>((published_name + "/swarmie_status"), 1, true);			//publishes rover status
-  finger_angle_publisher = mNH.advertise<std_msgs::Float32>((published_name + "/fingerAngle/cmd"), 1, true);			//publishes gripper angle to move gripper finger
-  wrist_angle_publisher = mNH.advertise<std_msgs::Float32>((published_name + "/wristAngle/cmd"), 1, true);			//publishes wrist angle to move wrist
-  drive_control_publisher = mNH.advertise<swarmie_msgs::Skid>((published_name + "/driveControl"), 10);			//publishes motor commands to the motors
-  heartbeat_publisher = mNH.advertise<std_msgs::String>((published_name + "/behaviour/heartbeat"), 1, true);		//publishes ROSAdapters status via its "heartbeat"
-  // TODO: What are obstaclePublisher and infoLogPublisher
-  obstaclePublisher = mNH.advertise<std_msgs::UInt8>((published_name + "/obstacle"), 10, true);
-  infoLogPublisher = mNH.advertise<std_msgs::String>("/infoLog", 1, true);						//publishes a message to the infolog box on GUI
-  //waypointFeedbackPublisher = mNH.advertise<swarmie_msgs::Waypoint>((published_name + "/waypoints"), 1, true);		//publishes a waypoint to travel to if the rover is given a waypoint in manual mode
+    gethostname(host, sizeof(host));
+    string hostname(host);
 
-  //timers
-  publish_status_timer = mNH.createTimer(ros::Duration(STATUS_PUBLISH_INTERVAL), PublishStatusTimerEventHandler);
-  state_machine_timer = mNH.createTimer(ros::Duration(BEHAVIOR_LOOP_TIME_STEP), BehaviourStateMachine);
-  publish_heartbeat_timer = mNH.createTimer(ros::Duration(HEARTBEAT_PUBLISH_INTERVAL), PublishHeartBeatTimerEventHandler);
-  
-  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Range, sensor_msgs::Range, sensor_msgs::Range> sonarSyncPolicy;
-  
-  message_filters::Synchronizer<sonarSyncPolicy> sonarSync(sonarSyncPolicy(10), sonarLeftSubscriber, sonarCenterSubscriber, sonarRightSubscriber);
-  sonarSync.registerCallback(boost::bind(&SonarHandler, _1, _2, _3));
-  
-  //transform_listener = new tf::TransformListener();
+    if (argc >= 2) {
+        published_name = argv[1];
+        cout << "Welcome to the world of tomorrow " << published_name
+             << "!  Behaviour turnDirectionule started." << endl;
+    } else {
+        published_name = hostname;
+        cout << "No Name Selected. Default is: " << published_name << endl;
+    }
 
-  std_msgs::String msg;
-  msg.data = "Log Started";
-  infoLogPublisher.publish(msg);
-  stringstream ss;
-  ss << "Rover start delay set to " << start_delay_in_seconds << " seconds";
-  msg.data = ss.str();
-  infoLogPublisher.publish(msg);
+    // NoSignalHandler so we can catch SIGINT ourselves and shutdown the node
+    ros::init(argc, argv, (published_name + "_BEHAVIOUR"), ros::init_options::NoSigintHandler);
+    ros::NodeHandle mNH;
+    positionPublisher = new PositionPublisher(mNH, published_name);
 
-  /*if(current_mode != 2 && current_mode != 3)
-  {
-    // ensure the logic controller starts in the correct mode.
-    logicController.SetModeManual();
-  }*/
+    // Register the SIGINT event handler so the node can shutdown properly
+    signal(SIGINT, SigintEventHandler);
 
-  timer_start_time = time(0);
-  
-  ros::spin();
+    /*
+    * Distributed SLAM
+    * (Initialization)
+    * - Slam trigger
+    * - Pub/Sub
+    * - Adapter
+    * - Logger
+    * - Config (JSON)
+    * - NOTE: local publishers do NOT exist
+    */
+    // Slam Trigger
+    slamEventTrigger = mNH.createTimer(ros::Duration(SLAM_TIME_STEP), slamHandler);
 
-  delete positionPublisher;
-  return EXIT_SUCCESS;
+    // Global Publishers
+    roverInstancePublisher = mNH.advertise<ros_slam_msgs::AuxBeliefs>("/slam/aux_beliefs", 10, true);
+    featureSetPublisher = mNH.advertise<ros_slam_msgs::AuxFeatureSet>("/slam/aux_feature_sets", 10, true);
+    transformationPublisher = mNH.advertise<ros_slam_msgs::TransformationPairs>("/slam/transformations", 10, true);
+
+    // Global Subscribers
+    auxilaryRoverSubscriber = mNH.subscribe("/slam/aux_beliefs", 10, slamAuxRoverHandler);
+    featureSetSubscriber = mNH.subscribe("/slam/aux_feature_sets", 10, slamFeatureSetHandler);
+    transformationSubscriber = mNH.subscribe("/slam/transformations", 10, slamTransformationHandler);
+
+    // Local Subscribers
+    kinematicsSubscriber = mNH.subscribe((published_name + "/odom/ekf"), 10, slamKinematicsHandler);
+    message_filters::Subscriber<sensor_msgs::Range> sonarLeftSubscriber(mNH, (published_name + "/sonarLeft"), 10);
+    message_filters::Subscriber<sensor_msgs::Range> sonarCenterSubscriber(mNH, (published_name + "/sonarCenter"), 10);
+    message_filters::Subscriber<sensor_msgs::Range> sonarRightSubscriber(mNH, (published_name + "/sonarRight"), 10);
+    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Range, sensor_msgs::Range, sensor_msgs::Range> slamSonarSyncPolicy;
+    message_filters::Synchronizer<slamSonarSyncPolicy> slamSonarSync(slamSonarSyncPolicy(10), sonarLeftSubscriber, sonarCenterSubscriber, sonarRightSubscriber);
+    slamSonarSync.registerCallback(boost::bind(&slamSonarHandler, _1, _2, _3));
+    // Adpater
+    Adapter::getInstance();
+    Adapter::getInstance()->setRoverName(published_name);
+    // Logger
+    Logger::getInstance(published_name);
+    // Config
+    Adapter::getInstance()->loadDefaultConfig();
+    Adapter::getInstance()->jsonInitialize();
+
+
+    //subscribers
+    joystick_subscriber = mNH.subscribe((published_name + "/joystick"), 10,
+                                        JoystickCommandHandler);                    //receives joystick information
+    mode_subscriber = mNH.subscribe((published_name + "/mode"), 1,
+                                    ModeHandler);                        //receives mode from GUI
+    april_tag_subscriber = mNH.subscribe((published_name + "/targets"), 10,
+                                         AprilTagHandler);                    //receives tag data
+    odometry_subscriber = mNH.subscribe((published_name + "/odom/filtered"), 10,
+                                        OdometryHandler);                //receives ODOM data
+    ekf_subscriber = mNH.subscribe((published_name + "/odom/ekf"), 10,
+                                   EKFHandler);                        //receives GPS data
+    gazebo_status_subscriber = mNH.subscribe(("/gazebo/link_states"), 10,
+                                             GazeboStatusHandler);            //receives data if in simulator
+    //virtualFenceSubscriber = mNH.subscribe(("/virtualFence"), 10, virtualFenceHandler);					//receives data for vitrual boundaries
+    //manualWaypointSubscriber = mNH.subscribe((published_name + "/waypoints/cmd"), 10, manualWaypointHandler);		//receives manual waypoints given from GUI
+    //recruitment_subscriber = mNH.subscribe("/detectionLocations", 10, RecruitmentHandler);
+
+    //publishers
+    state_machine_publisher = mNH.advertise<std_msgs::String>((published_name + "/state_machine"), 1,
+                                                              true);            //publishes state machine status
+    status_publisher = mNH.advertise<std_msgs::String>((published_name + "/swarmie_status"), 1,
+                                                       true);            //publishes rover status
+    finger_angle_publisher = mNH.advertise<std_msgs::Float32>((published_name + "/fingerAngle/cmd"), 1,
+                                                              true);            //publishes gripper angle to move gripper finger
+    wrist_angle_publisher = mNH.advertise<std_msgs::Float32>((published_name + "/wristAngle/cmd"), 1,
+                                                             true);            //publishes wrist angle to move wrist
+    drive_control_publisher = mNH.advertise<swarmie_msgs::Skid>((published_name + "/driveControl"),
+                                                                10);            //publishes motor commands to the motors
+    heartbeat_publisher = mNH.advertise<std_msgs::String>((published_name + "/behaviour/heartbeat"), 1,
+                                                          true);        //publishes ROSAdapters status via its "heartbeat"
+    // TODO: What are obstaclePublisher and infoLogPublisher
+    obstaclePublisher = mNH.advertise<std_msgs::UInt8>((published_name + "/obstacle"), 10, true);
+    infoLogPublisher = mNH.advertise<std_msgs::String>("/infoLog", 1,
+                                                       true);                        //publishes a message to the infolog box on GUI
+    //waypointFeedbackPublisher = mNH.advertise<swarmie_msgs::Waypoint>((published_name + "/waypoints"), 1, true);		//publishes a waypoint to travel to if the rover is given a waypoint in manual mode
+
+    //timers
+    publish_status_timer = mNH.createTimer(ros::Duration(STATUS_PUBLISH_INTERVAL), PublishStatusTimerEventHandler);
+    state_machine_timer = mNH.createTimer(ros::Duration(BEHAVIOR_LOOP_TIME_STEP), BehaviourStateMachine);
+    publish_heartbeat_timer = mNH.createTimer(ros::Duration(HEARTBEAT_PUBLISH_INTERVAL),
+                                              PublishHeartBeatTimerEventHandler);
+
+    typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::Range, sensor_msgs::Range, sensor_msgs::Range> sonarSyncPolicy;
+
+    message_filters::Synchronizer<sonarSyncPolicy> sonarSync(sonarSyncPolicy(10), sonarLeftSubscriber,
+                                                             sonarCenterSubscriber, sonarRightSubscriber);
+    sonarSync.registerCallback(boost::bind(&SonarHandler, _1, _2, _3));
+
+    //transform_listener = new tf::TransformListener();
+
+    std_msgs::String msg;
+    msg.data = "Log Started";
+    infoLogPublisher.publish(msg);
+    stringstream ss;
+    ss << "Rover start delay set to " << start_delay_in_seconds << " seconds";
+    msg.data = ss.str();
+    infoLogPublisher.publish(msg);
+
+    /*if(current_mode != 2 && current_mode != 3)
+    {
+      // ensure the logic controller starts in the correct mode.
+      logicController.SetModeManual();
+    }*/
+
+    timer_start_time = time(0);
+
+    ros::spin();
+
+    delete positionPublisher;
+    return EXIT_SUCCESS;
 }
 
 
@@ -659,53 +824,45 @@ int main(int argc, char **argv) {
 // This function calls the dropOff, pickUp, and search controllers.
 // This block passes the goal location to the proportional-integral-derivative
 // controllers in the abridge package.
-void BehaviourStateMachine(const ros::TimerEvent&)
-{
+void BehaviourStateMachine(const ros::TimerEvent &) {
 
-  std_msgs::String state_machine_message;
-  
-  // time since timer_start_time was set to current time
-  timer_time_elapsed = time(0) - timer_start_time;
-  
-  // init code goes here. (code that runs only once at start of
-  // auto mode but wont work in main goes here)
-  if (!initilized)
-  {
+    std_msgs::String state_machine_message;
 
-    if (timer_time_elapsed > start_delay_in_seconds)
-    {
+    // time since timer_start_time was set to current time
+    timer_time_elapsed = time(0) - timer_start_time;
 
-      // initialization has run
-      initilized = true;
-      location_offset_odom.x = -1.3 * cos(current_location_odom.theta);
-      location_offset_odom.y = -1.3 * sin(current_location_odom.theta);
-      location_offset_ekf.x = -1.3 * cos(current_location_ekf.theta);
-      location_offset_ekf.y = -1.3 * sin(current_location_ekf.theta);
+    // init code goes here. (code that runs only once at start of
+    // auto mode but wont work in main goes here)
+    if (!initilized) {
 
-      home_goal_location.x = 0.0;
-      home_goal_location.y = 0.0;
-      
-      start_time = GetROSTimeInMilliSecs();
+        if (timer_time_elapsed > start_delay_in_seconds) {
+
+            // initialization has run
+            initilized = true;
+            location_offset_odom.x = -1.3 * cos(current_location_odom.theta);
+            location_offset_odom.y = -1.3 * sin(current_location_odom.theta);
+            location_offset_ekf.x = -1.3 * cos(current_location_ekf.theta);
+            location_offset_ekf.y = -1.3 * sin(current_location_ekf.theta);
+
+            home_goal_location.x = 0.0;
+            home_goal_location.y = 0.0;
+
+            start_time = GetROSTimeInMilliSecs();
+        } else {
+            return;
+        }
+
     }
 
-    else
-    {
-      return;
-    }
-    
-  }
+    // Robot is in autonomous mode
+    if (current_mode == 2 || current_mode == 3) {
 
-  // Robot is in autonomous mode
-  if (current_mode == 2 || current_mode == 3)
-  {
-    
-    humanTime();
-    
-    switch(state_machine_state) {
-            case INIT:
-            {
+        humanTime();
+
+        switch (state_machine_state) {
+            case INIT: {
                 state_machine_message.data = "INIT";
-                
+
                 // initialize all points to 0
                 resource_covering_home.x = 0.0;
                 resource_covering_home.y = 0.0;
@@ -741,64 +898,53 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                 vector<Point> claimed_anchor_points;
 
                 breakout_counter = 0;
-               
+
                 raiseWrist();
                 openFingers();
                 state_machine_state = SEARCH;
 
                 break;
             }
-            case SEARCH:
-            {
+            case SEARCH: {
                 state_machine_message.data = "SEARCH";
-                linear_velocity = 0.1*SEARCH_K;
+                linear_velocity = 0.1 * SEARCH_K;
                 angular_velocity = 0.0;
-                
+
 
                 //exit conditions
-                if (!inside_home)
-                {
-                    if (home_encountered)
-                    {
+                if (!inside_home) {
+                    if (home_encountered) {
                         linear_velocity = 0.0;
                         angular_velocity = 0.0;
                         desired_heading = GetNewHeading(home_tag_side);
                         state_machine_state = SEARCH_OBSTACLE_AVOIDANCE;
-                    }
-                    else if (resource_encountered && hypot(current_location_odom.x - home_goal_location.x, current_location_odom.y - home_goal_location.y) > .55)
-                    {
+                    } else if (resource_encountered && hypot(current_location_odom.x - home_goal_location.x,
+                                                             current_location_odom.y - home_goal_location.y) > .55) {
                         //desired alignment heading is set in AprilTagHandler "resource_tag_yaw_error"
                         linear_velocity = 0.0;
                         angular_velocity = 0.0;
                         breakout_counter = 0;
-                        state_machine_state = PICKUP_ALIGN;             
-                    }
-                    else if (obstacle_encountered)
-                    {
+                        state_machine_state = PICKUP_ALIGN;
+                    } else if (obstacle_encountered) {
                         linear_velocity = 0.0;
                         angular_velocity = 0.0;
                         desired_heading = GetNewHeading(obs_side);
                         state_machine_state = SEARCH_OBSTACLE_AVOIDANCE;
                     }
                 }
-                if (escaping_home_counter >= 58)
-                {
+                if (escaping_home_counter >= 58) {
                     escaping_home_counter = 0;
                     SEARCH_K = 1;
                     home_encountered = false;
                     inside_home = false;
-                }
-                else if (inside_home)
-                {
+                } else if (inside_home) {
                     escaping_home_counter++;
                 }
-		        break;
+                break;
             }
-            case SEARCH_OBSTACLE_AVOIDANCE:
-            {
+            case SEARCH_OBSTACLE_AVOIDANCE: {
                 state_machine_message.data = "SEARCH_OBSTACLE_AVOIDANCE";
-                if (fabs(desired_heading - current_location_odom.theta) < OBS_THRESHOLD)
-                {
+                if (fabs(desired_heading - current_location_odom.theta) < OBS_THRESHOLD) {
                     //reset detection sides
                     obs_side = NONE;
                     home_tag_side = NONE;
@@ -809,38 +955,31 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     state_machine_state = SEARCH;
-                }
-                else
-                {
+                } else {
                     linear_velocity = 0.0;
                     angular_velocity = OBS_K * Wrap(desired_heading - current_location_odom.theta); // k*error
                 }
                 break;
             }
-            case PICKUP_ALIGN:
-            {
+            case PICKUP_ALIGN: {
                 state_machine_message.data = "PICKUP_ALIGN";
-                if(!pickupAlignInited) {
-					start_theta = resource_tag_yaw_error;
-					pickupAlignInited = true;
-				}
-                if (home_encountered)
-                {
+                if (!pickupAlignInited) {
+                    start_theta = resource_tag_yaw_error;
+                    pickupAlignInited = true;
+                }
+                if (home_encountered) {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     desired_heading = GetNewHeading(home_tag_side);
                     breakout_counter = 0;
-                    state_machine_state = SEARCH_OBSTACLE_AVOIDANCE; 
-                }
-                else if (obstacle_encountered && SIMULATOR)
-                {
+                    state_machine_state = SEARCH_OBSTACLE_AVOIDANCE;
+                } else if (obstacle_encountered && SIMULATOR) {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     desired_heading = GetNewHeading(obs_side);
                     breakout_counter = 0;
                     state_machine_state = SEARCH_OBSTACLE_AVOIDANCE;
-                }
-                else if (fabs(resource_tag_yaw_error) < PICKUP_ALIGN_THRESHOLD) {
+                } else if (fabs(resource_tag_yaw_error) < PICKUP_ALIGN_THRESHOLD) {
                     openFingers();
                     lowerWrist();
                     cout << "aligned" << endl;
@@ -850,116 +989,97 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     lost_frame_count = 0;
                     state_machine_state = PICKUP_FORWARD;
 
-                    if (no_resource_tags_counter > NO_TAGS_COUNTER_THRESHOLD)
-                    {
+                    if (no_resource_tags_counter > NO_TAGS_COUNTER_THRESHOLD) {
                         resource_encountered = false;
                         cout << "aligned but LOST THE CUBE ROTATE 90" << endl;
                         if ((resource_tag_yaw_error / fabs(resource_tag_yaw_error)) == 1) {
-                            desired_heading = Wrap(M_PI/2 + current_location_odom.theta);
-                        }
-                        else if ((resource_tag_yaw_error / fabs(resource_tag_yaw_error)) == -1) {
-                            desired_heading = Wrap(M_PI/2 - current_location_odom.theta);
+                            desired_heading = Wrap(M_PI / 2 + current_location_odom.theta);
+                        } else if ((resource_tag_yaw_error / fabs(resource_tag_yaw_error)) == -1) {
+                            desired_heading = Wrap(M_PI / 2 - current_location_odom.theta);
                         }
                         state_machine_state = PICKUP_ROTATE_90;
                     }
-                }
-                else {
-                    if (no_resource_tags_counter > NO_TAGS_COUNTER_THRESHOLD)
-                    {
+                } else {
+                    if (no_resource_tags_counter > NO_TAGS_COUNTER_THRESHOLD) {
                         resource_encountered = false;
                         cout << "while aligning LOST THE CUBE ROTATE 90" << endl;
                         if ((resource_tag_yaw_error / fabs(resource_tag_yaw_error)) == 1) {
-                            desired_heading = Wrap(M_PI/2 + current_location_odom.theta);
-                        }
-                        else if ((resource_tag_yaw_error / fabs(resource_tag_yaw_error)) == -1) {
-                            desired_heading = Wrap(M_PI/2 - current_location_odom.theta);
+                            desired_heading = Wrap(M_PI / 2 + current_location_odom.theta);
+                        } else if ((resource_tag_yaw_error / fabs(resource_tag_yaw_error)) == -1) {
+                            desired_heading = Wrap(M_PI / 2 - current_location_odom.theta);
                         }
                         state_machine_state = PICKUP_ROTATE_90;
                     }
                     linear_velocity = 0.0;
-                    if(fabs(start_theta - resource_tag_yaw_error) > 0.5) {
-                        angular_velocity = -PICKUP_ALIGN_K * (resource_tag_yaw_error); //if pos k, will turn opposite direction
-					} else {
-						angular_velocity = -PICKUP_ALIGN_LOW_K * (resource_tag_yaw_error);
-					}
-                }  
-                if(PickupBreakout()) {
+                    if (fabs(start_theta - resource_tag_yaw_error) > 0.5) {
+                        angular_velocity =
+                                -PICKUP_ALIGN_K * (resource_tag_yaw_error); //if pos k, will turn opposite direction
+                    } else {
+                        angular_velocity = -PICKUP_ALIGN_LOW_K * (resource_tag_yaw_error);
+                    }
+                }
+                if (PickupBreakout()) {
                     ResetFlags();
                     state_machine_state = SEARCH;
                 }
                 break;
             }
-            case PICKUP_ROTATE_90:
-            {
+            case PICKUP_ROTATE_90: {
                 state_machine_message.data = "PICKUP_ROTATE_90";
                 linear_velocity = 0.0;
-                if (home_encountered)
-                {
+                if (home_encountered) {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     desired_heading = GetNewHeading(home_tag_side);
                     breakout_counter = 0;
-                    state_machine_state = SEARCH_OBSTACLE_AVOIDANCE;                     
-                }
-                else if (obstacle_encountered)
-                {
+                    state_machine_state = SEARCH_OBSTACLE_AVOIDANCE;
+                } else if (obstacle_encountered) {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     desired_heading = GetNewHeading(obs_side);
                     breakout_counter = 0;
                     state_machine_state = SEARCH_OBSTACLE_AVOIDANCE;
-                }
-                else if (resource_encountered)
-                {
+                } else if (resource_encountered) {
                     //desired alignment heading is set in AprilTagHandler "resource_tag_yaw_error"
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     state_machine_state = PICKUP_ALIGN;
-                }
-                else {
-                    if (fabs(desired_heading - current_location_odom.theta < ROTATE_90_THRESHOLD))
-                    {
+                } else {
+                    if (fabs(desired_heading - current_location_odom.theta < ROTATE_90_THRESHOLD)) {
                         cout << "rotated 90 and saw no cube" << endl;
                         resource_encountered = false;
                         angular_velocity = 0.0;
                         breakout_counter = 0;
                         state_machine_state = SEARCH;
-                    }
-                    else
-                    {
+                    } else {
                         angular_velocity = ROTATE_90_K * Wrap(desired_heading - current_location_odom.theta);
                     }
                 }
-                if(PickupBreakout()){
+                if (PickupBreakout()) {
                     ResetFlags();
                     state_machine_state = SEARCH;
                 }
                 break;
             }
-            case PICKUP_FORWARD:
-            {
+            case PICKUP_FORWARD: {
                 state_machine_message.data = "PICKUP_FORWARD";
                 TRIGGER_DISTANCE = .3;
-                if (hypot(current_location_odom.x - home_goal_location.x, current_location_odom.y - home_goal_location.y) < HOME_FIELD_DISTANCE)
-                {
+                if (hypot(current_location_odom.x - home_goal_location.x,
+                          current_location_odom.y - home_goal_location.y) < HOME_FIELD_DISTANCE) {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     desired_heading = GetNewHeading(CENTER);
                     breakout_counter = 0;
                     state_machine_state = SEARCH_OBSTACLE_AVOIDANCE;
-                }
-                else if (home_encountered)
-                {
+                } else if (home_encountered) {
                     resource_encountered = false;
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     TRIGGER_DISTANCE = .6; // set sonar distance back
                     desired_heading = GetNewHeading(home_tag_side);
                     breakout_counter = 0;
-                    state_machine_state = SEARCH_OBSTACLE_AVOIDANCE; 
-                }
-                else if (obstacle_encountered && SIMULATOR)
-                {
+                    state_machine_state = SEARCH_OBSTACLE_AVOIDANCE;
+                } else if (obstacle_encountered && SIMULATOR) {
                     resource_encountered = false;
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
@@ -968,41 +1088,44 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     breakout_counter = 0;
                     state_machine_state = SEARCH_OBSTACLE_AVOIDANCE;
                 }
-				/*else if (distance_to_resource_tag < 0) {
-					lost_frame_count++;
-					linear_velocity = 0.2;
-                    angular_velocity =  0.0;
-				}*/
-                else if (distance_to_resource_tag < PICKUP_DISTANCE_THRESHOLD || lost_frame_count > 3) { //firedrill; stop moving, drop claw, roll forward
+                    /*else if (distance_to_resource_tag < 0) {
+                        lost_frame_count++;
+                        linear_velocity = 0.2;
+                        angular_velocity =  0.0;
+                    }*/
+                else if (distance_to_resource_tag < PICKUP_DISTANCE_THRESHOLD ||
+                         lost_frame_count > 3) { //firedrill; stop moving, drop claw, roll forward
                     cout << "distance travelled going to blind driving" << endl;
                     lost_frame_count = 0;
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
-                    pickup_goal_location.x = current_location_odom.x + (distance_to_resource_tag + .09) * cos(current_location_odom.theta);
-                    pickup_goal_location.y = current_location_odom.y + (distance_to_resource_tag + .09) * sin(current_location_odom.theta);
-                    desired_distance = hypot(current_location_odom.x - pickup_goal_location.x,current_location_odom.y - pickup_goal_location.y); //needs to backup a little more
+                    pickup_goal_location.x = current_location_odom.x +
+                                             (distance_to_resource_tag + .09) * cos(current_location_odom.theta);
+                    pickup_goal_location.y = current_location_odom.y +
+                                             (distance_to_resource_tag + .09) * sin(current_location_odom.theta);
+                    desired_distance = hypot(current_location_odom.x - pickup_goal_location.x, current_location_odom.y -
+                                                                                               pickup_goal_location.y); //needs to backup a little more
                     starting_drive_location.x = current_location_odom.x;
                     starting_drive_location.y = current_location_odom.y;
                     //still need to set sonar back but do it after blind drive and after closing fingers
-                    if(SIMULATOR) {
-						state_machine_state = PICKUP_BLIND_DRIVE;
-					} else {
-						state_machine_state = PICKUP_CLOSE_GRIPPER;
-					}
-                }
-                else {
-					//lost_frame_count = 0;
+                    if (SIMULATOR) {
+                        state_machine_state = PICKUP_BLIND_DRIVE;
+                    } else {
+                        state_machine_state = PICKUP_CLOSE_GRIPPER;
+                    }
+                } else {
+                    //lost_frame_count = 0;
                     linear_velocity = PICKUP_FORWARD_K * (distance_to_resource_tag);
-                    angular_velocity =  -PICKUP_ALIGN_K * (resource_tag_yaw_error); //if pos k, will turn opposite direction
+                    angular_velocity =
+                            -PICKUP_ALIGN_K * (resource_tag_yaw_error); //if pos k, will turn opposite direction
                 }
-                if(PickupBreakout()){
+                if (PickupBreakout()) {
                     ResetFlags();
                     state_machine_state = SEARCH;
                 }
                 break;
             }
-            case PICKUP_BLIND_DRIVE:
-            {
+            case PICKUP_BLIND_DRIVE: {
                 state_machine_message.data = "PICKUP_BLIND_DRIVE";
                 //if (hypot(current_location_odom.x-pickup_goal_location.x,current_location_odom.y-pickup_goal_location.y) < PICKUP_BLIND_THRESHOLD) {
                 if (CheckDriveDistance(desired_distance - PICKUP_BLIND_THRESHOLD)) {
@@ -1010,23 +1133,22 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     state_machine_state = PICKUP_CLOSE_GRIPPER;
-                }
-                else {
-                    linear_velocity = PICKUP_BLIND_K * hypot(current_location_odom.x-pickup_goal_location.x,current_location_odom.y-pickup_goal_location.y);
+                } else {
+                    linear_velocity = PICKUP_BLIND_K * hypot(current_location_odom.x - pickup_goal_location.x,
+                                                             current_location_odom.y - pickup_goal_location.y);
                     angular_velocity = 0.0;
                 }
-                if(PickupBreakout()){
+                if (PickupBreakout()) {
                     ResetFlags();
                     state_machine_state = SEARCH;
                 }
                 break;
             }
-            case PICKUP_CLOSE_GRIPPER:
-            {
+            case PICKUP_CLOSE_GRIPPER: {
                 state_machine_message.data = "PICKUP_CLOSE_GRIPPER";
                 closeFingers();
                 TRIGGER_DISTANCE = .6; // set sonar distance back
-                
+
                 if (gripper_counter == 10) {
                     starting_drive_location.x = current_location_odom.x;
                     starting_drive_location.y = current_location_odom.y;
@@ -1036,46 +1158,45 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                         temp_resource_location.x = current_location_odom.x + (.15) * cos(current_location_odom.theta);
                         temp_resource_location.y = current_location_odom.y + (.15) * sin(current_location_odom.theta);
                         temp_resource_location.theta = current_location_odom.theta;
-                        cout << "publishing resource location " << temp_resource_location.x << ", " << temp_resource_location.y << endl;
+                        cout << "publishing resource location " << temp_resource_location.x << ", "
+                             << temp_resource_location.y << endl;
                         recruitment_publisher.publish(temp_resource_location);
                     }
                     state_machine_state = PICKUP_BACKUP_RAISE_GRIPPER;
-                }
-                else {
+                } else {
                     gripper_counter++;
                 }
                 cluster_location.x = current_location_odom.x;
                 cluster_location.y = current_location_odom.y;
-                if(PickupBreakout()){
+                if (PickupBreakout()) {
                     ResetFlags();
                     state_machine_state = SEARCH;
                 }
                 break;
             }
-            case PICKUP_BACKUP_RAISE_GRIPPER:
-            {
+            case PICKUP_BACKUP_RAISE_GRIPPER: {
                 //back up distance needs to be increased
                 state_machine_message.data = "PICKUP_BACKUP_RAISE_GRIPPER";
                 raiseWrist();
                 //if (desired_distance - hypot(current_location_odom.x-cluster_location.x,current_location_odom.y-cluster_location.y) < PICKUP_BACKUP_THRESHOLD) {
-                if (CheckDriveDistance(desired_distance - PICKUP_BACKUP_THRESHOLD)) {  
+                if (CheckDriveDistance(desired_distance - PICKUP_BACKUP_THRESHOLD)) {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     desired_distance = 0.0;
                     state_machine_state = PICKUP_WAIT_TO_RAISE_GRIPPER;
-                }
-                else {
-                    linear_velocity = -PICKUP_BACKUP_K * (desired_distance - hypot(current_location_odom.x-cluster_location.x,current_location_odom.y-cluster_location.y));
+                } else {
+                    linear_velocity = -PICKUP_BACKUP_K * (desired_distance -
+                                                          hypot(current_location_odom.x - cluster_location.x,
+                                                                current_location_odom.y - cluster_location.y));
                     angular_velocity = 0.0;
                 }
-                if(PickupBreakout()){
+                if (PickupBreakout()) {
                     ResetFlags();
                     state_machine_state = SEARCH;
                 }
                 break;
             }
-            case PICKUP_WAIT_TO_RAISE_GRIPPER:
-            {
+            case PICKUP_WAIT_TO_RAISE_GRIPPER: {
                 state_machine_message.data = "PICKUP_WAIT_TO_RAISE_GRIPPER";
                 //check for cube here
                 if (gripper_counter == 0) {
@@ -1088,105 +1209,100 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                         temp_anchor.y = anchor_location.y;
                         temp_anchor.theta = anchor_location.theta;
                         //claim_anchor_point_publisher.publish(temp_anchor);
-                        desired_heading = atan2(anchor_location.y - current_location_ekf.y, anchor_location.x - current_location_ekf.x);
+                        desired_heading = atan2(anchor_location.y - current_location_ekf.y,
+                                                anchor_location.x - current_location_ekf.x);
                         breakout_counter = 0;
                         state_machine_state = ANCHOR_POINT_ALIGN;
-                    }
-                    else if (no_resource_tags_counter == 0) { //not holding but there are tags in view
+                    } else if (no_resource_tags_counter == 0) { //not holding but there are tags in view
                         cout << "done waiting not holding a cube, but still see a tag" << endl;
                         resource_encountered = false;
                         //state_machine_state = PICKUP_ALIGN;
                         state_machine_state = RESOURCE_HELD_CHECK;
-                    }
-                    else { // no tags seen in view and not holding
+                    } else { // no tags seen in view and not holding
                         cout << "done waiting not holding a cube, dont see any tags" << endl;
                         resource_encountered = false;
                         breakout_counter = 0;
                         state_machine_state = SEARCH;
                     }
-                }
-                else {
+                } else {
                     gripper_counter--;
-                    if (center_resource_distance < .0015 && center_resource_distance != 0 || center_sonar_distance < SONAR_RESOURCE_RANGE_THRESHOLD) {
+                    if (center_resource_distance < .0015 && center_resource_distance != 0 ||
+                        center_sonar_distance < SONAR_RESOURCE_RANGE_THRESHOLD) {
                         resource_held = true;
                     }
                 }
-                if(PickupBreakout()){
+                if (PickupBreakout()) {
                     ResetFlags();
                     state_machine_state = SEARCH;
                 }
                 break;
             }
-            case ANCHOR_POINT_ALIGN:
-            {
+            case ANCHOR_POINT_ALIGN: {
                 state_machine_message.data = "ANCHOR_POINT_ALIGN";
                 linear_velocity = 0.0;
                 if (home_encountered) {
                     cout << "encountered home during align" << endl;
                     angular_velocity = 0.0;
-                    desired_heading = atan2(home_goal_location.y - current_location_odom.y, home_goal_location.x - current_location_odom.x);
+                    desired_heading = atan2(home_goal_location.y - current_location_odom.y,
+                                            home_goal_location.x - current_location_odom.x);
                     breakout_counter = 0;
                     state_machine_state = DROPOFF_ALIGN;
                     // desired heading will be set by AprilTagHandler, home_tag_yaw_error
-                }
-                else if (fabs(desired_heading - current_location_ekf.theta) < ANCHOR_POINT_ALIGN_THRESHOLD) {
+                } else if (fabs(desired_heading - current_location_ekf.theta) < ANCHOR_POINT_ALIGN_THRESHOLD) {
                     angular_velocity = 0.0;
                     cout << "aligned to anchorpoint" << endl;
                     state_machine_state = RESOURCE_HELD_CHECK;
-                }
-                else {
-                    angular_velocity = ANCHOR_POINT_ALIGN_K * Wrap(desired_heading - current_location_odom.theta);                   
+                } else {
+                    angular_velocity = ANCHOR_POINT_ALIGN_K * Wrap(desired_heading - current_location_odom.theta);
                 }
                 break;
             }
-            case ANCHOR_POINT_FORWARD:
-            {
+            case ANCHOR_POINT_FORWARD: {
                 state_machine_message.data = "ANCHOR_POINT_FORWARD";
                 centerWrist();
                 if (obstacle_encountered) {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
-                    desired_heading = Wrap(current_location_odom.theta + ((M_PI/180)*TRAVERSAL_ROTATION_DEGREES));
+                    desired_heading = Wrap(current_location_odom.theta + ((M_PI / 180) * TRAVERSAL_ROTATION_DEGREES));
                     cout << "encountered an obstacle or tag, rotating 20 deg" << desired_heading << endl;
                     state_machine_state = ANCHOR_POINT_TRAVERSE_ROTATE;
-                }
-                else if (home_encountered) { //gets here when travelling home and you see home
+                } else if (home_encountered) { //gets here when travelling home and you see home
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     cout << "encountered home during drive, ready to dropOff" << endl;
-                    desired_heading = atan2(home_goal_location.y - current_location_odom.y, home_goal_location.x - current_location_odom.x);
+                    desired_heading = atan2(home_goal_location.y - current_location_odom.y,
+                                            home_goal_location.x - current_location_odom.x);
                     breakout_counter = 0;
                     state_machine_state = DROPOFF_ALIGN;
                     //desired heading will be set by AprilTagHandler, home_tag_yaw_error
-                }
-                else if (resource_held_counter == 50) {
+                } else if (resource_held_counter == 50) {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     cout << "checking for resource held" << endl;
                     resource_held = false; // assume resource held false
                     state_machine_state = RESOURCE_HELD_CHECK;
-                }
-                else {
-                    if (hypot(anchor_location.x - current_location_ekf.x, anchor_location.y - current_location_ekf.y) < ANCHOR_POINT_FORWARD_THRESHOLD) {
+                } else {
+                    if (hypot(anchor_location.x - current_location_ekf.x, anchor_location.y - current_location_ekf.y) <
+                        ANCHOR_POINT_FORWARD_THRESHOLD) {
                         linear_velocity = 0.0;
                         angular_velocity = 0.0;
                         resource_held_counter = 0;
                         cout << "reached anchor point" << endl;
-                        desired_heading = atan2(home_goal_location.y - current_location_odom.y, home_goal_location.x - current_location_odom.x);
+                        desired_heading = atan2(home_goal_location.y - current_location_odom.y,
+                                                home_goal_location.x - current_location_odom.x);
                         breakout_counter = 0;
                         state_machine_state = GO_HOME_ALIGN;
                         //need to search for home here
-                    }
-                    else {
-                        linear_velocity = ANCHOR_POINT_FORWARD_K * hypot(anchor_location.x - current_location_odom.x, anchor_location.y - current_location_odom.y);
+                    } else {
+                        linear_velocity = ANCHOR_POINT_FORWARD_K * hypot(anchor_location.x - current_location_odom.x,
+                                                                         anchor_location.y - current_location_odom.y);
                         angular_velocity = ANCHOR_POINT_ALIGN_K * Wrap(desired_heading - current_location_odom.theta);
                         resource_held_counter++;
                     }
                 }
                 break;
             }
-            case RESOURCE_HELD_CHECK:
-            {
+            case RESOURCE_HELD_CHECK: {
                 state_machine_message.data = "RESOURCE_HELD_CHECK";
                 raiseWrist();
                 resource_held_counter = 0;
@@ -1195,146 +1311,141 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     if (resource_held) {
                         centerWrist();
                         state_machine_state = ANCHOR_POINT_FORWARD;
-                    }
-                    else {
+                    } else {
                         cout << "resource not held anymore" << endl;
                         resource_encountered = false;
                         openFingers();
-                        desired_heading = atan2(cluster_location.y - current_location_odom.y, cluster_location.x - current_location_odom.x);
+                        desired_heading = atan2(cluster_location.y - current_location_odom.y,
+                                                cluster_location.x - current_location_odom.x);
                         state_machine_state = CLUSTER_ALIGN;
                     }
-                }
-                else {
+                } else {
                     resource_check_wait_counter--;
-                    if ((center_resource_distance < .0015 && center_resource_distance != 0 || center_sonar_distance < SONAR_RESOURCE_RANGE_THRESHOLD) && (count_resource_tags > 0 || SIMULATOR)) {
+                    if ((center_resource_distance < .0015 && center_resource_distance != 0 ||
+                         center_sonar_distance < SONAR_RESOURCE_RANGE_THRESHOLD) &&
+                        (count_resource_tags > 0 || SIMULATOR)) {
                         resource_held = true;
                     }
                 }
                 break;
             }
-            case GO_HOME_ALIGN:
-            {
+            case GO_HOME_ALIGN: {
                 state_machine_message.data = "GO_HOME_ALIGN";
                 linear_velocity = 0.0;
                 if (home_encountered) {
                     cout << "encountered home during align" << endl;
                     angular_velocity = 0.0;
-                    desired_heading = atan2(home_goal_location.y - current_location_odom.y, home_goal_location.x - current_location_odom.x);
+                    desired_heading = atan2(home_goal_location.y - current_location_odom.y,
+                                            home_goal_location.x - current_location_odom.x);
                     state_machine_state = DROPOFF_ALIGN;
-                }
-                else if (fabs(desired_heading - current_location_odom.theta) < GO_HOME_ALIGN_THRESHOLD) {
+                } else if (fabs(desired_heading - current_location_odom.theta) < GO_HOME_ALIGN_THRESHOLD) {
                     angular_velocity = 0.0;
                     cout << "aligned to home" << endl;
-                    
+
                     state_machine_state = GO_HOME_DRIVE;
-                }
-                else {
+                } else {
                     angular_velocity = GO_HOME_ALIGN_K * Wrap(desired_heading - current_location_odom.theta);
                 }
                 break;
             }
-            case GO_HOME_DRIVE:
-            {
+            case GO_HOME_DRIVE: {
                 state_machine_message.data = "GO_HOME_DRIVE";
 
                 if (obstacle_encountered) {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
-                    desired_heading = Wrap(current_location_odom.theta + ((M_PI/180)*TRAVERSAL_ROTATION_DEGREES));
+                    desired_heading = Wrap(current_location_odom.theta + ((M_PI / 180) * TRAVERSAL_ROTATION_DEGREES));
                     cout << "encountered an obstacle or tag, rotating 20 deg" << desired_heading << endl;
                     state_machine_state = GO_HOME_TRAVERSE_ROTATE;
-                }
-                else if (home_encountered) {
+                } else if (home_encountered) {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     cout << "encountered home during drive, ready to dropOff" << endl;
-                    desired_heading = atan2(home_goal_location.y - current_location_odom.y, home_goal_location.x - current_location_odom.x);
+                    desired_heading = atan2(home_goal_location.y - current_location_odom.y,
+                                            home_goal_location.x - current_location_odom.x);
                     state_machine_state = DROPOFF_ALIGN;
                     //desired heading will be set by AprilTagHandler, home_tag_yaw_error
-                }
-                else if (count_resource_tags >= MAX_TAG_COUNT) { //for testing needs to change
+                } else if (count_resource_tags >= MAX_TAG_COUNT) { //for testing needs to change
                     cout << "seen exactly " << count_resource_tags << "tags " << endl;
                     cout << "STOP seen a lot of cubes and no home tags " << endl;
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     state_machine_state = RESOURCES_COVERING_HOME_ALIGN;
-                }
-                else {
-                    if (hypot(home_goal_location.x - current_location_ekf.x, home_goal_location.y - current_location_ekf.y) < GO_HOME_FORWARD_THRESHOLD) {
+                } else {
+                    if (hypot(home_goal_location.x - current_location_ekf.x,
+                              home_goal_location.y - current_location_ekf.y) < GO_HOME_FORWARD_THRESHOLD) {
                         linear_velocity = 0.0;
                         angular_velocity = 0.0;
                         cout << "reached home point, don't see home" << endl;
                         lost_home = true;
-                        desired_heading = Wrap(M_PI/2 + current_location_odom.theta);
+                        desired_heading = Wrap(M_PI / 2 + current_location_odom.theta);
                         state_machine_state = SEARCH_HOME_ROTATE;
-                    }
-                    else {
-                        linear_velocity = GO_HOME_FORWARD_K * hypot(home_goal_location.x - current_location_odom.x, home_goal_location.y - current_location_odom.y);
+                    } else {
+                        linear_velocity = GO_HOME_FORWARD_K * hypot(home_goal_location.x - current_location_odom.x,
+                                                                    home_goal_location.y - current_location_odom.y);
                         angular_velocity = GO_HOME_ALIGN_K * Wrap(desired_heading - current_location_odom.theta);
                     }
                 }
                 break;
             }
-            case RESOURCES_COVERING_HOME_ALIGN:
-            {
+            case RESOURCES_COVERING_HOME_ALIGN: {
                 state_machine_message.data = "RESOURCES_COVERING_HOME_ALIGN";
-                if (home_encountered)
-                {
+                if (home_encountered) {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
-                    desired_heading = atan2(home_goal_location.y - current_location_odom.y, home_goal_location.x - current_location_odom.x);
-                    
-                    state_machine_state = DROPOFF_ALIGN; 
-                }
-                else if (fabs(resource_tag_yaw_error_not_held) < RESOURCES_COVERING_HOME_ALIGN_THRESHOLD) {
-                    
+                    desired_heading = atan2(home_goal_location.y - current_location_odom.y,
+                                            home_goal_location.x - current_location_odom.x);
+
+                    state_machine_state = DROPOFF_ALIGN;
+                } else if (fabs(resource_tag_yaw_error_not_held) < RESOURCES_COVERING_HOME_ALIGN_THRESHOLD) {
+
                     cout << "aligned to stack RESOURCES_COVERING_HOME_ALIGN" << endl;
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     wrist_raise_counter = 10;
-                    
+
                     state_machine_state = RESOURCES_COVERING_HOME_FORWARD;
-                }
-                else {
+                } else {
                     linear_velocity = 0.0;
-                    angular_velocity = -RESOURCES_COVERING_HOME_ALIGN_K * (resource_tag_yaw_error_not_held); //if pos k, will turn opposite direction
-                    if (no_resource_tags_counter > NO_TAGS_COUNTER_THRESHOLD)
-                    { 
+                    angular_velocity = -RESOURCES_COVERING_HOME_ALIGN_K *
+                                       (resource_tag_yaw_error_not_held); //if pos k, will turn opposite direction
+                    if (no_resource_tags_counter > NO_TAGS_COUNTER_THRESHOLD) {
                         angular_velocity = 0.0;
                         state_machine_state = RESOURCES_COVERING_HOME_BACKUP;
                     }
                 }
                 break;
             }
-            case RESOURCES_COVERING_HOME_FORWARD:
-            {
+            case RESOURCES_COVERING_HOME_FORWARD: {
                 state_machine_message.data = "RESOURCES_COVERING_HOME_FORWARD";
-                if (distance_to_resource_tag_not_held < RESOURCES_COVERING_HOME_THRESHOLD) { //firedrill; stop moving, drop claw, roll forward
+                if (distance_to_resource_tag_not_held <
+                    RESOURCES_COVERING_HOME_THRESHOLD) { //firedrill; stop moving, drop claw, roll forward
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
-                    resource_covering_home.x = current_location_odom.x + (distance_to_resource_tag_not_held + .08) * cos(current_location_odom.theta);
-                    resource_covering_home.y = current_location_odom.y + (distance_to_resource_tag_not_held + .08) * sin(current_location_odom.theta);
-                    desired_distance = hypot(current_location_odom.x-resource_covering_home.x,current_location_odom.y-resource_covering_home.y); //needs to backup a little more
+                    resource_covering_home.x = current_location_odom.x + (distance_to_resource_tag_not_held + .08) *
+                                                                         cos(current_location_odom.theta);
+                    resource_covering_home.y = current_location_odom.y + (distance_to_resource_tag_not_held + .08) *
+                                                                         sin(current_location_odom.theta);
+                    desired_distance = hypot(current_location_odom.x - resource_covering_home.x,
+                                             current_location_odom.y -
+                                             resource_covering_home.y); //needs to backup a little more
                     starting_drive_location.x = current_location_odom.x;
                     starting_drive_location.y = current_location_odom.y;
                     cout << "Forward drive complete, blind driving" << endl;
                     if (wrist_raise_counter <= 0) {
                         wrist_raise_counter = 10;
                         state_machine_state = RESOURCES_COVERING_HOME_BLIND_DRIVE;
-                    }
-                    else {
+                    } else {
                         raiseWrist();
                         wrist_raise_counter--;
                     }
-                }
-                else {
+                } else {
                     linear_velocity = RESOURCES_COVERING_HOME_FORWARD_K * (distance_to_resource_tag_not_held);
-                    angular_velocity =  0.0; //if pos k, will turn opposite direction
+                    angular_velocity = 0.0; //if pos k, will turn opposite direction
                 }
                 break;
             }
-            case RESOURCES_COVERING_HOME_BLIND_DRIVE:
-            {
+            case RESOURCES_COVERING_HOME_BLIND_DRIVE: {
                 state_machine_message.data = "RESOURCES_COVERING_BLIND_DRIVE";
                 if (CheckDriveDistance(.08)) {
                     cout << "blind drive is done, open claw - then going to backup" << endl;
@@ -1342,127 +1453,118 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     angular_velocity = 0.0;
                     openFingers();
                     state_machine_state = RESOURCES_COVERING_HOME_BACKUP;
-                }
-                else {
+                } else {
                     linear_velocity = RESOURCES_COVERING_HOME_BLIND_K;// * hypot(current_location_odom.x-resource_covering_home.x,current_location_odom.y-resource_covering_home.y);
                     angular_velocity = 0.0;
                 }
                 break;
             }
-            case RESOURCES_COVERING_HOME_BACKUP:
-            {
+            case RESOURCES_COVERING_HOME_BACKUP: {
                 state_machine_message.data = "RESOURCES_COVERING_HOME_BACKUP";
                 lowerWrist();
-                if (CheckDriveDistance(.35)) {  
+                if (CheckDriveDistance(.35)) {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     desired_distance = 0.0;
                     cout << "Back up complete, going to cluster align" << endl;
                     resource_held = false;
                     resource_encountered = false;
-                    desired_heading = atan2(cluster_location.y - current_location_odom.y, cluster_location.x - current_location_odom.x);
+                    desired_heading = atan2(cluster_location.y - current_location_odom.y,
+                                            cluster_location.x - current_location_odom.x);
                     state_machine_state = CLUSTER_ALIGN;
-                }
-                else {
+                } else {
                     linear_velocity = -RESOURCES_COVERING_HOME_BACKUP_K;
                     angular_velocity = 0.0;
                 }
                 break;
             }
-            case SEARCH_HOME_ROTATE:
-            {
+            case SEARCH_HOME_ROTATE: {
                 state_machine_message.data = "SEARCH_HOME_ROTATE";
                 linear_velocity = 0.0;
-                if (home_encountered)
-                {
+                if (home_encountered) {
                     search_home_forward_counter = 0;
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
-                    desired_heading = atan2(home_goal_location.y - current_location_odom.y, home_goal_location.x - current_location_odom.x);
-                    state_machine_state = DROPOFF_ALIGN; 
-                }
-                else {
-                    if (fabs(desired_heading - current_location_odom.theta) < SEARCH_HOME_ROTATE_THRESHOLD)
-                    {
-                        cout << "desired heading in search forward " << desired_heading << " current heading " << current_location_odom.theta << endl;
+                    desired_heading = atan2(home_goal_location.y - current_location_odom.y,
+                                            home_goal_location.x - current_location_odom.x);
+                    state_machine_state = DROPOFF_ALIGN;
+                } else {
+                    if (fabs(desired_heading - current_location_odom.theta) < SEARCH_HOME_ROTATE_THRESHOLD) {
+                        cout << "desired heading in search forward " << desired_heading << " current heading "
+                             << current_location_odom.theta << endl;
                         cout << "rotated 90 searching for home" << endl;
                         angular_velocity = 0.0;
-                        desired_distance = search_home_forward_counter/2; 
-                        cout << "desired distance " << desired_distance << "search_home_forward_counter " << search_home_forward_counter << endl;
+                        desired_distance = search_home_forward_counter / 2;
+                        cout << "desired distance " << desired_distance << "search_home_forward_counter "
+                             << search_home_forward_counter << endl;
                         starting_drive_location.x = current_location_odom.x;
                         starting_drive_location.y = current_location_odom.y;
                         state_machine_state = SEARCH_HOME_FORWARD;
-                    }
-                    else
-                    {
-                        angular_velocity = SEARCH_HOME_ROTATE_K * Wrap(desired_heading-current_location_odom.theta);
+                    } else {
+                        angular_velocity = SEARCH_HOME_ROTATE_K * Wrap(desired_heading - current_location_odom.theta);
                         cout << "angular velocity in search home align " << angular_velocity << endl;
                         linear_velocity = 0.0;
                     }
                 }
                 break;
             }
-            case SEARCH_HOME_FORWARD:
-            {
+            case SEARCH_HOME_FORWARD: {
                 state_machine_message.data = "SEARCH_HOME_FORWARD";
                 if (home_encountered) {
                     search_home_forward_counter = 2;
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
-                    desired_heading = atan2(home_goal_location.y - current_location_odom.y, home_goal_location.x - current_location_odom.x);
+                    desired_heading = atan2(home_goal_location.y - current_location_odom.y,
+                                            home_goal_location.x - current_location_odom.x);
                     state_machine_state = DROPOFF_ALIGN;
-                }
-                else if (obstacle_encountered) {
+                } else if (obstacle_encountered) {
                     search_home_forward_counter = 2;
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     state_machine_state = SEARCH_HOME_OBSTACLE_WAIT;
-                }
-                else {
-                    cout << "desired distance in forward " << desired_distance << " search_home_forward_counter " << search_home_forward_counter << endl;
+                } else {
+                    cout << "desired distance in forward " << desired_distance << " search_home_forward_counter "
+                         << search_home_forward_counter << endl;
                     if (CheckDriveDistance(desired_distance)) {
                         linear_velocity = 0.0;
                         angular_velocity = 0.0;
-                        desired_heading = Wrap(M_PI/2 + current_location_odom.theta);
+                        desired_heading = Wrap(M_PI / 2 + current_location_odom.theta);
                         search_home_forward_counter++;
-                        cout << "desired heading in search forward " << desired_heading << " current heading " << current_location_odom.theta << endl;
+                        cout << "desired heading in search forward " << desired_heading << " current heading "
+                             << current_location_odom.theta << endl;
                         state_machine_state = SEARCH_HOME_ROTATE;
-                    }
-                    else {
+                    } else {
                         linear_velocity = SEARCH_HOME_FORWARD_K;
                         angular_velocity = 0.0;
                     }
                 }
                 break;
             }
-            case SEARCH_HOME_OBSTACLE_WAIT:
-            {
+            case SEARCH_HOME_OBSTACLE_WAIT: {
                 state_machine_message.data = "SEARCH_HOME_OBSTACLE_WAIT";
                 if (search_wait_counter >= 100) {
                     search_wait_counter = 0;
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     state_machine_state = SEARCH_HOME;
-                }
-                else {
+                } else {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     search_wait_counter++;
                 }
                 break;
             }
-            case SEARCH_HOME:
-            {
+            case SEARCH_HOME: {
                 state_machine_message.data = "SEARCH_HOME";
                 linear_velocity = 0.1;
                 angular_velocity = 0.0;
                 if (home_encountered) {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
-                    desired_heading = atan2(home_goal_location.y - current_location_odom.y, home_goal_location.x - current_location_odom.x);
+                    desired_heading = atan2(home_goal_location.y - current_location_odom.y,
+                                            home_goal_location.x - current_location_odom.x);
                     state_machine_state = DROPOFF_ALIGN;
-                }
-                else if (obstacle_encountered) {
+                } else if (obstacle_encountered) {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     desired_heading = GetNewHeading(obs_side);
@@ -1470,11 +1572,9 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                 }
                 break;
             }
-            case SEARCH_HOME_OBSTACLE_AVOIDANCE:
-            {
+            case SEARCH_HOME_OBSTACLE_AVOIDANCE: {
                 state_machine_message.data = "SEARCH_HOME_OBSTACLE_AVOIDANCE";
-                if (fabs(desired_heading - current_location_odom.theta) < OBS_THRESHOLD)
-                {
+                if (fabs(desired_heading - current_location_odom.theta) < OBS_THRESHOLD) {
                     //reset detection sides
                     obs_side = NONE;
                     home_tag_side = NONE;
@@ -1484,141 +1584,141 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     state_machine_state = SEARCH_HOME;
-                }
-                else
-                { 
+                } else {
                     linear_velocity = 0.0;
                     angular_velocity = OBS_K * Wrap(desired_heading - current_location_odom.theta); // k*error
                 }
                 break;
             }
-            case ANCHOR_POINT_TRAVERSE_ROTATE:
-            {
+            case ANCHOR_POINT_TRAVERSE_ROTATE: {
                 state_machine_message.data = "ANCHOR_POINT_TRAVERSE_ROTATE";
                 if (fabs(desired_heading - current_location_odom.theta) < ANCHOR_POINT_TRAVERSE_ROTATE_THRESHOLD) {
                     angular_velocity = 0.0;
                     linear_velocity = 0.0;
                     cout << "rotated 20 degrees" << endl;
                     desired_distance = TRAVERSE_FORWARD_DISTANCE;
-                    traverse_goal_location.x = current_location_odom.x + desired_distance * cos(current_location_odom.theta);
-                    traverse_goal_location.y = current_location_odom.y + desired_distance * sin(current_location_odom.theta);
+                    traverse_goal_location.x =
+                            current_location_odom.x + desired_distance * cos(current_location_odom.theta);
+                    traverse_goal_location.y =
+                            current_location_odom.y + desired_distance * sin(current_location_odom.theta);
                     obstacle_encountered = false;
-					if(AnchorPointBreakout()){
-						ResetFlags();
-						lost_home = true;
-						state_machine_state = SEARCH_HOME;
-					}
-					else {
-						state_machine_state = ANCHOR_POINT_TRAVERSE_FORWARD;
-					}
-                }
-                else {
-                    angular_velocity = ANCHOR_POINT_TRAVERSE_ROTATE_K * Wrap(desired_heading - current_location_odom.theta);
+                    if (AnchorPointBreakout()) {
+                        ResetFlags();
+                        lost_home = true;
+                        state_machine_state = SEARCH_HOME;
+                    } else {
+                        state_machine_state = ANCHOR_POINT_TRAVERSE_FORWARD;
+                    }
+                } else {
+                    angular_velocity =
+                            ANCHOR_POINT_TRAVERSE_ROTATE_K * Wrap(desired_heading - current_location_odom.theta);
                     linear_velocity = 0.0;
                 }
                 break;
             }
-            case ANCHOR_POINT_TRAVERSE_FORWARD:
-            {
+            case ANCHOR_POINT_TRAVERSE_FORWARD: {
                 state_machine_message.data = "ANCHOR_POINT_TRAVERSE_FORWARD";
                 if (obstacle_encountered) {
-                        angular_velocity = 0.0;
-                        linear_velocity = 0.0;
-                        desired_heading = Wrap(current_location_odom.theta + ((M_PI/180)*TRAVERSAL_ROTATION_DEGREES));
-                        cout << "another obstacle in anchor point traverse forward" << endl;
-						if(AnchorPointBreakout()){
-							ResetFlags();
-							lost_home = true;
-							state_machine_state = SEARCH_HOME;
-						}
-						else {
-							state_machine_state = ANCHOR_POINT_TRAVERSE_ROTATE;
-						}
-                }
-                else if (hypot(traverse_goal_location.x - current_location_odom.x, traverse_goal_location.y - current_location_odom.y) < ANCHOR_POINT_TRAVERSE_FORWARD_THRESHOLD) {
                     angular_velocity = 0.0;
                     linear_velocity = 0.0;
-                    desired_heading = atan2(anchor_location.y - current_location_ekf.y, anchor_location.x - current_location_ekf.x);
-                    state_machine_state = ANCHOR_POINT_ALIGN;
-                }
-                else {
+                    desired_heading = Wrap(current_location_odom.theta + ((M_PI / 180) * TRAVERSAL_ROTATION_DEGREES));
+                    cout << "another obstacle in anchor point traverse forward" << endl;
+                    if (AnchorPointBreakout()) {
+                        ResetFlags();
+                        lost_home = true;
+                        state_machine_state = SEARCH_HOME;
+                    } else {
+                        state_machine_state = ANCHOR_POINT_TRAVERSE_ROTATE;
+                    }
+                } else if (hypot(traverse_goal_location.x - current_location_odom.x,
+                                 traverse_goal_location.y - current_location_odom.y) <
+                           ANCHOR_POINT_TRAVERSE_FORWARD_THRESHOLD) {
                     angular_velocity = 0.0;
-                    linear_velocity = ANCHOR_POINT_TRAVERSE_FORWARD_K * (hypot(traverse_goal_location.x - current_location_odom.x, traverse_goal_location.y - current_location_odom.y)); 
+                    linear_velocity = 0.0;
+                    desired_heading = atan2(anchor_location.y - current_location_ekf.y,
+                                            anchor_location.x - current_location_ekf.x);
+                    state_machine_state = ANCHOR_POINT_ALIGN;
+                } else {
+                    angular_velocity = 0.0;
+                    linear_velocity = ANCHOR_POINT_TRAVERSE_FORWARD_K *
+                                      (hypot(traverse_goal_location.x - current_location_odom.x,
+                                             traverse_goal_location.y - current_location_odom.y));
                 }
                 break;
             }
-            case GO_HOME_TRAVERSE_ROTATE:
-            {
+            case GO_HOME_TRAVERSE_ROTATE: {
                 state_machine_message.data = "GO_HOME_TRAVERSE_ROTATE";
                 if (fabs(desired_heading - current_location_odom.theta) < GO_HOME_TRAVERSE_ROTATE_THRESHOLD) {
                     angular_velocity = 0.0;
                     linear_velocity = 0.0;
                     desired_distance = TRAVERSE_FORWARD_DISTANCE;
-                    traverse_goal_location.x = current_location_odom.x + desired_distance * cos(current_location_odom.theta);
-                    traverse_goal_location.y = current_location_odom.y + desired_distance * sin(current_location_odom.theta);
+                    traverse_goal_location.x =
+                            current_location_odom.x + desired_distance * cos(current_location_odom.theta);
+                    traverse_goal_location.y =
+                            current_location_odom.y + desired_distance * sin(current_location_odom.theta);
                     obstacle_encountered = false;
-                    
+
                     state_machine_state = GO_HOME_TRAVERSE_FORWARD;
-                }
-                else {
+                } else {
                     angular_velocity = GO_HOME_TRAVERSE_ROTATE_K * Wrap(desired_heading - current_location_odom.theta);
                     linear_velocity = 0.0;
                 }
                 break;
             }
-            case GO_HOME_TRAVERSE_FORWARD:
-            {
+            case GO_HOME_TRAVERSE_FORWARD: {
                 state_machine_message.data = "GO_HOME_TRAVERSE_FORWARD";
                 if (obstacle_encountered) {
-                        angular_velocity = 0.0;
-                        linear_velocity = 0.0;
-                        desired_heading = Wrap(current_location_odom.theta + ((M_PI/180)*TRAVERSAL_ROTATION_DEGREES));
-                        cout << "another obstacle in traverse forward" << endl;
-                        state_machine_state = GO_HOME_TRAVERSE_ROTATE;
-                }
-                else if (hypot(traverse_goal_location.x - current_location_odom.x, traverse_goal_location.y - current_location_odom.y) < GO_HOME_TRAVERSE_FORWARD_THRESHOLD) {
                     angular_velocity = 0.0;
                     linear_velocity = 0.0;
-                    desired_heading = atan2(anchor_location.y - current_location_ekf.y, anchor_location.x - current_location_ekf.x);
-                    state_machine_state = ANCHOR_POINT_ALIGN;
-                }
-                else {
+                    desired_heading = Wrap(current_location_odom.theta + ((M_PI / 180) * TRAVERSAL_ROTATION_DEGREES));
+                    cout << "another obstacle in traverse forward" << endl;
+                    state_machine_state = GO_HOME_TRAVERSE_ROTATE;
+                } else if (hypot(traverse_goal_location.x - current_location_odom.x,
+                                 traverse_goal_location.y - current_location_odom.y) <
+                           GO_HOME_TRAVERSE_FORWARD_THRESHOLD) {
                     angular_velocity = 0.0;
-                    linear_velocity = GO_HOME_TRAVERSE_FORWARD_K * (hypot(traverse_goal_location.x - current_location_odom.x, traverse_goal_location.y - current_location_odom.y)); 
+                    linear_velocity = 0.0;
+                    desired_heading = atan2(anchor_location.y - current_location_ekf.y,
+                                            anchor_location.x - current_location_ekf.x);
+                    state_machine_state = ANCHOR_POINT_ALIGN;
+                } else {
+                    angular_velocity = 0.0;
+                    linear_velocity = GO_HOME_TRAVERSE_FORWARD_K *
+                                      (hypot(traverse_goal_location.x - current_location_odom.x,
+                                             traverse_goal_location.y - current_location_odom.y));
                 }
                 break;
             }
-            case DROPOFF_ALIGN:
-            {
+            case DROPOFF_ALIGN: {
                 state_machine_message.data = "DROPOFF_ALIGN";
                 // we see home tag already
                 linear_velocity = 0.0;
                 if (fabs(average_home_tag.getPositionX()) < DROPOFF_ALIGN_THRESHOLD) {
                     angular_velocity = 0.0;
                     cout << "aligned to home from DROPOFF_ALIGN" << endl;
-                    dropoff_goal_location.x = current_location_odom.x + (distance_to_home_tag + .12) * cos(current_location_odom.theta);
-                    dropoff_goal_location.y = current_location_odom.y + (distance_to_home_tag + .12) * sin(current_location_odom.theta);
-                    desired_distance = hypot(current_location_odom.x-dropoff_goal_location.x,current_location_odom.y-dropoff_goal_location.y) + .15;
+                    dropoff_goal_location.x =
+                            current_location_odom.x + (distance_to_home_tag + .12) * cos(current_location_odom.theta);
+                    dropoff_goal_location.y =
+                            current_location_odom.y + (distance_to_home_tag + .12) * sin(current_location_odom.theta);
+                    desired_distance = hypot(current_location_odom.x - dropoff_goal_location.x,
+                                             current_location_odom.y - dropoff_goal_location.y) + .15;
                     dropoff_backup_location.x = current_location_odom.x;
                     dropoff_backup_location.y = current_location_odom.y;
                     raiseWrist();
                     starting_drive_location.x = current_location_odom.x;
                     starting_drive_location.y = current_location_odom.y;
                     state_machine_state = DROPOFF_FORWARD;
-                }
-		else if(count_home_tags == 0) {
-			state_machine_state = SEARCH_HOME;
-		}
-                else {
+                } else if (count_home_tags == 0) {
+                    state_machine_state = SEARCH_HOME;
+                } else {
                     angular_velocity = -DROPOFF_ALIGN_K * home_tag_yaw_error;
                 }
                 break;
             }
-            case DROPOFF_FORWARD:
-            {
+            case DROPOFF_FORWARD: {
                 state_machine_message.data = "DROPOFF_FORWARD";
                 //if (hypot(current_location_odom.x-dropoff_goal_location.x,current_location_odom.y-dropoff_goal_location.y) < .1) { //firedrill; stop moving, drop claw, roll forward
-                if (CheckDriveDistance(desired_distance - .25)) {  
+                if (CheckDriveDistance(desired_distance - .25)) {
                     cout << "distance travelled, DROPOFF_FORWARD" << endl;
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
@@ -1628,23 +1728,28 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     if (lost_home) {
                         SubtractLocationOffset();
                         cout << "current location x before open claws " << current_location_odom.x << endl;
-                        location_offset_odom.x = -(0.5 * cos(current_location_odom.theta) + current_location_odom.x) + location_offset_odom.x;
-                        location_offset_odom.y = -(0.5 * sin(current_location_odom.theta) + current_location_odom.y) + location_offset_odom.y;
-                        location_offset_ekf.x = -(0.5 * cos(current_location_ekf.theta) + current_location_ekf.x) + location_offset_ekf.x;
-                        location_offset_ekf.y = -(0.5 * sin(current_location_ekf.theta) + current_location_ekf.y) + location_offset_ekf.y;
+                        location_offset_odom.x = -(0.5 * cos(current_location_odom.theta) + current_location_odom.x) +
+                                                 location_offset_odom.x;
+                        location_offset_odom.y = -(0.5 * sin(current_location_odom.theta) + current_location_odom.y) +
+                                                 location_offset_odom.y;
+                        location_offset_ekf.x = -(0.5 * cos(current_location_ekf.theta) + current_location_ekf.x) +
+                                                location_offset_ekf.x;
+                        location_offset_ekf.y = -(0.5 * sin(current_location_ekf.theta) + current_location_ekf.y) +
+                                                location_offset_ekf.y;
                         cout << "current location x after open claws " << current_location_odom.x << endl;
-                        cout << "location offset odom x " << location_offset_odom.x << "location offset ekf " << location_offset_ekf.x << endl;
+                        cout << "location offset odom x " << location_offset_odom.x << "location offset ekf "
+                             << location_offset_ekf.x << endl;
                         AddLocationOffset();
-                     }
+                    }
                     lost_home = false;
                     cout << "desired_distance " << desired_distance << endl;
                     state_machine_state = DROPOFF_BACKUP_OPEN_GRIPPER;
+                } else {
+                    linear_velocity = DROPOFF_FORWARD_K * (hypot(current_location_odom.x - dropoff_goal_location.x,
+                                                                 current_location_odom.y - dropoff_goal_location.y));
+                    angular_velocity = 0.0; //-DROPOFF_ALIGN_K * (home_tag_yaw_error); //if pos k, will turn opposite direction
                 }
-                else {
-                    linear_velocity = DROPOFF_FORWARD_K * (hypot(current_location_odom.x-dropoff_goal_location.x,current_location_odom.y-dropoff_goal_location.y));
-                    angular_velocity =  0.0; //-DROPOFF_ALIGN_K * (home_tag_yaw_error); //if pos k, will turn opposite direction
-                }
-                if(DropOffBreakout()){
+                if (DropOffBreakout()) {
                     openFingers();
                     //unclaim any anchor points
                     // geometry_msgs::Pose2D temp_anchor;
@@ -1660,12 +1765,11 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                 }
                 break;
             }
-            case DROPOFF_BACKUP_OPEN_GRIPPER:
-            {
+            case DROPOFF_BACKUP_OPEN_GRIPPER: {
                 state_machine_message.data = "DROPOFF_BACKUP_OPEN_GRIPPER";
                 raiseWrist();
                 //if (desired_distance - hypot(current_location_odom.x-dropoff_backup_location.x,current_location_odom.y-dropoff_backup_location.y) < .1) {
-                if (CheckDriveDistance(.35)){  
+                if (CheckDriveDistance(.35)) {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     desired_distance = 0.0;
@@ -1677,24 +1781,21 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     temp_anchor.theta = anchor_location.theta;
                     //unclaim_anchor_point_publisher.publish(temp_anchor);
                     if (SITE_FIDELITY) {
-                        desired_heading = atan2(cluster_location.y - current_location_odom.y, cluster_location.x - current_location_odom.x);
+                        desired_heading = atan2(cluster_location.y - current_location_odom.y,
+                                                cluster_location.x - current_location_odom.x);
                         state_machine_state = CLUSTER_ALIGN;
-                    }
-                    else
-                    {
+                    } else {
                         state_machine_state = SEARCH;
                     }
-                }
-                else {
+                } else {
                     linear_velocity = -DROPOFF_BACKUP_K; //* (desired_distance - hypot(current_location_odom.x-dropoff_backup_location.x,current_location_odom.y-dropoff_backup_location.y));
                     angular_velocity = 0.0;
                 }
                 break;
             }
-            case CLUSTER_ALIGN:
-            {
+            case CLUSTER_ALIGN: {
                 state_machine_message.data = "CLUSTER_ALIGN";
-                
+
                 resource_encountered = false;
                 if (fabs(desired_heading - current_location_odom.theta) < CLUSTER_ALIGN_THRESHOLD) {
                     geometry_msgs::Pose2D temp_anchor;
@@ -1704,11 +1805,11 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     //unclaim_anchor_point_publisher.publish(temp_anchor); //duplicated from backup, needs to be sure to unclaim if you drop a cube while going home
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
-                    desired_distance = hypot(current_location_odom.x - cluster_location.x, current_location_odom.y - cluster_location.y);
+                    desired_distance = hypot(current_location_odom.x - cluster_location.x,
+                                             current_location_odom.y - cluster_location.y);
                     home_encountered = false;
-                    state_machine_state = CLUSTER_FORWARD; 
-                }
-                else {
+                    state_machine_state = CLUSTER_FORWARD;
+                } else {
                     angular_velocity = CLUSTER_ALIGN_K * Wrap(desired_heading - current_location_odom.theta);
                     linear_velocity = 0.0;
                 }
@@ -1724,30 +1825,27 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                 }
                 break;
             }
-            case CLUSTER_FORWARD:
-            {
+            case CLUSTER_FORWARD: {
                 state_machine_message.data = "CLUSTER_FORWARD";
                 if (home_encountered) {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
-                    desired_heading = Wrap(current_location_odom.theta + ((M_PI/180)*TRAVERSAL_ROTATION_DEGREES));
+                    desired_heading = Wrap(current_location_odom.theta + ((M_PI / 180) * TRAVERSAL_ROTATION_DEGREES));
                     cout << "encountered home on way to cluster, rotating 20 deg" << desired_heading << endl;
                     state_machine_state = CLUSTER_TRAVERSE_ROTATE;
-                }
-                else if (obstacle_encountered) {
+                } else if (obstacle_encountered) {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
-                    desired_heading = Wrap(current_location_odom.theta + ((M_PI/180)*TRAVERSAL_ROTATION_DEGREES));
+                    desired_heading = Wrap(current_location_odom.theta + ((M_PI / 180) * TRAVERSAL_ROTATION_DEGREES));
                     cout << "encountered obstacle on way to cluster, rotating 20 deg" << desired_heading << endl;
                     state_machine_state = CLUSTER_TRAVERSE_ROTATE;
-                }
-                else if (resource_encountered) {
+                } else if (resource_encountered) {
                     linear_velocity = 0.0;
                     angular_velocity - 0.0;
                     breakout_counter = 0;
                     state_machine_state = PICKUP_ALIGN;
-                }
-                else if (hypot(current_location_odom.x - cluster_location.x, current_location_odom.y - cluster_location.y) < .1) {
+                } else if (hypot(current_location_odom.x - cluster_location.x,
+                                 current_location_odom.y - cluster_location.y) < .1) {
                     linear_velocity = 0.0;
                     angular_velocity = 0.0;
                     cout << "reached the cluster location" << endl;
@@ -1756,15 +1854,15 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     //state_machine_state = CLUSTER_SWEEP;
                     breakout_counter = 0;
                     state_machine_state = SEARCH;
-                }
-                else {
-                    linear_velocity = CLUSTER_FORWARD_K * hypot(cluster_location.x - current_location_odom.x, cluster_location.y - current_location_odom.y);
+                } else {
+                    linear_velocity = CLUSTER_FORWARD_K * hypot(cluster_location.x - current_location_odom.x,
+                                                                cluster_location.y - current_location_odom.y);
                     angular_velocity = CLUSTER_ALIGN_K * Wrap(desired_heading - current_location_odom.theta);
                 }
                 break;
             }
-            //case CLUSTER_SWEEP:
-            //{
+                //case CLUSTER_SWEEP:
+                //{
                 // state_machine_message.data = "CLUSTER_SWEEP";
                 // if (resource_encountered) {
                 //     linear_velocity = 0.0;
@@ -1793,9 +1891,8 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                 //     }
                 // }
                 // break;
-            //}
-            case CLUSTER_TRAVERSE_ROTATE:
-            {
+                //}
+            case CLUSTER_TRAVERSE_ROTATE: {
                 state_machine_message.data = "CLUSTER_TRAVERSE_ROTATE";
                 if (fabs(desired_heading - current_location_odom.theta) < ANCHOR_POINT_TRAVERSE_ROTATE_THRESHOLD) {
                     angular_velocity = 0.0;
@@ -1803,130 +1900,126 @@ void BehaviourStateMachine(const ros::TimerEvent&)
                     cout << "rotated 20 degrees" << endl;
                     desired_distance = TRAVERSE_FORWARD_DISTANCE;
                     // possibly rename this variable, also used in ANCHOR_POINT_TRAVERSE_ROTATE
-                    traverse_goal_location.x = current_location_odom.x + desired_distance * cos(current_location_odom.theta);
-                    traverse_goal_location.y = current_location_odom.y + desired_distance * sin(current_location_odom.theta);
+                    traverse_goal_location.x =
+                            current_location_odom.x + desired_distance * cos(current_location_odom.theta);
+                    traverse_goal_location.y =
+                            current_location_odom.y + desired_distance * sin(current_location_odom.theta);
                     obstacle_encountered = false;
                     home_encountered = false;
-                    if(ClusterBreakout()){
+                    if (ClusterBreakout()) {
                         ResetFlags();
                         state_machine_state = SEARCH;
-                    }
-                    else state_machine_state = CLUSTER_TRAVERSE_FORWARD;
-                }
-                else {
+                    } else state_machine_state = CLUSTER_TRAVERSE_FORWARD;
+                } else {
                     angular_velocity = .4 * Wrap(desired_heading - current_location_odom.theta);
                     linear_velocity = 0.0;
                 }
                 break;
             }
-            case CLUSTER_TRAVERSE_FORWARD:
-            {
+            case CLUSTER_TRAVERSE_FORWARD: {
                 state_machine_message.data = "CLUSTER_TRAVERSE_FORWARD";
                 if (obstacle_encountered) {
                     angular_velocity = 0.0;
                     linear_velocity = 0.0;
-                    desired_heading = Wrap(current_location_odom.theta + ((M_PI/180)*TRAVERSAL_ROTATION_DEGREES));
+                    desired_heading = Wrap(current_location_odom.theta + ((M_PI / 180) * TRAVERSAL_ROTATION_DEGREES));
                     cout << "another obstacle in anchor point traverse forward" << endl;
-					if(ClusterBreakout()){
-						ResetFlags();
-						state_machine_state = SEARCH;
-					}
+                    if (ClusterBreakout()) {
+                        ResetFlags();
+                        state_machine_state = SEARCH;
+                    }
                     state_machine_state = CLUSTER_TRAVERSE_ROTATE;
-                }
-                else if (home_encountered) {
+                } else if (home_encountered) {
                     angular_velocity = 0.0;
                     linear_velocity = 0.0;
-                    desired_heading = Wrap(current_location_odom.theta + ((M_PI/180)*TRAVERSAL_ROTATION_DEGREES));
+                    desired_heading = Wrap(current_location_odom.theta + ((M_PI / 180) * TRAVERSAL_ROTATION_DEGREES));
                     cout << "home was seen during traversal towards cluster_location" << endl;
-					if(ClusterBreakout()){
-						ResetFlags();
-						state_machine_state = SEARCH;
-					}
-					else state_machine_state = CLUSTER_TRAVERSE_ROTATE;
-                }
-                else if (hypot(traverse_goal_location.x - current_location_odom.x, traverse_goal_location.y - current_location_odom.y) < ANCHOR_POINT_TRAVERSE_FORWARD_THRESHOLD) {
+                    if (ClusterBreakout()) {
+                        ResetFlags();
+                        state_machine_state = SEARCH;
+                    } else state_machine_state = CLUSTER_TRAVERSE_ROTATE;
+                } else if (hypot(traverse_goal_location.x - current_location_odom.x,
+                                 traverse_goal_location.y - current_location_odom.y) <
+                           ANCHOR_POINT_TRAVERSE_FORWARD_THRESHOLD) {
                     angular_velocity = 0.0;
                     linear_velocity = 0.0;
-                    desired_heading = atan2(cluster_location.y - current_location_ekf.y, cluster_location.x - current_location_ekf.x);
+                    desired_heading = atan2(cluster_location.y - current_location_ekf.y,
+                                            cluster_location.x - current_location_ekf.x);
                     state_machine_state = CLUSTER_ALIGN;
-                }
-                else {
+                } else {
                     angular_velocity = 0.0;
-                    linear_velocity = .3 * (hypot(traverse_goal_location.x - current_location_odom.x, traverse_goal_location.y - current_location_odom.y)); 
+                    linear_velocity = .3 * (hypot(traverse_goal_location.x - current_location_odom.x,
+                                                  traverse_goal_location.y - current_location_odom.y));
                 }
                 break;
             }
-            default:
-            {
+            default: {
                 state_machine_message.data = "DEFAULT HIT";
                 break;
             }
         } /* end of switch() */
-        ActuatorOutput(linear_velocity,angular_velocity);
+        ActuatorOutput(linear_velocity, angular_velocity);
 
-    /*bool wait = false;	//a variable created to check if we are in a waiting state
-    
-    //do this when wait behaviour happens
-    if (wait)
+        /*bool wait = false;	//a variable created to check if we are in a waiting state
+
+        //do this when wait behaviour happens
+        if (wait)
+        {
+          sendDriveCommand(0.0,0.0);
+          std_msgs::Float32 angle;
+
+          angle.data = prevFinger;
+          finger_angle_publisher.publish(angle);
+          angle.data = prevWrist;
+          wrist_angle_publisher.publish(angle);
+        }*/
+
+        //collision_msg.data = logicController.getCollisionCalls();
+        //obstaclePublisher.publish(collision_msg);
+        //publishHandeling here
+        //logicController.getPublishData(); //Not Currently Implemented, used to get data from logic controller and publish to the appropriate ROS Topic; Suggested
+
+
+        //adds a blank space between sets of debugging data to easily tell one tick from the next
+        //cout << endl;
+
+    }
+
+        // mode is NOT auto
+    else    //manual mode
     {
-      sendDriveCommand(0.0,0.0);
-      std_msgs::Float32 angle;
-      
-      angle.data = prevFinger;
-      finger_angle_publisher.publish(angle);
-      angle.data = prevWrist;
-      wrist_angle_publisher.publish(angle);
-    }*/
-    
-    //collision_msg.data = logicController.getCollisionCalls();
-    //obstaclePublisher.publish(collision_msg);
-    //publishHandeling here
-    //logicController.getPublishData(); //Not Currently Implemented, used to get data from logic controller and publish to the appropriate ROS Topic; Suggested
-    
-    
-    //adds a blank space between sets of debugging data to easily tell one tick from the next
-    //cout << endl;
-    
-  }
-  
-  // mode is NOT auto
-  else	//manual mode
-  {
-    humanTime();
+        humanTime();
 
-    //logicController.SetCurrentTimeInMilliSecs( GetROSTimeInMilliSecs() );
+        //logicController.SetCurrentTimeInMilliSecs( GetROSTimeInMilliSecs() );
 
-    // publish current state for the operator to see
-    state_machine_message.data = "WAITING";
+        // publish current state for the operator to see
+        state_machine_message.data = "WAITING";
 
-    //openFingers();
-    state_machine_state = INIT;
-  }
+        //openFingers();
+        state_machine_state = INIT;
+    }
 
-  // publish state machine string for user, only if it has changed, though
-  state_machine_publisher.publish(state_machine_message);
+    // publish state machine string for user, only if it has changed, though
+    state_machine_publisher.publish(state_machine_message);
 
-  if (last_state.compare(state_machine_message.data) != 0)
-  {
-    last_state = state_machine_message.data;
-    StateLogger((state_machine_message.data));
-  }
+    if (last_state.compare(state_machine_message.data) != 0) {
+        last_state = state_machine_message.data;
+        StateLogger((state_machine_message.data));
+    }
 }
 
-void sendDriveCommand(double left, double right)
-{
-  swarmie_msgs::Skid skid_command;
-  skid_command.left  = left;
-  skid_command.right = right;
-  // publish the drive commands
-  drive_control_publisher.publish(skid_command);
+void sendDriveCommand(double left, double right) {
+    swarmie_msgs::Skid skid_command;
+    skid_command.left = left;
+    skid_command.right = right;
+    // publish the drive commands
+    drive_control_publisher.publish(skid_command);
 }
 
 /*************************
  * ROS CALLBACK HANDLERS *
  *************************/
 
-void AprilTagHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& message) {
+void AprilTagHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr &message) {
 
     float sum_x = 0.0;
     float sum_y = 0.0;
@@ -1942,7 +2035,7 @@ void AprilTagHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& mess
     float distance_to_closest_resource_tag_not_held = std::numeric_limits<double>::max();
     int index_of_closest_resource_tag = -1;
     int index_of_closest_resource_tag_not_held = -1;
-    
+
     if (message->detections.size() > 0) {
         vector<Tag> home_tags;
         vector<Tag> resource_tags;
@@ -1952,72 +2045,63 @@ void AprilTagHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& mess
 
             // Package up the ROS AprilTag data into our own type that does not rely on ROS.
             Tag detected_tag;
-            detected_tag.setID( message->detections[i].id );
+            detected_tag.setID(message->detections[i].id);
 
             // Pass the position of the AprilTag
             geometry_msgs::PoseStamped tagPose = message->detections[i].pose;
-            detected_tag.setPosition( make_tuple( tagPose.pose.position.x,
-                                     tagPose.pose.position.y,
-                                     tagPose.pose.position.z ) );
+            detected_tag.setPosition(make_tuple(tagPose.pose.position.x,
+                                                tagPose.pose.position.y,
+                                                tagPose.pose.position.z));
 
             // Pass the orientation of the AprilTag
-            detected_tag.setOrientation( ::boost::math::quaternion<float>( tagPose.pose.orientation.x,
-                                                              tagPose.pose.orientation.y,
-                                                              tagPose.pose.orientation.z,
-                                                              tagPose.pose.orientation.w ) );
-        
+            detected_tag.setOrientation(::boost::math::quaternion<float>(tagPose.pose.orientation.x,
+                                                                         tagPose.pose.orientation.y,
+                                                                         tagPose.pose.orientation.z,
+                                                                         tagPose.pose.orientation.w));
 
-            
 
             if (message->detections[i].id == 256) {
-              count_home_tags++;
-		      if (detected_tag.calcYaw() < 0)
-              {
-                in_home_tags++;
-			  }
-              else {
-                out_home_tags++;
-              }
+                count_home_tags++;
+                if (detected_tag.calcYaw() < 0) {
+                    in_home_tags++;
+                } else {
+                    out_home_tags++;
+                }
 
-              sum_x = sum_x + detected_tag.getPositionX();
-              sum_y = sum_y + detected_tag.getPositionY();
-              sum_z = sum_z + detected_tag.getPositionZ();
-              home_tags.push_back(detected_tag);
-            }
-            else
-            {
-              count_resource_tags++;
-              double distant_to_detected_tag = hypot(hypot(detected_tag.getPositionX(), detected_tag.getPositionY()), detected_tag.getPositionZ());
-              if(fabs(detected_tag.getPositionX())<0.25){
-                  candidate_resource_tags.push_back(detected_tag);
-                  if(detected_tag.getPositionY()<-.02){
-                      candidate_resource_tags_not_held.push_back(detected_tag);
-                  }
-              }
-              else if (distance_to_closest_resource_tag > distant_to_detected_tag){
-                  index_of_closest_resource_tag = i;
-                  distance_to_closest_resource_tag = distant_to_detected_tag;
-                  if(detected_tag.getPositionY()<-.02){
-                      distance_to_closest_resource_tag_not_held = distant_to_detected_tag;
-                      index_of_closest_resource_tag_not_held = distant_to_detected_tag;
-                  }
-              }
-              resource_tags.push_back(detected_tag);
+                sum_x = sum_x + detected_tag.getPositionX();
+                sum_y = sum_y + detected_tag.getPositionY();
+                sum_z = sum_z + detected_tag.getPositionZ();
+                home_tags.push_back(detected_tag);
+            } else {
+                count_resource_tags++;
+                double distant_to_detected_tag = hypot(hypot(detected_tag.getPositionX(), detected_tag.getPositionY()),
+                                                       detected_tag.getPositionZ());
+                if (fabs(detected_tag.getPositionX()) < 0.25) {
+                    candidate_resource_tags.push_back(detected_tag);
+                    if (detected_tag.getPositionY() < -.02) {
+                        candidate_resource_tags_not_held.push_back(detected_tag);
+                    }
+                } else if (distance_to_closest_resource_tag > distant_to_detected_tag) {
+                    index_of_closest_resource_tag = i;
+                    distance_to_closest_resource_tag = distant_to_detected_tag;
+                    if (detected_tag.getPositionY() < -.02) {
+                        distance_to_closest_resource_tag_not_held = distant_to_detected_tag;
+                        index_of_closest_resource_tag_not_held = distant_to_detected_tag;
+                    }
+                }
+                resource_tags.push_back(detected_tag);
             }
         } // for loop end
 
-		if(SIMULATOR) {
-			if (in_home_tags > out_home_tags)
-			{   
-				SEARCH_K = -1;
-				inside_home = true;
-			}
-			else
-			{
-				SEARCH_K = 1;
-				inside_home = false;
-			}
-		}
+        if (SIMULATOR) {
+            if (in_home_tags > out_home_tags) {
+                SEARCH_K = -1;
+                inside_home = true;
+            } else {
+                SEARCH_K = 1;
+                inside_home = false;
+            }
+        }
 
         if (count_home_tags > 0) {
             home_encountered = true;
@@ -2035,68 +2119,72 @@ void AprilTagHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& mess
             // a is the linear distance from the robot to the block, c is the
             // distance from the camera lens, and b is the height of the
             // camera above the ground.
-            distance_to_home_tag_from_camera = hypot(hypot(average_home_tag.getPositionX(), average_home_tag.getPositionY()),
-                                            average_home_tag.getPositionZ());
+            distance_to_home_tag_from_camera = hypot(
+                    hypot(average_home_tag.getPositionX(), average_home_tag.getPositionY()),
+                    average_home_tag.getPositionZ());
 
 
-            if ((distance_to_home_tag_from_camera * distance_to_home_tag_from_camera - CAMERA_HEIGHT_IN_CM * CAMERA_HEIGHT_IN_CM) > 0) {
-                distance_to_home_tag = sqrt(distance_to_home_tag_from_camera * distance_to_home_tag_from_camera - CAMERA_HEIGHT_IN_CM * CAMERA_HEIGHT_IN_CM);
+            if ((distance_to_home_tag_from_camera * distance_to_home_tag_from_camera -
+                 CAMERA_HEIGHT_IN_CM * CAMERA_HEIGHT_IN_CM) > 0) {
+                distance_to_home_tag = sqrt(distance_to_home_tag_from_camera * distance_to_home_tag_from_camera -
+                                            CAMERA_HEIGHT_IN_CM * CAMERA_HEIGHT_IN_CM);
             } else {
                 float epsilon = 0.00001; // A small non-zero positive number
                 distance_to_home_tag = epsilon;
             }
-            home_tag_yaw_error = atan((average_home_tag.getPositionX() + CAMERA_OFFSET_CORRECTION) / distance_to_home_tag) * 1.05; //angle to block from bottom center of chassis on the horizontal.
+            home_tag_yaw_error =
+                    atan((average_home_tag.getPositionX() + CAMERA_OFFSET_CORRECTION) / distance_to_home_tag) *
+                    1.05; //angle to block from bottom center of chassis on the horizontal.
 
-            if (home_tag_yaw_error < -0.1 ){
-              home_tag_side = LEFT;
+            if (home_tag_yaw_error < -0.1) {
+                home_tag_side = LEFT;
+            } else if (home_tag_yaw_error >= -0.1 && home_tag_yaw_error <= 0.1) {
+                home_tag_side = CENTER;
+            } else {
+                home_tag_side = RIGHT;
             }
-            else if(home_tag_yaw_error >= -0.1 && home_tag_yaw_error <= 0.1){
-              home_tag_side = CENTER;
-            }
-            else{
-              home_tag_side = RIGHT;
-            }
-        }
-        else {
-          average_home_tag.setPositionX(1000);
-          average_home_tag.setPositionY(1000);
-          average_home_tag.setPositionZ(1000);
+        } else {
+            average_home_tag.setPositionX(1000);
+            average_home_tag.setPositionY(1000);
+            average_home_tag.setPositionZ(1000);
         }
 
         if (count_resource_tags > 0) {
             resource_encountered = true;
 
-            if(candidate_resource_tags.size() > 0) {
-                float closest_candidate_tag_distance = std::numeric_limits<double>::max(); 
+            if (candidate_resource_tags.size() > 0) {
+                float closest_candidate_tag_distance = std::numeric_limits<double>::max();
                 int target_idx = -1;
                 //this loop selects the closest visible block that is near the center of the screen to makes goals for it
-                for ( int i = 0; i < candidate_resource_tags.size(); i++ ) {
-                    float current_tag_distance = hypot(hypot(candidate_resource_tags[i].getPositionX(), candidate_resource_tags[i].getPositionY()), candidate_resource_tags[i].getPositionZ());
-                    if (closest_candidate_tag_distance > current_tag_distance)
-                    {
+                for (int i = 0; i < candidate_resource_tags.size(); i++) {
+                    float current_tag_distance = hypot(
+                            hypot(candidate_resource_tags[i].getPositionX(), candidate_resource_tags[i].getPositionY()),
+                            candidate_resource_tags[i].getPositionZ());
+                    if (closest_candidate_tag_distance > current_tag_distance) {
                         target_idx = i;
                         closest_candidate_tag_distance = current_tag_distance;
                     }
                     chosen_tag = candidate_resource_tags[target_idx];
-                }    
+                }
             } else {
                 chosen_tag = resource_tags[index_of_closest_resource_tag];
             }
 
             //want tag that is close to center but not in gripper
-            if(candidate_resource_tags_not_held.size() > 0) {
+            if (candidate_resource_tags_not_held.size() > 0) {
                 float closest_candidate_tag_distance_not_held = std::numeric_limits<double>::max();
                 int target_idx = -1;
-                for ( int i = 0; i < candidate_resource_tags.size(); i++ ) {
-                    float current_tag_distance = hypot(hypot(candidate_resource_tags_not_held[i].getPositionX(), candidate_resource_tags_not_held[i].getPositionY()), candidate_resource_tags_not_held[i].getPositionZ());
+                for (int i = 0; i < candidate_resource_tags.size(); i++) {
+                    float current_tag_distance = hypot(hypot(candidate_resource_tags_not_held[i].getPositionX(),
+                                                             candidate_resource_tags_not_held[i].getPositionY()),
+                                                       candidate_resource_tags_not_held[i].getPositionZ());
                     if (closest_candidate_tag_distance_not_held > current_tag_distance) {
                         target_idx = i;
                         closest_candidate_tag_distance_not_held = current_tag_distance;
                     }
                     chosen_tag_not_held = candidate_resource_tags_not_held[target_idx];
                 }
-            }
-            else {
+            } else {
                 chosen_tag_not_held = resource_tags[index_of_closest_resource_tag_not_held];
             }
 
@@ -2111,10 +2199,13 @@ void AprilTagHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& mess
             // distance from the camera lens, and b is the height of the
             // camera above the ground.
             distance_to_resource_tag_from_camera = hypot(hypot(chosen_tag.getPositionX(), chosen_tag.getPositionY()),
-                                            chosen_tag.getPositionZ());
+                                                         chosen_tag.getPositionZ());
 
-            if ((distance_to_resource_tag_from_camera * distance_to_resource_tag_from_camera - CAMERA_HEIGHT_IN_CM * CAMERA_HEIGHT_IN_CM) > 0) {
-                distance_to_resource_tag = sqrt(distance_to_resource_tag_from_camera * distance_to_resource_tag_from_camera - CAMERA_HEIGHT_IN_CM * CAMERA_HEIGHT_IN_CM);
+            if ((distance_to_resource_tag_from_camera * distance_to_resource_tag_from_camera -
+                 CAMERA_HEIGHT_IN_CM * CAMERA_HEIGHT_IN_CM) > 0) {
+                distance_to_resource_tag = sqrt(
+                        distance_to_resource_tag_from_camera * distance_to_resource_tag_from_camera -
+                        CAMERA_HEIGHT_IN_CM * CAMERA_HEIGHT_IN_CM);
             } else {
                 float epsilon = 0.00001; // A small non-zero positive number
                 distance_to_resource_tag = epsilon;
@@ -2126,48 +2217,51 @@ void AprilTagHandler(const apriltags_ros::AprilTagDetectionArray::ConstPtr& mess
             // lol wut
 
 
-            distance_to_resource_tag_from_camera_not_held = hypot(hypot(chosen_tag.getPositionX(), chosen_tag.getPositionY()),
-                                            chosen_tag.getPositionZ());
+            distance_to_resource_tag_from_camera_not_held = hypot(
+                    hypot(chosen_tag.getPositionX(), chosen_tag.getPositionY()),
+                    chosen_tag.getPositionZ());
 
-            if ((distance_to_resource_tag_from_camera_not_held * distance_to_resource_tag_from_camera_not_held - CAMERA_HEIGHT_IN_CM * CAMERA_HEIGHT_IN_CM) > 0) {
-                distance_to_resource_tag_not_held = sqrt(distance_to_resource_tag_from_camera_not_held * distance_to_resource_tag_from_camera_not_held - CAMERA_HEIGHT_IN_CM * CAMERA_HEIGHT_IN_CM);
+            if ((distance_to_resource_tag_from_camera_not_held * distance_to_resource_tag_from_camera_not_held -
+                 CAMERA_HEIGHT_IN_CM * CAMERA_HEIGHT_IN_CM) > 0) {
+                distance_to_resource_tag_not_held = sqrt(
+                        distance_to_resource_tag_from_camera_not_held * distance_to_resource_tag_from_camera_not_held -
+                        CAMERA_HEIGHT_IN_CM * CAMERA_HEIGHT_IN_CM);
             } else {
                 float epsilon = 0.00001; // A small non-zero positive number
                 distance_to_resource_tag_not_held = epsilon;
             }
             resource_tag_yaw_error_not_held = CAMERA_OFFSET_CORRECTION + chosen_tag_not_held.getPositionX();
             no_resource_tags_counter = 0;
-            
+
         }
-    }
-    else
-    {
+    } else {
         //no tags in screen
         no_resource_tags_counter++;
         center_resource_distance = 0.0;
-		lost_frame_count++;
-		count_home_tags = 0;
+        lost_frame_count++;
+        count_home_tags = 0;
     }
 }
 
-void ModeHandler(const std_msgs::UInt8::ConstPtr& message) {
+void ModeHandler(const std_msgs::UInt8::ConstPtr &message) {
     current_mode = message->data;
     sendDriveCommand(0.0, 0.0);
 }
 
-void SonarHandler(const sensor_msgs::Range::ConstPtr& sonar_left, const sensor_msgs::Range::ConstPtr& sonar_center, const sensor_msgs::Range::ConstPtr& sonar_right) {
+void SonarHandler(const sensor_msgs::Range::ConstPtr &sonar_left, const sensor_msgs::Range::ConstPtr &sonar_center,
+                  const sensor_msgs::Range::ConstPtr &sonar_right) {
 
     //if any sonar is below the trigger distance set physical obstacle true
 
-    if ( sonar_left->range < TRIGGER_DISTANCE || (sonar_center->range < TRIGGER_DISTANCE && (!resource_held || SIMULATOR)) || sonar_right->range < TRIGGER_DISTANCE ) {
+    if (sonar_left->range < TRIGGER_DISTANCE ||
+        (sonar_center->range < TRIGGER_DISTANCE && (!resource_held || SIMULATOR)) ||
+        sonar_right->range < TRIGGER_DISTANCE) {
         obstacle_encountered = true;
         if (sonar_left->range < TRIGGER_DISTANCE) {
             obs_side = LEFT;
-        }
-        else if (sonar_right->range < TRIGGER_DISTANCE) {
+        } else if (sonar_right->range < TRIGGER_DISTANCE) {
             obs_side = RIGHT;
-        }
-        else if (sonar_center->range < TRIGGER_DISTANCE && (!resource_held || SIMULATOR)) {
+        } else if (sonar_center->range < TRIGGER_DISTANCE && (!resource_held || SIMULATOR)) {
             if (sonar_center->range < SONAR_RESOURCE_RANGE_THRESHOLD) {
                 center_sonar_distance = sonar_center->range;
             }
@@ -2176,18 +2270,19 @@ void SonarHandler(const sensor_msgs::Range::ConstPtr& sonar_left, const sensor_m
     }
 }
 
-void OdometryHandler(const nav_msgs::Odometry::ConstPtr& message) {
+void OdometryHandler(const nav_msgs::Odometry::ConstPtr &message) {
     //Get (x,y) location directly from pose
     current_location_odom.x = message->pose.pose.position.x + location_offset_odom.x;
     current_location_odom.y = message->pose.pose.position.y + location_offset_odom.y;
 
-      
+
     //Get theta rotation by converting quaternion orientation to pitch/roll/yaw
-    tf::Quaternion q(message->pose.pose.orientation.x, message->pose.pose.orientation.y, message->pose.pose.orientation.z, message->pose.pose.orientation.w);
+    tf::Quaternion q(message->pose.pose.orientation.x, message->pose.pose.orientation.y,
+                     message->pose.pose.orientation.z, message->pose.pose.orientation.w);
     tf::Matrix3x3 m(q);
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
-    current_location_odom.theta = yaw; 
+    current_location_odom.theta = yaw;
     if (SIMULATOR) {
         current_location_ekf.x = current_location_odom.x;
         current_location_ekf.y = current_location_odom.y;
@@ -2242,13 +2337,14 @@ void OdometryHandler(const nav_msgs::Odometry::ConstPtr& message) {
   }
 }*/
 
-void EKFHandler(const nav_msgs::Odometry::ConstPtr& message) {
+void EKFHandler(const nav_msgs::Odometry::ConstPtr &message) {
     if (!SIMULATOR) {
         //Get (x,y) location directly from pose
         current_location_ekf.x = message->pose.pose.position.x + location_offset_ekf.x;
         current_location_ekf.y = message->pose.pose.position.y + location_offset_ekf.y;
         //Get theta rotation by converting quaternion orientation to pitch/roll/yaw
-        tf::Quaternion q(message->pose.pose.orientation.x, message->pose.pose.orientation.y, message->pose.pose.orientation.z, message->pose.pose.orientation.w);
+        tf::Quaternion q(message->pose.pose.orientation.x, message->pose.pose.orientation.y,
+                         message->pose.pose.orientation.z, message->pose.pose.orientation.w);
         tf::Matrix3x3 m(q);
         double roll, pitch, yaw;
         m.getRPY(roll, pitch, yaw);
@@ -2257,26 +2353,25 @@ void EKFHandler(const nav_msgs::Odometry::ConstPtr& message) {
     }
 }
 
-void JoystickCommandHandler(const sensor_msgs::Joy::ConstPtr& message) {
+void JoystickCommandHandler(const sensor_msgs::Joy::ConstPtr &message) {
     const int max_motor_cmd = 255;
-    if (current_mode == 0 || current_mode == 1) {	//takes data coming from joystick and stores into linear and angular variables
-        float linear  = abs(message->axes[4]) >= 0.1 ? message->axes[4]*max_motor_cmd : 0.0;
-        float angular = abs(message->axes[3]) >= 0.1 ? message->axes[3]*max_motor_cmd : 0.0;
+    if (current_mode == 0 ||
+        current_mode == 1) {    //takes data coming from joystick and stores into linear and angular variables
+        float linear = abs(message->axes[4]) >= 0.1 ? message->axes[4] * max_motor_cmd : 0.0;
+        float angular = abs(message->axes[3]) >= 0.1 ? message->axes[3] * max_motor_cmd : 0.0;
 
         float left = linear - angular;
         float right = linear + angular;
         //check to see if commands exceed MAX values, and if so set them to hard coded MAX value
-        if(left > max_motor_cmd) {	
+        if (left > max_motor_cmd) {
             left = max_motor_cmd;
-        }
-        else if(left < -max_motor_cmd) {
+        } else if (left < -max_motor_cmd) {
             left = -max_motor_cmd;
         }
 
-        if(right > max_motor_cmd) {
+        if (right > max_motor_cmd) {
             right = max_motor_cmd;
-        }
-        else if(right < -max_motor_cmd) {
+        } else if (right < -max_motor_cmd) {
             right = -max_motor_cmd;
         }
 
@@ -2285,10 +2380,10 @@ void JoystickCommandHandler(const sensor_msgs::Joy::ConstPtr& message) {
 }
 
 
-void PublishStatusTimerEventHandler(const ros::TimerEvent&) {
-  std_msgs::String msg;
-  msg.data = "online";		//change this with team name
-  status_publisher.publish(msg);
+void PublishStatusTimerEventHandler(const ros::TimerEvent &) {
+    std_msgs::String msg;
+    msg.data = "online";        //change this with team name
+    status_publisher.publish(msg);
 }
 
 /*void manualWaypointHandler(const swarmie_msgs::Waypoint& message) {
@@ -2306,126 +2401,123 @@ void PublishStatusTimerEventHandler(const ros::TimerEvent&) {
   }
 }*/
 
-void RecruitmentHandler(const swarmie_msgs::Recruitment& msg)
-{
-   if(msg.name.data != published_name) {
-      Point p;
-      p.x = msg.x;
-      p.y = msg.y;
-      //logicController.gotRecruitmentMessage(p);
-   }
+void RecruitmentHandler(const swarmie_msgs::Recruitment &msg) {
+    if (msg.name.data != published_name) {
+        Point p;
+        p.x = msg.x;
+        p.y = msg.y;
+        //logicController.gotRecruitmentMessage(p);
+    }
 }
 
 void SigintEventHandler(int sig) {
-  // All the default sigint handler does is call shutdown()
-  ros::shutdown();
+    // All the default sigint handler does is call shutdown()
+    ros::shutdown();
 }
 
-void PublishHeartBeatTimerEventHandler(const ros::TimerEvent&) {
-  std_msgs::String msg;
-  msg.data = "";
-  heartbeat_publisher.publish(msg);
-}
-
-long int GetROSTimeInMilliSecs()
-{
-  // Get the current time according to ROS (will be zero for simulated clock until the first time message is recieved).
-  ros::Time t = ros::Time::now();
-  
-  // Convert from seconds and nanoseconds to milliseconds.
-  return t.sec*1e3 + t.nsec/1e6;
-  
-}
-
-
-Point updateCenterLocation()
-{
-  transformMapCentertoOdom();
-  
-  Point tmp;
-  tmp.x = centerLocationOdom.x;
-  tmp.y = centerLocationOdom.y;
-  
-  return tmp;
-}
-
-void transformMapCentertoOdom()
-{
-  
-  // map frame
-  geometry_msgs::PoseStamped mapPose;
-  
-  // setup msg to represent the center location in map frame
-  mapPose.header.stamp = ros::Time::now();
-  
-  mapPose.header.frame_id = published_name + "/map";
-  mapPose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, centerLocationMap.theta);
-  mapPose.pose.position.x = centerLocationMap.x;
-  mapPose.pose.position.y = centerLocationMap.y;
-  geometry_msgs::PoseStamped odomPose;
-  string x = "";
-  
-  try
-  { //attempt to get the transform of the center point in map frame to odom frame.
-    transform_listener->waitForTransform(published_name + "/map", published_name + "/odom", ros::Time::now(), ros::Duration(1.0));
-    transform_listener->transformPose(published_name + "/odom", mapPose, odomPose);
-  }
-  
-  catch(tf::TransformException& ex) {  //bad transform
-    ROS_INFO("Received an exception trying to transform a point from \"map\" to \"odom\": %s", ex.what());
-    x = "Exception thrown " + (string)ex.what();
+void PublishHeartBeatTimerEventHandler(const ros::TimerEvent &) {
     std_msgs::String msg;
-    stringstream ss;
-    ss << "Exception in mapAverage() " + (string)ex.what();
-    msg.data = ss.str();
-    infoLogPublisher.publish(msg);
-    cout << msg.data << endl;
-  }
-  
-  // Use the position and orientation provided by the ros transform.
-  centerLocationMapRef.x = odomPose.pose.position.x; //set centerLocation in odom frame
-  centerLocationMapRef.y = odomPose.pose.position.y;
-  
- // cout << "x ref : "<< centerLocationMapRef.x << " y ref : " << centerLocationMapRef.y << endl;
-  
-  float xdiff = centerLocationMapRef.x - centerLocationOdom.x;	//get difference in X values
-  float ydiff = centerLocationMapRef.y - centerLocationOdom.y;	//get difference in Y values
-  
-  float diff = hypot(xdiff, ydiff);	//get total difference
-  
-  if (diff > drift_tolerance)	//If the difference is greater than tolerance, adjust the rovers perceived idea of where the center is. Used to decrease ODOM drift and keep rover accuracy for longer periods of time
-  {
-    centerLocationOdom.x += xdiff/diff;	//adjust X
-    centerLocationOdom.y += ydiff/diff;	//adjust Y
-  }
-  
-  //cout << "center x diff : " << centerLocationMapRef.x - centerLocationOdom.x << " center y diff : " << centerLocationMapRef.y - centerLocationOdom.y << endl;
-  //cout << hypot(centerLocationMapRef.x - centerLocationOdom.x, centerLocationMapRef.y - centerLocationOdom.y) << endl;
-          
+    msg.data = "";
+    heartbeat_publisher.publish(msg);
+}
+
+long int GetROSTimeInMilliSecs() {
+    // Get the current time according to ROS (will be zero for simulated clock until the first time message is recieved).
+    ros::Time t = ros::Time::now();
+
+    // Convert from seconds and nanoseconds to milliseconds.
+    return t.sec * 1e3 + t.nsec / 1e6;
+
+}
+
+
+Point updateCenterLocation() {
+    transformMapCentertoOdom();
+
+    Point tmp;
+    tmp.x = centerLocationOdom.x;
+    tmp.y = centerLocationOdom.y;
+
+    return tmp;
+}
+
+void transformMapCentertoOdom() {
+
+    // map frame
+    geometry_msgs::PoseStamped mapPose;
+
+    // setup msg to represent the center location in map frame
+    mapPose.header.stamp = ros::Time::now();
+
+    mapPose.header.frame_id = published_name + "/map";
+    mapPose.pose.orientation = tf::createQuaternionMsgFromRollPitchYaw(0, 0, centerLocationMap.theta);
+    mapPose.pose.position.x = centerLocationMap.x;
+    mapPose.pose.position.y = centerLocationMap.y;
+    geometry_msgs::PoseStamped odomPose;
+    string x = "";
+
+    try { //attempt to get the transform of the center point in map frame to odom frame.
+        transform_listener->waitForTransform(published_name + "/map", published_name + "/odom", ros::Time::now(),
+                                             ros::Duration(1.0));
+        transform_listener->transformPose(published_name + "/odom", mapPose, odomPose);
+    }
+
+    catch (tf::TransformException &ex) {  //bad transform
+        ROS_INFO("Received an exception trying to transform a point from \"map\" to \"odom\": %s", ex.what());
+        x = "Exception thrown " + (string) ex.what();
+        std_msgs::String msg;
+        stringstream ss;
+        ss << "Exception in mapAverage() " + (string) ex.what();
+        msg.data = ss.str();
+        infoLogPublisher.publish(msg);
+        cout << msg.data << endl;
+    }
+
+    // Use the position and orientation provided by the ros transform.
+    centerLocationMapRef.x = odomPose.pose.position.x; //set centerLocation in odom frame
+    centerLocationMapRef.y = odomPose.pose.position.y;
+
+    // cout << "x ref : "<< centerLocationMapRef.x << " y ref : " << centerLocationMapRef.y << endl;
+
+    float xdiff = centerLocationMapRef.x - centerLocationOdom.x;    //get difference in X values
+    float ydiff = centerLocationMapRef.y - centerLocationOdom.y;    //get difference in Y values
+
+    float diff = hypot(xdiff, ydiff);    //get total difference
+
+    if (diff >
+        drift_tolerance)    //If the difference is greater than tolerance, adjust the rovers perceived idea of where the center is. Used to decrease ODOM drift and keep rover accuracy for longer periods of time
+    {
+        centerLocationOdom.x += xdiff / diff;    //adjust X
+        centerLocationOdom.y += ydiff / diff;    //adjust Y
+    }
+
+    //cout << "center x diff : " << centerLocationMapRef.x - centerLocationOdom.x << " center y diff : " << centerLocationMapRef.y - centerLocationOdom.y << endl;
+    //cout << hypot(centerLocationMapRef.x - centerLocationOdom.x, centerLocationMapRef.y - centerLocationOdom.y) << endl;
+
 }
 
 void humanTime() {
-  
-  float timeDiff = (GetROSTimeInMilliSecs()-start_time)/1e3;
-  if (timeDiff >= 60) {
-    minutes_time++;
-    start_time += 60  * 1e3;
-    if (minutes_time >= 60) {
-      hours_time++;
-      minutes_time -= 60;
+
+    float timeDiff = (GetROSTimeInMilliSecs() - start_time) / 1e3;
+    if (timeDiff >= 60) {
+        minutes_time++;
+        start_time += 60 * 1e3;
+        if (minutes_time >= 60) {
+            hours_time++;
+            minutes_time -= 60;
+        }
     }
-  }
-  timeDiff = floor(timeDiff*10)/10;
-  
-  double intP, frac;
-  frac = modf(timeDiff, &intP);
-  timeDiff -= frac;
-  frac = round(frac*10);
-  if (frac > 9) {
-    frac = 0;
-  }
-  
-  //cout << "System has been Running for :: " << hours_time << " : hours " << minutes_time << " : minutes " << timeDiff << "." << frac << " : seconds" << endl; //you can remove or comment this out it just gives indication something is happening to the log file
+    timeDiff = floor(timeDiff * 10) / 10;
+
+    double intP, frac;
+    frac = modf(timeDiff, &intP);
+    timeDiff -= frac;
+    frac = round(frac * 10);
+    if (frac > 9) {
+        frac = 0;
+    }
+
+    //cout << "System has been Running for :: " << hours_time << " : hours " << minutes_time << " : minutes " << timeDiff << "." << frac << " : seconds" << endl; //you can remove or comment this out it just gives indication something is happening to the log file
 }
 
 /////////////////////////////
@@ -2440,10 +2532,11 @@ void ActuatorOutput(float linear_velocity_out, float angular_velocity_out) {
 
     //cout << "BEFORE linear: " << linear_velocity_out << " BEFORE angular: " << angular_velocity_out << endl;
 
-    if(fabs(linear_velocity_out) + fabs(angular_velocity_out) > MAX_ANGULAR_VELOCITY){
-        linear_velocity_out = std::max(0.0, (double)(MAX_ANGULAR_VELOCITY - fabs(angular_velocity_out)));
-        if(angular_velocity_out != 0.0){
-            angular_velocity_out = (angular_velocity_out/fabs(angular_velocity_out)) * (MAX_ANGULAR_VELOCITY - linear_velocity_out);
+    if (fabs(linear_velocity_out) + fabs(angular_velocity_out) > MAX_ANGULAR_VELOCITY) {
+        linear_velocity_out = std::max(0.0, (double) (MAX_ANGULAR_VELOCITY - fabs(angular_velocity_out)));
+        if (angular_velocity_out != 0.0) {
+            angular_velocity_out =
+                    (angular_velocity_out / fabs(angular_velocity_out)) * (MAX_ANGULAR_VELOCITY - linear_velocity_out);
         }
     }
 
@@ -2463,14 +2556,14 @@ void ActuatorOutput(float linear_velocity_out, float angular_velocity_out) {
     }
 
     linear_velocity_out = linear_velocity_out * (SATURATION_VALUE / MAX_LINEAR_VELOCITY);
-    angular_velocity_out = angular_velocity_out * (SATURATION_VALUE / MAX_ANGULAR_VELOCITY );
+    angular_velocity_out = angular_velocity_out * (SATURATION_VALUE / MAX_ANGULAR_VELOCITY);
 
-    
+
     int left = linear_velocity_out - angular_velocity_out;
     int right = linear_velocity_out + angular_velocity_out;
 
-    double left_velocity = SaturationCheck(left,SATURATION_VALUE);
-    double right_velocity = SaturationCheck(right,SATURATION_VALUE);
+    double left_velocity = SaturationCheck(left, SATURATION_VALUE);
+    double right_velocity = SaturationCheck(right, SATURATION_VALUE);
     //cout << "left " << left  << " right: " << right << endl;
 
     //delete this
@@ -2494,8 +2587,7 @@ int SaturationCheck(int direction, int sat) {
 float Wrap(float theta) {
     if (theta > M_PI) {
         theta -= 2 * M_PI;
-    }
-    else if (theta < -M_PI) {
+    } else if (theta < -M_PI) {
         theta += 2 * M_PI;
     }
     return theta;
@@ -2503,27 +2595,23 @@ float Wrap(float theta) {
 
 float GetNewHeading(int side) {
 
-    float max = (M_PI/180) * 135;
-    float min = (M_PI/180) * 45;
-    float rotation_amount = (min) + (rand()/(RAND_MAX/(max-min)));
+    float max = (M_PI / 180) * 135;
+    float min = (M_PI / 180) * 45;
+    float rotation_amount = (min) + (rand() / (RAND_MAX / (max - min)));
     // cout << "rotating " << rotation_amount*(180/M_PI) << endl;
     float theta = 0;
     if (side == RIGHT) // right sonar
     {
         // cout << "RIGHT" << endl;
         theta = Wrap(current_location_odom.theta + rotation_amount);
-    }
-    else if (side == LEFT)
-    {
+    } else if (side == LEFT) {
         // cout << "LEFT" << endl;
         theta = Wrap(current_location_odom.theta - rotation_amount);
-    }
-    else if (side == CENTER)
-    {
+    } else if (side == CENTER) {
         // cout << "CENTER" << endl;
-        float max = (M_PI/180) * 225;
-        float min = (M_PI/180) * 135;
-        float rotation_amount = (min) + (rand()/(RAND_MAX/(max-min)));
+        float max = (M_PI / 180) * 225;
+        float min = (M_PI / 180) * 135;
+        float rotation_amount = (min) + (rand() / (RAND_MAX / (max - min)));
         theta = Wrap(current_location_odom.theta + rotation_amount);
     }
     return theta;
@@ -2531,7 +2619,7 @@ float GetNewHeading(int side) {
 
 void openFingers() {
     std_msgs::Float32 angle;
-    angle.data = (4/3) * M_PI_2; //open fingers;
+    angle.data = (4 / 3) * M_PI_2; //open fingers;
     finger_angle_publisher.publish(angle);
 }
 
@@ -2543,7 +2631,7 @@ void closeFingers() {
 
 void raiseWrist() {
     std_msgs::Float32 angle;
-    angle.data =  0.0; //raise wrist
+    angle.data = 0.0; //raise wrist
     wrist_angle_publisher.publish(angle);
 }
 
@@ -2556,7 +2644,7 @@ void lowerWrist() {
 void centerWrist() {
     std_msgs::Float32 angle;
     angle.data = 0.5; // middle
-    wrist_angle_publisher.publish(angle);    
+    wrist_angle_publisher.publish(angle);
 }
 
 Point ClosestAnchorPoint() {
@@ -2564,22 +2652,27 @@ Point ClosestAnchorPoint() {
     Point closest;
     float distance = FLT_MAX;
     geometry_msgs::Pose2D temp;
-    for(int i = 0; i < anchor_points.size(); i++) {
+    for (int i = 0; i < anchor_points.size(); i++) {
         temp.x = anchor_points.at(i).x;
         temp.y = anchor_points.at(i).y;
         temp.theta = 0;
-        if (hypot(anchor_points.at(i).y - current_location_odom.y, anchor_points.at(i).x - current_location_odom.x) < distance && ContainsClaimedAnchorPoints(temp) == -1){
-            distance = hypot(anchor_points.at(i).y - current_location_odom.y, anchor_points.at(i).x - current_location_odom.x);
+        if (hypot(anchor_points.at(i).y - current_location_odom.y, anchor_points.at(i).x - current_location_odom.x) <
+            distance && ContainsClaimedAnchorPoints(temp) == -1) {
+            distance = hypot(anchor_points.at(i).y - current_location_odom.y,
+                             anchor_points.at(i).x - current_location_odom.x);
             closest = anchor_points.at(i);
         }
     }
     if (claimed_anchor_points.size() == anchor_points.size()) {
-        for(int i = 0; i < extra_anchor_points.size(); i++) {
+        for (int i = 0; i < extra_anchor_points.size(); i++) {
             temp.x = extra_anchor_points.at(i).x;
             temp.y = extra_anchor_points.at(i).y;
             temp.theta = 0;
-            if (hypot(extra_anchor_points.at(i).y - current_location_odom.y, extra_anchor_points.at(i).x - current_location_odom.x) < distance && ContainsClaimedAnchorPoints(temp) == -1){
-                distance = hypot(extra_anchor_points.at(i).y - current_location_odom.y, extra_anchor_points.at(i).x - current_location_odom.x);
+            if (hypot(extra_anchor_points.at(i).y - current_location_odom.y,
+                      extra_anchor_points.at(i).x - current_location_odom.x) < distance &&
+                ContainsClaimedAnchorPoints(temp) == -1) {
+                distance = hypot(extra_anchor_points.at(i).y - current_location_odom.y,
+                                 extra_anchor_points.at(i).x - current_location_odom.x);
                 closest = extra_anchor_points.at(i);
             }
         }
@@ -2588,7 +2681,8 @@ Point ClosestAnchorPoint() {
 }
 
 bool CheckDriveDistance(float desired_distance) {
-    return (hypot(starting_drive_location.x - current_location_odom.x, starting_drive_location.y - current_location_odom.y) > desired_distance); 
+    return (hypot(starting_drive_location.x - current_location_odom.x,
+                  starting_drive_location.y - current_location_odom.y) > desired_distance);
 }
 
 void SubtractLocationOffset() {
@@ -2629,10 +2723,9 @@ void AddLocationOffset() {
 bool PickupBreakout() {
     breakout_counter++;
     if (breakout_counter >= PICK_UP_BREAKOUT_THRESHOLD) {
-        
+
         return true;
-    }
-    else {
+    } else {
         return false;
     }
 }
@@ -2640,10 +2733,9 @@ bool PickupBreakout() {
 bool AnchorPointBreakout() {
     breakout_counter++;
     if (breakout_counter >= ANCHOR_POINT_BREAKOUT_THRESHOLD) {
-        
+
         return true;
-    }
-    else {
+    } else {
         return false;
     }
 }
@@ -2651,10 +2743,9 @@ bool AnchorPointBreakout() {
 bool DropOffBreakout() {
     breakout_counter++;
     if (breakout_counter >= DROP_OFF_BREAKOUT_THRESHOLD) {
-        
+
         return true;
-    }
-    else {
+    } else {
         return false;
     }
 }
@@ -2662,10 +2753,9 @@ bool DropOffBreakout() {
 bool ClusterBreakout() {
     breakout_counter++;
     if (breakout_counter >= CLUSTER_BREAKOUT_THRESHOLD) {
-        
+
         return true;
-    }
-    else {
+    } else {
         return false;
     }
 }
@@ -2677,14 +2767,12 @@ void ResetFlags() {
     //unclaim anchor points if one was claimed
 }
 
-int ContainsClaimedAnchorPoints(geometry_msgs::Pose2D anchor_point)
-{
+int ContainsClaimedAnchorPoints(geometry_msgs::Pose2D anchor_point) {
     int found = -1;
-    for(int i = 0; i < claimed_anchor_points.size(); i++)
-    {
+    for (int i = 0; i < claimed_anchor_points.size(); i++) {
         //cout << claimed_anchor_points.at(i).x << " :: " << anchor_point.x << " ||||| " << claimed_anchor_points.at(i).y << " :: " << anchor_point.y << endl; 
-        if(fabs(claimed_anchor_points.at(i).x - anchor_point.x) <= .1 && fabs(claimed_anchor_points.at(i).y - anchor_point.y) <= .1)
-        {
+        if (fabs(claimed_anchor_points.at(i).x - anchor_point.x) <= .1 &&
+            fabs(claimed_anchor_points.at(i).y - anchor_point.y) <= .1) {
             found = i;
             cout << "stfu mark point claimed" << endl;
             return found; //anchor point has been claimed
@@ -2695,20 +2783,160 @@ int ContainsClaimedAnchorPoints(geometry_msgs::Pose2D anchor_point)
 }
 
 void StateLogger(string state) {
-    string file_path = "/home/csadmin/swarmathon_2018/" + published_name + "_state_log_" + std::to_string(timer_start_time) + ".txt"; 
-    ofstream world_file; 
- 
-    world_file.open(file_path, ios::app); 
-    if (world_file.is_open()) { 
-        world_file << state << " " << std::to_string(GetROSTimeInMilliSecs()) << "\n"; 
-        world_file.close(); 
-    }  
+    string file_path =
+            "/home/csadmin/swarmathon_2018/" + published_name + "_state_log_" + std::to_string(timer_start_time) +
+            ".txt";
+    ofstream world_file;
+
+    world_file.open(file_path, ios::app);
+    if (world_file.is_open()) {
+        world_file << state << " " << std::to_string(GetROSTimeInMilliSecs()) << "\n";
+        world_file.close();
+    }
 }
 
-void GazeboStatusHandler(const gazebo_msgs::ModelStates::ConstPtr& msg) {
-	if(!simulatorInitalized) {
-		SIMULATOR = true;
-		simulatorInitalized = true;
-		//initalizeSimVariables();
-	}
+void GazeboStatusHandler(const gazebo_msgs::ModelStates::ConstPtr &msg) {
+    if (!simulatorInitalized) {
+        SIMULATOR = true;
+        simulatorInitalized = true;
+        //initalizeSimVariables();
+    }
+}
+
+/*
+ * Distributed SLAM
+*  Logic:
+ *  - Slam handler
+ *  - Global publishers
+ *  - Global subscribers
+ *  - Local subscribers
+ */
+void slamHandler(const ros::TimerEvent &event) {
+    Adapter::getInstance()->slamHandler();
+    auto belief{Adapter::getInstance()->publishBelief()};
+    slamPublishBelief(belief);
+    slamRoverPose = belief.currentPose;
+
+    /*
+     * Should only conditionally publish feature sets and transformations.
+     */
+    std::tuple<std::array<FEATURE, FEATURE_LIMIT>, CLASSIFIER> FS{};
+    if (Adapter::getInstance()->publishFeatureSet(&FS)) {
+        slamPublishFeatureSet(get<0>(FS), get<1>(FS));
+    }
+    std::tuple<POSE, std::string> transfromation{};
+    if (Adapter::getInstance()->publishTransformation(&transfromation)) {
+        slamPublishTransformation(get<0>(transfromation), get<1>(transfromation));
+    }
+}
+/**************************/
+/* Slam global publishers */
+/**************************/
+void slamPublishBelief(const BELIEF &belief) {
+    ros_slam_msgs::AuxBeliefs beliefsToPub;
+    auto rName{Adapter::getInstance()->getLocalName()};
+    auto index{getRoverAddress(rName)};
+
+    // Publish Pose
+    beliefsToPub.aux_beliefs[index].pose.x = belief.currentPose.x;
+    beliefsToPub.aux_beliefs[index].pose.y = belief.currentPose.y;
+    beliefsToPub.aux_beliefs[index].pose.theta = belief.currentPose.theta;
+    // Publish Confi
+    beliefsToPub.aux_beliefs[index].confidence = belief.roverConfidence;
+
+    roverInstancePublisher.publish(beliefsToPub);
+
+    // Log
+    Logger::getInstance(rName)->record(belief);
+}
+
+void slamPublishFeatureSet(const std::array<FEATURE, FEATURE_LIMIT> &featureSet, const CLASSIFIER &classifier) {
+    ros_slam_msgs::AuxFeatureSet fsToPublish;
+    auto rName{Adapter::getInstance()->getLocalName()};
+    auto index{getRoverAddress(rName)};
+    // Publish Feature Set
+    uint16_t position{};
+    for (auto feature : featureSet) {
+        fsToPublish.aux_feat_sets[index].set[position].xRelative = feature.pose.x;
+        fsToPublish.aux_feat_sets[index].set[position].yRelative = feature.pose.y;
+        fsToPublish.aux_feat_sets[index].set[position].incidentAngle = feature.incidentRay.angle;
+        position++;
+    }
+    // Publish Classifier
+    fsToPublish.aux_feat_sets[index].uuid.area = classifier.area;
+    fsToPublish.aux_feat_sets[index].uuid.orientation = classifier.orientation;
+    fsToPublish.aux_feat_sets[index].uuid.signature = classifier.signature;
+
+    featureSetPublisher.publish(fsToPublish);
+
+    // Log
+    Logger::getInstance(rName)->record(featureSet, classifier);
+}
+
+void slamPublishTransformation(const POSE &trans, const std::string &targetRover) {
+    ros_slam_msgs::TransformationPairs pairsToPublish;
+    auto rName{Adapter::getInstance()->getLocalName()};
+    auto index{getRoverAddress(rName)};
+    // Publish transformation
+    pairsToPublish.transformation_sets[index].loc_translation.x = trans.x;
+    pairsToPublish.transformation_sets[index].loc_translation.y = trans.y;
+    pairsToPublish.transformation_sets[index].orientation = trans.theta;
+    // Publish target rover (original rover to recieve transformation)
+    pairsToPublish.agent_pairs[getRoverAddress(Adapter::getInstance()->getLocalName())].partner = targetRover;
+
+    transformationPublisher.publish(pairsToPublish);
+
+    // Log
+    Logger::getInstance(rName)->record(trans, targetRover);
+}
+
+/***************************/
+/* Slam global subscribers */
+/***************************/
+void slamAuxRoverHandler(const ros_slam_msgs::AuxBeliefs::ConstPtr &auxBelief) {
+    Adapter::getInstance()->auxilaryRoverHandler(auxBelief);
+}
+
+void slamFeatureSetHandler(const ros_slam_msgs::AuxFeatureSet::ConstPtr &auxFeatureSet) {
+    Adapter::getInstance()->featureSetHandler(auxFeatureSet);
+}
+
+void slamTransformationHandler(const ros_slam_msgs::TransformationPairs::ConstPtr &transformationPairs) {
+    Adapter::getInstance()->transformationHandler(transformationPairs);
+}
+
+/**************************/
+/* Slam local subscribers */
+/**************************/
+void slamKinematicsHandler(const nav_msgs::Odometry::ConstPtr &message) {
+    if (canReadLocation) {
+        Adapter::getInstance()->kinematicHandler(
+                ekfPose(message),
+                VELOCITY{.linear = linear_velocity, .angular = angular_velocity});
+    }
+}
+
+void slamSonarHandler(const sensor_msgs::Range::ConstPtr &sonarLeft,
+        const sensor_msgs::Range::ConstPtr &sonarCenter,
+        const sensor_msgs::Range::ConstPtr &sonarRight) {
+
+    Adapter::getInstance()->sonarHandler(std::array<SONAR, SONAR_LIMIT>{
+            SONAR{sonar_id::S_LEFT, sonarLeft->range},
+            SONAR{sonar_id::S_CENTER, sonarCenter->range},
+            SONAR{sonar_id::S_RIGHT, sonarRight->range}});
+}
+
+POSE ekfPose(const nav_msgs::Odometry::ConstPtr &kinematics) {
+    //Get (x,y) location directly from pose
+    //Get theta rotation by converting quaternion orientation to pitch/roll/yaw
+    tf::Quaternion q(kinematics->pose.pose.orientation.x, kinematics->pose.pose.orientation.y,
+                     kinematics->pose.pose.orientation.z, kinematics->pose.pose.orientation.w);
+    tf::Matrix3x3 m(q);
+    double roll, pitch, yaw;
+    m.getRPY(roll, pitch, yaw);
+    return POSE{
+        .x = static_cast<float>(kinematics->pose.pose.position.x + location_offset_ekf.x),
+        .y = static_cast<float>(kinematics->pose.pose.position.y + location_offset_ekf.y),
+        .theta = static_cast<float>(yaw)
+    };
 }

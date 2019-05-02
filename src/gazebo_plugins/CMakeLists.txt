@@ -3,6 +3,8 @@ project(gazebo_plugins)
 
 set(CMAKE_CXX_FLAGS "-std=c++0x")
 
+cmake_policy(SET CMP0054 OLD)
+
 # Load catkin and all dependencies required for this package
 find_package(catkin REQUIRED COMPONENTS 
   roscpp 

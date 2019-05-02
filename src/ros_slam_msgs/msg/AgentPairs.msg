@@ -1,0 +1,2 @@
+string partner
+bool update
