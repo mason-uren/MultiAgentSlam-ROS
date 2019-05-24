@@ -3,11 +3,6 @@ project(behaviours)
 
 SET(CMAKE_CXX_FLAGS "-std=c++11")
 
-# Make sure that custom modules are found
-#list(INSERT CMAKE_MODULE_PATH 0 ${CMAKE_SOURCE_DIR}/distributed_slam/cmake/modules)
-#
-#set(distributed_slam_DIR ${CMAKE_CURRENT_BINARY_DIR})
-
 find_package(catkin REQUIRED COMPONENTS
     geometry_msgs
     roscpp
@@ -19,7 +14,6 @@ find_package(catkin REQUIRED COMPONENTS
     swarmie_msgs
     ros_slam_msgs
     distributed_slam
-    slam_logger
 )
 
 catkin_package(
@@ -34,7 +28,6 @@ catkin_package(
         apriltags_ros
         ros_slam_msgs
         distributed_slam
-        slam_logger
 )
 
 include_directories(
@@ -60,12 +53,11 @@ add_executable(
 add_dependencies(
         behaviours
         ${catkin_EXPORTED_TARGETS}
-
 )
 
 target_link_libraries(
   behaviours
     ${catkin_LIBRARIES}
-        rt  # <--- Inclusion causes the simulator to build rover incorrectly!!!
+    rt
 )
 

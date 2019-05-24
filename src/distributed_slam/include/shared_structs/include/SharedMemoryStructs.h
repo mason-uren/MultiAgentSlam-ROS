@@ -5,8 +5,10 @@
 #ifndef C_SHAREDSTRUCT_H
 #define C_SHAREDSTRUCT_H
 
-#include <include/Tools/enum.h>
 #include <algorithm>
+#include <iostream>
+
+#include <include/enum.h>
 
 #include "SLAMConfigIn.h"
 
@@ -14,7 +16,8 @@ constexpr uint16_t FILTER_LENGTH = UINT16_C(64);
 constexpr uint16_t RANGE_SENSOR_COUNT = UINT16_C(3);
 constexpr uint16_t FEATURE_LIMIT = UINT16_C(3);
 constexpr uint16_t SONAR_LIMIT = UINT16_C(3);
-constexpr uint16_t SIGNATURE_MAX = UINT16_C(100);
+constexpr uint16_t SONAR_MAX_RANGE = UINT16_C(3);
+//constexpr uint16_t SIGNATURE_MAX = UINT16_C(100);
 constexpr uint16_t ELEMENT_SIZE = UINT16_C(3);
 constexpr float ROS_INTERVAL = 0.1;
 
@@ -61,135 +64,221 @@ BETTER_ENUM(rover_names, uint16_t,
 )
 
 /**
- * Structs
+ * C++ "Structs"
  */
+class Classifier {
+public:
+    Classifier(const float &area,
+               const float &orientation,
+               const float &signature) :
+        area(area),
+        orientation(orientation),
+        signature(signature)
+    {}
+    Classifier() = default;
+    ~Classifier() = default;
 
-typedef struct Classifier {
-    float area;
-    float orientation;
-    float signature;
+    float area{};
+    float orientation{};
+    float signature{};
 
-    void operator=(const Classifier &rhs) {
-        area = rhs.area;
+    Classifier& operator=(const Classifier &rhs) {
         orientation = rhs.orientation;
         signature = rhs.signature;
+        return *this;
     }
-    bool operator==(const Classifier &rhs) const {
-        return (area == rhs.area) && (orientation == rhs.orientation) && (signature == rhs.signature);
+    bool operator==(const Classifier &rhs) {
+        return (area == rhs.area) &&
+               (orientation == rhs.orientation) &&
+               (signature == rhs.signature);
     }
-} CLASSIFIER;
+};
 
-typedef struct Sonar {
-    sonar_id id;
-    float observedRange;
+class Sonar {
+public:
+    Sonar() = default;
+    Sonar(const sonar_id &id,
+          const float &observedRange) :
+        id(id),
+        observedRange(observedRange)
+    {}
+    sonar_id id{};
+    float observedRange{};
 
-    void operator=(const Sonar &rhs) {
+    Sonar& operator=(const Sonar &rhs) {
         id = rhs.id;
         observedRange = rhs.observedRange;
+        return *this;
     }
     bool operator==(const Sonar &rhs) const {
         return (id == rhs.id) && (observedRange == rhs.observedRange);
     }
-} SONAR;
+};
 
-typedef struct Ray {
-    float range;
-    float angle;
+class Ray {
+public:
+    Ray() = default;
+    Ray(const float &range,
+        const float &angle) :
+        range(range),
+        angle(angle)
+    {}
+    float range{};
+    float angle{};
 
-    void operator=(const Ray &rhs) {
+    Ray& operator=(const Ray &rhs) {
         range = rhs.range;
         angle = rhs.angle;
+        return *this;
     }
     bool operator==(const Ray &rhs) const {
         return (range == rhs.range) && (angle == rhs.angle);
     }
-} RAY;
+};
 
-typedef struct Velocity {
-    float linear;
-    float angular;
+class Velocity {
+public:
+    Velocity() = default;
+    Velocity(const float &linear,
+             const float &angular) :
+         linear(linear),
+         angular(angular)
+    {}
+    float linear{};
+    float angular{};
 
-    void operator=(const Velocity &rhs) {
+    Velocity& operator=(const Velocity &rhs) {
         linear = rhs.linear;
         angular = rhs.angular;
+        return *this;
     }
     bool operator==(const Velocity &rhs) const {
         return (linear == rhs.linear) && (angular == rhs.angular);
     }
-} VELOCITY;
+};
 
-typedef struct Location {
-    float x;
-    float y;
+class Location {
+public:
+    Location() = default;
+    Location(const float &x,
+             const float &y) :
+        x(x), y(y)
+    {}
+    float x{};
+    float y{};
 
-    void operator=(const Location &rhs) {
+    Location& operator=(const Location &rhs) {
         x = rhs.x;
         y = rhs.y;
+        return *this;
     }
     bool operator==(const Location &rhs) const {
         return (x == rhs.x) && (y == rhs.y);
     }
-} LOCATION;
+};
 
-typedef struct Pose {
-    float x;
-    float y;
-    float theta;
+class Pose {
+public:
+    Pose() = default;
+    Pose(const float &x,
+         const float &y,
+         const float &theta) :
+        x(x),
+        y(y),
+        theta(theta)
+    {}
+    float x{};
+    float y{};
+    float theta{};
 
-    void operator=(const Pose &rhs) {
+    Pose& operator=(const Pose &rhs) {
         x = rhs.x;
         y = rhs.y;
         theta = rhs.theta;
+        return *this;
     }
     bool operator==(const Pose &rhs) const {
         return (x == rhs.x) && (y == rhs.y) && (theta == rhs.theta);
     }
-} POSE;
+};
 
-typedef struct Belief {
-    POSE currentPose;
-    float roverConfidence;
+class Belief {
+public:
+    Belief() = default;
+    Belief(const Pose &currentPose,
+           const float & roverConfidence) :
+        currentPose(currentPose),
+        roverConfidence(roverConfidence)
+    {}
+    Pose currentPose{};
+    float roverConfidence{};
 
-    void operator=(const Belief &rhs) {
+    Belief& operator=(const Belief &rhs) {
         currentPose = rhs.currentPose;
         roverConfidence = rhs.roverConfidence;
+        return *this;
     }
     bool operator==(const Belief &rhs) const {
         return (currentPose == rhs.currentPose) & (roverConfidence == rhs.roverConfidence);
     }
-} BELIEF;
+};
 
-typedef struct Feature {
+class Feature {
+public:
+    Feature() = default;
+    Feature(const uint16_t &idx,
+            const float &correspondence,
+            const Ray &incidentRay,
+            const Pose &pose) :
+        idx(idx),
+        correspondence(correspondence),
+        incidentRay(incidentRay),
+        pose(pose)
+    {}
     uint16_t idx{}; // TODO I don't like this here (doesn't relate to feature)
     float correspondence{};
-    RAY incidentRay{};
-    POSE pose{};
+    Ray incidentRay{};
+    Pose pose{};
 
-    void operator=(const Feature &rhs) {
+    Feature& operator=(const Feature &rhs) {
         idx = rhs.idx;
         correspondence = rhs.correspondence;
         incidentRay = rhs.incidentRay;
         pose = rhs.pose;
+        return *this;
     }
     bool operator==(const Feature &rhs) const {
         return (correspondence == rhs.correspondence) && (incidentRay == rhs.incidentRay) && (pose == rhs.pose);
     }
-} FEATURE;
+};
 
 typedef struct {
     JSON_CONFIG config;
     long block_id{};
 } SYS_CONFIG_IN;
 
+/**
+ * Helper Functions (Global)
+ */
+
 template<typename Enum>
 constexpr typename std::underlying_type<Enum>::type num(const Enum &anEnum) noexcept {
     return static_cast<typename std::underlying_type<Enum>::type>(anEnum);
 };
 
+inline std::string & upper(std::string &name) {
+    std::transform(name.begin(), name.end(), name.begin(), ::toupper);
+    return name;
+}
+
+inline std::string & lower(std::string &name) {
+    std::transform(name.begin(), name.end(), name.begin(), ::tolower);
+    return name;
+}
+
 inline uint16_t getRoverAddress(const std::string &name) {
     auto copy{name};
-    std::transform(copy.begin(), copy.end(), copy.begin(), ::toupper);
-    return rover_names::_from_string(copy.c_str());
+    return rover_names::_from_string(upper(copy).c_str());
 }
 
 inline std::string getRoverName(const uint16_t &idx) {

@@ -7,9 +7,6 @@
 
 #include <iostream>
 #include <array>
-#include <boost/math/distributions/normal.hpp>
-
-using namespace boost::math;
 
 typedef struct {
     bool valid;
@@ -19,12 +16,12 @@ typedef struct {
 class Node {
 public:
     Node() :
-        classifier(CLASSIFIER{.area = 0, .orientation = 0, .signature = 0}),
-        featureSet(std::array<FEATURE, 3>
+        classifier(Classifier{}),
+        featureSet(std::array<Feature, 3>
                 {
-                    (FEATURE{}),
-                    (FEATURE{}),
-                    (FEATURE{})
+                    (Feature{}),
+                    (Feature{}),
+                    (Feature{})
                 }
         ),
         color(node_color::RED),
@@ -34,18 +31,16 @@ public:
         {}
     ~Node() = default;
 
-    bool operator == (const Node &node) const {
+    bool operator==(const Node &node) const {
         return classifier.signature == node.classifier.signature;
     }
 
-    CLASSIFIER classifier;
-    std::array<FEATURE, 3> featureSet;
+    Classifier classifier;
+    std::array<Feature, 3> featureSet;
     node_color color;
     NODE_PTR location;
     NODE_PTR leftChild;
     NODE_PTR rightChild;
-
-    static const std::shared_ptr<normal> distribution;
 
     void saveLocationPtr(const uint16_t &index) {
         if (!location.valid) {

@@ -1,7 +1,7 @@
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
-set(EIGEN3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
-set(EIGEN3_LIBRARIES ${EIGEN3_LIBRARIES})
+set(Eigen3_INCLUDE_DIRS ${EIGEN3_INCLUDE_DIR})
+set(Eigen3_LIBRARIES ${EIGEN3_LIBRARIES})
 
 if(EIGEN3_FOUND)
     message(STATUS "Eigen3_VERSION: ${Eigen3_VERSION}")
@@ -14,6 +14,6 @@ if (NOT Eigen3_FOUND)
 endif()
 
 include_directories(
-        ${EIGEN3_INCLUDE_DIRS}
-        ${EIGEN3_LIBRARIES}
+        ${Eigen3_INCLUDE_DIRS}
+        ${Eigen3_LIBRARIES}
 )

@@ -14,13 +14,13 @@ public:
 
     virtual unsigned int getID() const = 0;
     virtual std::string getName() const = 0;
-    virtual POSE *getCurrentPose() const = 0;
-    virtual VELOCITY *getVelocity() const = 0;
+    virtual Pose *getCurrentPose() const = 0;
+    virtual Velocity *getVelocity() const = 0;
     virtual float getConfidence() const = 0;
 
     virtual void setName(const std::string &name) = 0;
-    virtual void setCurrentPose(const POSE &pose) = 0;
-    virtual void setVelocity(const VELOCITY &velocity) = 0;
+    virtual void setCurrentPose(const Pose &pose) = 0;
+    virtual void setVelocity(const Velocity &velocity) = 0;
     virtual void setConfidence(const float &confi) = 0;
 };
 

@@ -17,17 +17,19 @@
 
 #include <include/SharedMemoryStructs.h>
 #include <include/SharedMemory/SharedMemory.h>
-#include <include/Tools/cpp14_utils.h>
+#include <include/CPP14/cpp14_utils.h>
+#include <Logger.h>
 
 #include <ros_slam_msgs/AuxBeliefs.h>
 #include <ros_slam_msgs/AuxFeatureSet.h>
 #include <ros_slam_msgs/TransformationPairs.h>
 
-#include "Agent/Detections/Detection.h"
-#include "Slam/SlamAdapter/SlamAdapter.h"
-#include "Slam/Seif/Seif.h"
-#include "Utilities/ConfigParser/ConfigParser.h"
-#include "Utilities/RedBlackTree/RedBlackTree.h"
+#include "../src/Agent/Detections/Detection.h"
+#include "../src/Slam/SlamAdapter/SlamAdapter.h"
+#include "../src/Slam/Seif/Seif.h"
+#include "../src/Utilities/ConfigParser/ConfigParser.h"
+#include "../src/Utilities/RedBlackTree/RedBlackTree.h"
+
 
 constexpr char CONFIG_PATH[] = "../MultiAgentSlam-ROS/src/distributed_slam/Config/slam_in.json";
 
@@ -44,8 +46,8 @@ public:
     void setRoverName(const std::string &name);
     void loadDefaultConfig();
     void jsonInitialize();
-    void kinematicHandler(const POSE &pose, const VELOCITY &vel);
-    void sonarHandler(const std::array<SONAR, 3> &sonar);
+    void kinematicHandler(const Pose &pose, const Velocity &vel);
+    void sonarHandler(const std::array<Sonar, 3> &sonar);
 
     void slamHandler();
 
@@ -53,9 +55,9 @@ public:
     void featureSetHandler(const ros_slam_msgs::AuxFeatureSet::ConstPtr &auxFS);
     void transformationHandler(const ros_slam_msgs::TransformationPairs::ConstPtr &transPairs);
 
-    BELIEF publishBelief();
-    bool publishFeatureSet(tuple<array<FEATURE, 3>, CLASSIFIER> *set);
-    bool publishTransformation(std::tuple<POSE, std::string> *transformation);
+    Belief publishBelief();
+    bool publishFeatureSet(tuple<array<Feature, 3>, Classifier> *set);
+    bool publishTransformation(std::tuple<Pose, std::string> *transformation);
 
     std::string getLocalName();
 
@@ -67,10 +69,10 @@ private:
     {};
 
     bool isSelf(const uint16_t &targetRoverIdx);
-    bool isSameBelief(const std::string &targetRover, const POSE &pose);
+    bool isSameBelief(const std::string &targetRover, const Pose &pose);
     bool isSameFeatureSet(const std::string &targetRover,
-                          const std::tuple<std::array<FEATURE, FEATURE_LIMIT>, CLASSIFIER> &set);
-    bool isSameTransformation(const std::string &targetRover, const POSE &trans);
+                          const Classifier &setClassifier);
+    bool isSameTransformation(const std::string &targetRover, const Pose &trans);
 
     std::unique_ptr<SharedMemory> sharedMemory;
     std::unique_ptr<ConfigParser> configParser;
@@ -80,7 +82,6 @@ private:
     std::unique_ptr<SYS_CONFIG_IN> systemConfig;
 
     std::unique_ptr<std::string> roverName;
-//    bool canReadLocation{true};
 };
 
 #endif //MULTIAGENTSLAM_ADAPTER_H

@@ -7,10 +7,10 @@
 
 // RAY - range (0) angle (1)
 // POSE - x (0) y (1) theta (2)
-POSE Equations::originToPoint(const RAY &ray,
-        const POSE &pose,
+Pose Equations::originToPoint(const Ray &ray,
+        const Pose &pose,
         const bool &orthogonal) {
-    return POSE{
+    return Pose{
             static_cast<float>((ray.range * sin(pose.theta + ray.angle)) + (orthogonal ? pose.y : pose.x)),
             static_cast<float>((ray.range * cos(pose.theta + ray.angle)) + (orthogonal ? pose.x : pose.y)),
             std::numeric_limits<float>::min()
@@ -35,8 +35,8 @@ float Equations::normalizeValue(const float &value, const float &lowbound, const
     return (value - lowbound) / (highbound - lowbound);
 }
 
-LOCATION Equations::centroid(const std::array<POSE, 3> &coordinatePairs) {
-    return LOCATION {
+Location Equations::centroid(const std::array<Pose, 3> &coordinatePairs) {
+    return Location {
             (coordinatePairs[0].x + coordinatePairs[1].x + coordinatePairs[2].x) / 3,
             (coordinatePairs[0].y + coordinatePairs[1].y + coordinatePairs[2].y) / 3
     };
@@ -64,10 +64,10 @@ float Equations::dotProduct(const std::vector<float> *vec_1, const std::vector<f
     return dotProduct;
 }
 
-float Equations::distBetweenPts(const POSE &pose, const POSE &other) {
-    return hypot(abs(pose.x - other.x), abs(pose.y - other.y));
+float Equations::distBetweenPts(const Pose &pose, const Pose &other) {
+    return hypotf(pose.x - other.x, pose.y - other.y);
 }
 
 bool Equations::isZero(const float &value) {
-    return fabs(value) < 1E-4;
+    return std::fabs(value) < 1E-4;
 }

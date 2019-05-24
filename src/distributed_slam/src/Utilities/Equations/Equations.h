@@ -20,16 +20,16 @@ public:
         return &instance;
     }
 
-    POSE originToPoint(const RAY &ray,
-            const POSE &pose,
+    Pose originToPoint(const Ray &ray,
+            const Pose &pose,
             const bool &orthogonal = false);
     float wrapTheta(const float &orientation);
     float normalizeValue(const float &value, const float &lowbound, const float &highbound);
-    LOCATION centroid(const std::array<POSE, 3> &coordinatePairs);
+    Location centroid(const std::array<Pose, 3> &coordinatePairs);
     float cantor(const float &val_1, const float &val_2);
     float straightAvg(const std::vector<float> &toAvg);
     float dotProduct(const std::vector<float> *vec_1, const std::vector<float> *vec_2);
-    float distBetweenPts(const POSE &pose, const POSE &other);
+    float distBetweenPts(const Pose &pose, const Pose &other);
     bool isZero(const float &value);
 
 private:

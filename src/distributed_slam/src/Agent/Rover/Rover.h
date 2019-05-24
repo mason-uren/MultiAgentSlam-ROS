@@ -1,7 +1,3 @@
-#include <utility>
-
-#include <utility>
-
 //
 // Created by Mason U'Ren on 2019-02-13.
 //
@@ -11,9 +7,12 @@
 
 #define BOOST_ALLOW_DEPRECATED_HEADERS
 
+#include <utility>
 #include <functional>
+
 #include <include/SLAMConfigIn.h>
 #include <include/RoverInterface.h>
+
 #include <boost/uuid/uuid_generators.hpp>
 
 #include "../../Slam/Seif/Seif.h"
@@ -32,8 +31,6 @@ using std::lock_guard;
 using std::shared_ptr;
 using std::make_shared;
 
-constexpr int MAX_CONFI = 3;
-
 class Rover : virtual public RoverInterface {
 public:
     explicit Rover(std::string name = "DUMMY") :
@@ -41,7 +38,7 @@ public:
         name(std::move(name)),
         buffer(array<float, FILTER_LENGTH>()),
         confidence(new FIRFilter<float, FILTER_LENGTH>(reinterpret_cast<float (&)[64]>(buffer))),
-        pose(new POSE {.x = 0, .y = 0, .theta = 0})
+        pose(new Pose{})
     {}
 
     explicit Rover(ROVER_CONFIG *roverConfig) :
@@ -49,8 +46,8 @@ public:
         name(roverConfig->name),
         buffer(array<float, FILTER_LENGTH>()),
         confidence(new FIRFilter<float, FILTER_LENGTH>(reinterpret_cast<float (&)[64]>(buffer))),
-        pose(new POSE {.x = 0, .y = 0, .theta = 0}),
-        vel(new VELOCITY {.linear = 0, .angular = 0})
+        pose(new Pose{}),
+        vel(new Velocity{})
     {}
     ~Rover() override = default;
 
@@ -78,8 +75,8 @@ public:
 
     unsigned int getID() const override;
     std::string getName() const override;
-    POSE *getCurrentPose() const override;
-    VELOCITY *getVelocity() const override;
+    Pose *getCurrentPose() const override;
+    Velocity *getVelocity() const override;
     float getConfidence() const override;
 
     // Allocate Memory, should only be used during initialization.
@@ -87,17 +84,17 @@ public:
     void addDetection(Detection *detection);
     void addLocalMap(RedBlackTree *localMap);
 
-    void updatePoseVel(const POSE &pose, const VELOCITY &velocity);
-    void updateMLIncidentRay(const std::array<SONAR, RANGE_SENSOR_COUNT> &sonar);
-    void updateBelief(const POSE &pose, const float &confidence);
+    void updatePoseVel(const Pose &pose, const Velocity &velocity);
+    void updateMLIncidentRay(const std::array<Sonar, RANGE_SENSOR_COUNT> &sonar);
+    void updateBelief(const Pose &pose, const float &confidence);
     void spareExtendedInformationFilter();
-    void integrateLocalFS(const std::array<FEATURE, FEATURE_LIMIT> &features,
-            const CLASSIFIER &classifier);
-    void integrateGlobalFS(const std::array<FEATURE, FEATURE_LIMIT> &features,
-            const CLASSIFIER &classifier,
+    void integrateLocalFS(const std::array<Feature, FEATURE_LIMIT> &features,
+            const Classifier &classifier);
+    void integrateGlobalFS(const std::array<Feature, FEATURE_LIMIT> &features,
+            const Classifier &classifier,
             const string &publisher);
     bool readyToPublish();
-    tuple<POSE, string> publish();
+    tuple<Pose, string> publish();
 
     // For testing purposes only!
     RedBlackTree *getLocalMap() {
@@ -109,19 +106,19 @@ public:
 
 private:
     void setName(const string &name) override;
-    void setCurrentPose(const POSE &belief) override;
-    void setVelocity(const VELOCITY &velocity) override;
+    void setCurrentPose(const Pose &belief) override;
+    void setVelocity(const Velocity &velocity) override;
     void setConfidence(const float &confi) override;
 
-    void integratePose(const POSE &pose);
-    void integrateFilteredPose(const POSE &pose);
+    void integratePose(const Pose &pose);
+    void integrateFilteredPose(const Pose &pose);
     void updateMeans();
     void updateVariances();
     void tuneConfi();
-    POSE estimateMapTransformation(
-            const array<FEATURE, FEATURE_LIMIT> &fs_1,
-            const array<FEATURE, FEATURE_LIMIT> &fs_2);
-    LOCATION mapTranslation(const LOCATION &fsCentroid, const LOCATION &otherCentroid);
+    Pose estimateMapTransformation(
+            const array<Feature, FEATURE_LIMIT> &fs_1,
+            const array<Feature, FEATURE_LIMIT> &fs_2);
+    Location mapTranslation(const Location &fsCentroid, const Location &otherCentroid);
     float mapOrientation(const float &fsOrientation, const float &otherOrientation);
 
     /**
@@ -132,14 +129,16 @@ private:
     string name;
     array<float, FILTER_LENGTH> buffer;
     shared_ptr<FIRFilter<float, FILTER_LENGTH>> confidence;
-    shared_ptr<POSE> pose;
-    shared_ptr<VELOCITY> vel;
+    shared_ptr<Pose> pose;
+    shared_ptr<Velocity> vel;
     shared_ptr<Seif> seif;
     shared_ptr<Detection> detection;
     shared_ptr<RedBlackTree> localMap;
 
-    tuple<POSE, string> transformation{};
+    tuple<Pose, string> transformation{};
     bool canPublish{};
+
+    bool debugReport = false;
 
     static bool writingPose;
 };

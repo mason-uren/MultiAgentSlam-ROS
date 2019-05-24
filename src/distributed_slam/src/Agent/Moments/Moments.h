@@ -17,19 +17,19 @@
 
 typedef struct {
     std::array<MeanFilter<float> *, ELEMENT_SIZE> means {{
-         new MeanFilter<float>(),
-         new MeanFilter<float>(),
-         new MeanFilter<float>()
+        new MeanFilter<float>(),
+        new MeanFilter<float>(),
+        new MeanFilter<float>()
     }};
     std::array<VarianceFilter<float> *, ELEMENT_SIZE> variances {{
-            new VarianceFilter<float>(),
-            new VarianceFilter<float>(),
-            new VarianceFilter<float>()
+        new VarianceFilter<float>(),
+        new VarianceFilter<float>(),
+        new VarianceFilter<float>()
     }};
     std::array<CovarianceFilter<float> *, ELEMENT_SIZE> covariances {{
-            new CovarianceFilter<float>(),
-            new CovarianceFilter<float>(),
-            new CovarianceFilter<float>()
+        new CovarianceFilter<float>(),
+        new CovarianceFilter<float>(),
+        new CovarianceFilter<float>()
     }};
 } STATS;
 
@@ -52,6 +52,8 @@ private:
             measurement(new STATS{})
     {}
 };
+
+
 
 
 #endif //MULTIAGENTSLAM_MOMENTS_H

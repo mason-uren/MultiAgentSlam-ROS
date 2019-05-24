@@ -7,7 +7,7 @@
 
 #include <include/SharedMemoryStructs.h>
 #include <include/SLAMConfigIn.h>
-#include <include/Tools/Transformation.h>
+#include <include/Transformation/Transformation.h>
 
 #include "../../Agent/Rover/Rover.h"
 #include "../../Utilities/ActiveRovers/ActiveRovers.h"
@@ -21,18 +21,28 @@ public:
         static SlamAdapter instance;
         return &instance;
     }
+    ~SlamAdapter() = default;
+    SlamAdapter(SlamAdapter const&) = delete;
+    void operator=(SlamAdapter const&) = delete;
 
-    void updateKinematics(const string &rName, const POSE &pose, const VELOCITY &vel);
-    void updateDetections(const string &rName, const std::array<SONAR, 3> &sonar);
-    void recordAuxilaryRoversBelief(const string &rName, const POSE &pose, float confidence);
+    void updateKinematics(const string &rName, const Pose &pose, const Velocity &vel);
+    void updateDetections(const string &rName, const std::array<Sonar, 3> &sonar);
+    void recordAuxilaryRoversBelief(const string &rName, const Pose &pose, float confidence);
 
     void slamUpdate(const string &rName);
-    void logAuxilaryFeatureSet(const string &rName, const std::array<FEATURE, 3> &features, const CLASSIFIER &classifier, const string &publisher);
-    void updateTransformationByRover(const POSE &transformation, const std::string &pairedRover);
+    void logAuxilaryFeatureSet(
+            const string &rName,
+            const std::array<Feature, 3> &features,
+            const Classifier &classifier,
+            const string &publisher);
+
+    void updateTransformationByRover(const Pose &transformation, const std::string &pairedRover);
     void addTransformation(const std::string &roverName, Transformation *trans);
-    void addFeatureSet(const std::string &roverName, std::tuple<std::array<FEATURE, FEATURE_LIMIT>, CLASSIFIER> *set);
+    void addFeatureSet(const std::string &roverName, Classifier *setClassifier);
+
+    // TODO both need to be re-written
     Transformation* checkTransformation(const std::string &roverName);
-    std::tuple<std::array<FEATURE, FEATURE_LIMIT>, CLASSIFIER>* checkFeatureSet(const std::string &roverName);
+    Classifier * checkFeatureSet(const std::string &roverName);
 
     // FOR TESTING PURPOSES
     std::unordered_map<std::string, Transformation *> *getTransformations() {
@@ -42,19 +52,16 @@ public:
 private:
     SlamAdapter() :
 //            rover(std::shared_ptr<Rover>(new Rover())),
-            transformations(new std::unordered_map<std::string, Transformation *>()),
-            recentlyPublishedFS(new std::unordered_map<std::string,  std::tuple<std::array<FEATURE, FEATURE_LIMIT>, CLASSIFIER> *>())
-            {}
-
-    SlamAdapter(SlamAdapter const&) = delete;
-    void operator=(SlamAdapter const&) = delete;
+        transformations(new std::unordered_map<std::string, Transformation *>{}),
+        publishedClassifiers(new std::unordered_map<std::string, Classifier *>{})
+    {}
 
     /**
      * Variables
      */
 //    std::shared_ptr<Rover> rover;
     std::shared_ptr<std::unordered_map<std::string, Transformation *>> transformations;
-    std::shared_ptr<std::unordered_map<std::string,  std::tuple<std::array<FEATURE, FEATURE_LIMIT>, CLASSIFIER> *>> recentlyPublishedFS;
+    std::shared_ptr<std::unordered_map<std::string, Classifier *>> publishedClassifiers;
 };
 
 

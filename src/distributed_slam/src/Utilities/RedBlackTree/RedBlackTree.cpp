@@ -4,9 +4,11 @@
 
 #include "RedBlackTree.h"
 
-const std::shared_ptr<normal> Node::distribution(new normal());
+using boost::math::normal;
 
-bool RedBlackTree::findMLClassifier(const CLASSIFIER &classifier, uint16_t &index) {
+static normal normalDist = normal();
+
+bool RedBlackTree::findMLClassifier(const Classifier &classifier, uint16_t &index) {
     Node *node;
     float prob{0};
     auto currNodePtr{NODE_PTR()};
@@ -44,7 +46,9 @@ bool RedBlackTree::findMLClassifier(const CLASSIFIER &classifier, uint16_t &inde
     }
 }
 
-void RedBlackTree::addToTree(const CLASSIFIER &classifier, const std::array<FEATURE, 3> &features) {
+void RedBlackTree::addToTree(
+        const Classifier &classifier,
+        const std::array<Feature, 3> &features) {
     auto node{&this->tree[this->availableIndexPtr]};
     node->classifier = classifier;
     node->featureSet = features;
@@ -60,16 +64,18 @@ void RedBlackTree::resetTree() {
     this->tree = this->cleanTree;
 }
 
-void RedBlackTree::getFeaturesFromNode(std::array<FEATURE, 3> &featuresToPopulate, const uint16_t &nodeIndexPtr) {
+void RedBlackTree::getFeaturesFromNode(
+        std::array<Feature, 3> &featuresToPopulate,
+        const uint16_t &nodeIndexPtr) {
     featuresToPopulate = this->tree[nodeIndexPtr].featureSet;
 }
 
 float RedBlackTree::areaLikelihood(const float &area) {
-   return (float) pdf(*Node::distribution, area);
+   return (float) pdf(normalDist, area);
 }
 
 float RedBlackTree::orientationLikelihood(const float &orient) {
-    return (float) pdf(*Node::distribution, orient);
+    return (float) pdf(normalDist, orient);
 }
 
 uint16_t RedBlackTree::singleRotation(const uint16_t &nodeIndex, const dir &direction) {

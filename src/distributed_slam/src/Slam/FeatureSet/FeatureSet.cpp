@@ -4,7 +4,8 @@
 
 #include "FeatureSet.h"
 
-void FeatureSet::addToSet(const FEATURE &feature, const POSE &rPose) {
+void FeatureSet::addToSet(const Feature &feature, const Pose &rPose) {
+    std::cout << "Adding Feature " << currFeatIdx << "!!!" << std::endl;
     set[currFeatIdx] = feature;
     incidentOrient[currFeatIdx] = rPose.theta;
     incrPtr();
@@ -17,12 +18,8 @@ bool FeatureSet::readyToPublish() {
     return isSetFull();
 }
 
-std::tuple<std::array<FEATURE, FEATURE_LIMIT>, CLASSIFIER> FeatureSet::publishSet() {
-    std::cout << "Publishing Set" << std::endl;
-    std::cout << "Area : " << classifier.area << std::endl;
-    std::cout << "Orientation : " << classifier.orientation << std::endl;
-    std::cout << "Classifier : " << classifier.signature << std::endl;
-    return std::tuple<std::array<FEATURE, FEATURE_LIMIT>, CLASSIFIER>{set, classifier};
+std::tuple<std::array<Feature, FEATURE_LIMIT>, Classifier> FeatureSet::publishSet() {
+    return std::tuple<std::array<Feature, FEATURE_LIMIT>, Classifier>{set, classifier};
 }
 
 void FeatureSet::incrPtr() {
@@ -36,11 +33,11 @@ void FeatureSet::analyzeFeats() {
 }
 
 bool FeatureSet::isSetFull() {
-    static bool run = false;
-    if (!run) {
-        run = true;
+    static bool procStarted{false};
+    if (!procStarted) {
+        procStarted = static_cast<bool>(currFeatIdx % FEATURE_LIMIT);
     }
-    return !static_cast<bool>(currFeatIdx % FEATURE_LIMIT);
+    return !static_cast<bool>(currFeatIdx % FEATURE_LIMIT) && procStarted;
 }
 
 void FeatureSet::fsArea() {
@@ -49,8 +46,13 @@ void FeatureSet::fsArea() {
         Equations::getInstance()->distBetweenPts(set[0].pose, set[2].pose),
         Equations::getInstance()->distBetweenPts(set[1].pose, set[2].pose)
     };
-    float area = (legs[0] + legs[1] + legs[2]) / 2;
-    classifier.area =  sqrtf(area * (area - legs[0]) * (area - legs[1]) * (area - legs[2]));
+
+    /**
+     * Area of triangle from sides.
+     * Heron's Formula
+     */
+    float splitPerimeter = (legs[0] + legs[1] + legs[2]) / 2;
+    classifier.area =  sqrtf(splitPerimeter * (splitPerimeter - legs[0]) * (splitPerimeter - legs[1]) * (splitPerimeter - legs[2]));
 }
 
 void FeatureSet::fsOrientation() {
@@ -63,8 +65,14 @@ void FeatureSet::fsOrientation() {
 }
 
 void FeatureSet::fsSignature() {
+    static float signLowBound{std::numeric_limits<float>::max()};
+    static float signHighBound{std::numeric_limits<float>::min()};
+
+    auto signature{Equations::getInstance()->cantor(classifier.area, classifier.orientation)};
+    signLowBound = std::fmin(signLowBound, signature);
+    signHighBound = std::fmax(signature, signHighBound);
+
     classifier.signature =  Equations::getInstance()->normalizeValue(
-            Equations::getInstance()->cantor(classifier.area, classifier.orientation),
-            0, SIGNATURE_MAX
+            signature, signLowBound, signHighBound
     );
 }
