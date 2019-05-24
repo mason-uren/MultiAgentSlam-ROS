@@ -1,0 +1,3 @@
+float32 area
+float32 orientation
+float32 signature

@@ -1,0 +1,3 @@
+float32 xRelative
+float32 yRelative
+float32 incidentAngle

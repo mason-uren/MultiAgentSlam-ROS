@@ -3,6 +3,8 @@ project(diagnostics)
 
 SET(CMAKE_CXX_FLAGS "-std=c++11")
 
+cmake_policy(SET CMP0054 OLD)
+
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   std_msgs

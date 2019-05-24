@@ -17,7 +17,11 @@
   <build_depend>tf</build_depend>
   <build_depend>apriltags_ros</build_depend>
   <build_depend>swarmie_msgs</build_depend>
-  
+  <build_depend>ros_slam_msgs</build_depend>
+
+  <build_depend>distributed_slam</build_depend>
+  <build_depend>slam_logger</build_depend>
+
   <run_depend>geometry_msgs</run_depend>
   <run_depend>roscpp</run_depend>
   <run_depend>sensor_msgs</run_depend>
@@ -26,6 +30,10 @@
   <run_depend>tf</run_depend>
   <run_depend>apriltags_ros</run_depend>
   <run_depend>swarmie_msgs</run_depend>
+  <run_depend>ros_slam_msgs</run_depend>
+
+  <run_depend>distributed_slam</run_depend>
+  <run_depend>slam_logger</run_depend>
 
   <export>
 
