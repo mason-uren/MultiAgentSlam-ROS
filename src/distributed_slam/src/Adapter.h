@@ -29,6 +29,8 @@
 #include "Utilities/ConfigParser/ConfigParser.h"
 #include "Utilities/RedBlackTree/RedBlackTree.h"
 
+constexpr char CONFIG_PATH[] = "../MultiAgentSlam-ROS/src/distributed_slam/Config/slam_in.json";
+
 class Adapter {
 public:
     static Adapter *getInstance() {

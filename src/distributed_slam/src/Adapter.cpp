@@ -7,8 +7,6 @@ using std::unique_ptr;
 using std::make_unique;
 using std::string;
 using std::get;
-using boost::filesystem::path;
-using boost::filesystem::fstream;
 
 namespace fs = boost::filesystem;
 
@@ -18,17 +16,11 @@ void Adapter::loadDefaultConfig() {
     configParser = make_unique<ConfigParser>();
     sharedMemory = make_unique<SharedMemory>();
 
-    // Working directory valid at 'src' (root)
-    path currentDirectory{boost::filesystem::current_path()};
     std::cout << "Loading Distributed Slam Configuration..." << std::endl;
-//    std::cout << "Current Working Directory: " << currentDirectory << std::endl;
-
-    std::string filePath{"/home/csadmin/Swarmathon-CSUCI/src/distributed_slam/Config/slam_in.json"};
-
-    if (!configParser->loadJSONFromFile(filePath, &jsonFileConfig)) {
+    if (!configParser->loadJSONFromFile(CONFIG_PATH, &jsonFileConfig)) {
         std::stringstream root;
-        root << filePath << " is missing. \n";
-        root << "Maybe the path to the config needs to be modified. \n";
+        root << CONFIG_PATH << " is missing. \n";
+        root << "Maybe the path to the JSON config needs to be modified. \n";
         std::cerr << root.str() << strerror(errno);
         exit(EXIT_FAILURE);
     }

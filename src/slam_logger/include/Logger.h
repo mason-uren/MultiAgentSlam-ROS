@@ -16,11 +16,12 @@
 #include <time.h>
 
 #include <boost/filesystem.hpp>
+#include <boost/filesystem/operations.hpp>
 
 #include <include/SharedMemoryStructs.h>
 #include <include/Tools/Transformation.h>
 
-constexpr char ROOT_PATH[] = "/home/csadmin/Swarmathon-CSUCI/src/slam_logger/logs";
+constexpr char ROOT_PATH[] = "../MultiAgentSlam-ROS/src/slam_logger/logs";
 constexpr char ERR_FILE[] = "/errors.txt";
 constexpr char BEL_FILE[] = "/beliefs.txt";
 constexpr char FEAT_FILE[] = "/features.txt";
@@ -47,7 +48,8 @@ private:
     Logger(std::string rName) :
         roverName(std::move(rName))
     {
-        std::cout << "Creating Logger for " << roverName << std::endl;
+        std::cout << "Creating Logger for " << roverName << "..." << std::endl;
+
         boost::filesystem::path dir(ROOT_PATH);
         if (!boost::filesystem::exists(dir)) {
             if (boost::filesystem::create_directory(dir)) {
