@@ -15,9 +15,9 @@
 #include <boost/operators.hpp>
 #include <boost/filesystem/fstream.hpp>
 
-#include <include/SharedMemoryStructs.h>
-#include <include/SharedMemory/SharedMemory.h>
-#include <include/CPP14/cpp14_utils.h>
+#include <shared_structs/SharedMemoryStructs.h>
+#include <tools/SharedMemory/SharedMemory.h>
+#include <tools/CPP14/cpp14_utils.h>
 #include <Logger.h>
 
 #include <ros_slam_msgs/AuxBeliefs.h>
@@ -68,7 +68,7 @@ private:
         roverName(new std::string())
     {};
 
-    bool isSelf(const uint16_t &targetRoverIdx);
+    bool isSelf(const int &targetRoverIdx);
     bool isSameBelief(const std::string &targetRover, const Pose &pose);
     bool isSameFeatureSet(const std::string &targetRover,
                           const Classifier &setClassifier);
@@ -82,6 +82,8 @@ private:
     std::unique_ptr<SYS_CONFIG_IN> systemConfig;
 
     std::unique_ptr<std::string> roverName;
+    std::ostringstream msg{};
+    std::ostringstream err{};
 };
 
 #endif //MULTIAGENTSLAM_ADAPTER_H

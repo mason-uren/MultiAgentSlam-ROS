@@ -55,7 +55,9 @@ void Seif::measurementUpdate(const Ray &incidentRay) {
     // Bad Feautre Struct : {range = -MAXFLOAT, angle = -MAXFLOAT}
     if (this->isNewFeature(incidentRay)) {
         this->deriveFeature(feature, incidentRay);
-        if (!this->hasBeenObserved(feature.correspondence)) {
+        if (!this->hasBeenObserved(feature.correspondence.point)) {
+            std::cout << __PRETTY_FUNCTION__ << std::endl;
+            std::cout << "Found new feature : range<" << incidentRay.range << "> angle<" << incidentRay.angle << ">"  << std::endl;
             FeatureSet::getInstance()->addToSet(feature, rPose);
             this->addFeature(feature);
             this->organizeFeatures();
@@ -66,7 +68,7 @@ void Seif::measurementUpdate(const Ray &incidentRay) {
         feature = (*this->recordedFeatures)[featIdx];
         this->updateDeltaPos(feature.pose);
         this->update_q();
-        this->updateZHat(feature.correspondence);
+        this->updateZHat(feature.correspondence.point);
         this->updateH(featIdx);
         this->infoVecSummation(feature);
         this->infoMatrixSummation();
@@ -249,12 +251,44 @@ void Seif::deriveFeature(Feature &feature, const Ray &incidentRay) {
 
     feature.incidentRay = incidentRay;
     feature.pose = xyCoords;
+    auto correspondence{Equations::getInstance()->szudzikMapping(xyCoords.x, xyCoords.y)};
 
-    // TODO may need to think how we normalize value
-    feature.correspondence = Equations::getInstance()->normalizeValue(
-            Equations::getInstance()->cantor(xyCoords.x, xyCoords.y),
-            0, this->maxCorrespondence
-    );
+    feature.correspondence = correspondence;
+
+//    static float signLowBound{std::numeric_limits<float>::max()};
+//    static float signHighBound{std::numeric_limits<float>::min()};
+
+
+
+    // Scale previously recorded correspondences
+    // TODO : need to scale `minFeatureDist`
+//    if (correspondence < signLowBound || (correspondence > signHighBound)) {
+//        signLowBound = std::fmin(signLowBound, correspondence);
+//        signHighBound = std::fmax(correspondence, signHighBound);
+//
+//        for (auto &target : *this->recordedFeatures) {
+//            this->minFeatureDist += (1 - (signHighBound - signLowBound + target.correspondence) / ())
+//
+//            target.correspondence = Equations::getInstance()->normalizeValue(
+//                    target.correspondence, signHighBound, signHighBound
+//            );
+//        }
+//
+//    }
+
+//            Equations::getInstance()->normalizeValue(
+//        correspondence, signLowBound, signHighBound
+//    );
+//    std::cout << "Normalized "
+
+//
+//
+//
+//    // TODO may need to think how we normalize value
+//    feature.correspondence = Equations::getInstance()->normalizeValue(
+//            Equations::getInstance()->cantor(xyCoords.x, xyCoords.y),
+//            0, this->maxCorrespondence
+//    );
 }
 
 /**
@@ -270,12 +304,23 @@ bool Seif::hasBeenObserved(const float &correspondence) {
     uint16_t front = 0;
     uint16_t back = this->featuresFound ? this->featuresFound - 1 : 0;
 
+
+    std::cout << __PRETTY_FUNCTION__ << std::endl;
+    std::cout << "Current Correspondence : " << correspondence << std::endl;
     if (!this->featuresFound) {
+        std::cout << "No Features have been observed.\n" << std::endl;
         return false;
     }
     if (this->featuresFound < 2) {
-        return EQUIV == comparison(correspondence, (*this->recordedFeatures)[front].correspondence);
+        std::cout << "1 feature has been observed." << std::endl;
+        std::cout << "Prev Recorded Confidence : " << (*this->recordedFeatures)[front].correspondence.point << "\n" << std::endl;
+        auto equal{ EQUIV == comparison(correspondence, (*this->recordedFeatures)[front].correspondence)};
+        std::cout << "Are equiv : " << (equal) << std::endl;
+        return equal;
+//        return EQUIV == comparison(correspondence, (*this->recordedFeatures)[front].correspondence);
     }
+    std::cout << "Multiple features have been observed." << std::endl;
+    std::cout << "Prev Recorded Confidence : " << (*this->recordedFeatures)[front].correspondence.point << "\n" << std::endl;
 
     bool finished = false;
     do {
@@ -333,8 +378,13 @@ void Seif::organizeFeatures() {
     }
 }
 
-relation Seif::comparison(const float &identifier, const float &otherID) {
-    return (abs(identifier - otherID) < minFeatureDist) ? EQUIV : ((identifier < otherID) ? LOWER : HIGHER);
+relation Seif::comparison(const float &identifier, const Signature &otherID) {
+    auto delta{std::fabs(otherID.bounds.at(1) - otherID.bounds.at(1))};
+    auto difference{std::fabs(otherID.bounds.at(0) - identifier)};
+
+    return (difference <= delta && difference >= otherID.bounds.at(0) ?
+            EQUIV : (difference < delta) ?
+                LOWER : HIGHER);
 }
 
 bool Seif::isActiveFull() {
@@ -382,7 +432,7 @@ void Seif::updateH(const uint16_t &idx) {
 }
 
 void Seif::infoVecSummation(const Feature &feature) {
-    Matrix<float> z_i{{feature.incidentRay.range}, {feature.incidentRay.angle}, {feature.correspondence}};
+    Matrix<float> z_i{{feature.incidentRay.range}, {feature.incidentRay.angle}, {feature.correspondence.point}};
     auto H_T(*this->H); H_T.transpose();
     auto Q_inv(*this->measurementCov); Q_inv.invert();
     *this->informationVector += H_T * Q_inv * (z_i - *this->zHat - *this->H * *this->stateEstimate);
@@ -400,7 +450,7 @@ void Seif::updateInformationMatrix() {
     auto m0_T(this->defineProjection(&(*this->toDeactivate), false)); m0_T.transpose();
     auto xm0_T(this->defineProjection(&(*this->toDeactivate))); xm0_T.transpose();
     auto fx_T(*this->F_X); fx_T.transpose();
-    if (this->toDeactivate->correspondence >= 0) {
+    if (this->toDeactivate->correspondence.point >= 0) {
         this->makeInactive(&(*this->toDeactivate));
     }
 
@@ -424,7 +474,7 @@ Matrix<float> Seif::defineProjection(const Feature *feat, const bool &includePos
         projection[num(pos_val::Y)][num(pos_val::Y)] = 1;
         projection[num(pos_val::THETA)][num(pos_val::THETA)] = 1;
     }
-    if (feat->correspondence >= 0) {
+    if (feat->correspondence.point >= 0) {
         auto startIdx{featIdx(feat->idx)};
         projection[num(pos_val::X)][startIdx] = 1;
         projection[num(pos_val::Y)][startIdx + num(pos_val::Y)] = 1;
@@ -435,7 +485,7 @@ Matrix<float> Seif::defineProjection(const Feature *feat, const bool &includePos
 }
 
 void Seif::makeInactive(Feature *toDeact) {
-    toDeact->correspondence = lim_float::min();
+    toDeact->correspondence.point = lim_float::min();
 }
 
 /**
@@ -448,7 +498,7 @@ void Seif::makeInactive(Feature *toDeact) {
  * @return is the correspondence of #feat lower than #other.
  */
 bool Seif::correspondenceSort(const Feature &feat, const Feature &other) {
-    return feat.correspondence < other.correspondence;;
+    return feat.correspondence.point < other.correspondence.point;;
 }
 
 /**

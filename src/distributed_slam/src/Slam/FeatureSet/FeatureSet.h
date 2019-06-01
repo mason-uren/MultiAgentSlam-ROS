@@ -9,7 +9,7 @@
 #include <array>
 #include <tuple>
 
-#include <include/SharedMemoryStructs.h>
+#include <shared_structs/SharedMemoryStructs.h>
 #include <Logger.h>
 
 #include "../../Utilities/Equations/Equations.h"

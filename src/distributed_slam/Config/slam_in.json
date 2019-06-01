@@ -4,13 +4,13 @@
     "filterSize" : 64,
     "maxFeatures" : 256,
     "detection" : {
-      "highDetectionBoundaryInM" : 2.5,
+      "highDetectionBoundaryInM" : 1.5,
       "sonarCoverageInRad" : 1.74,
       "sonarRangeInM" : 3.0
     },
     "seif" : {
       "maxActiveFeatures" : 8,
-      "featureDistInM" : 0.5,
+      "featureDistInM" : 1E-5,
       "R" : [0.1, 0.1, 0.1],
       "Q" : [1E5, 1E5, 1]
     },

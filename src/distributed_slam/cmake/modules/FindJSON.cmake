@@ -33,7 +33,7 @@ find_path(
         NAMES
             ${INCLUDE_HDRS}
         PATHS
-            ${CMAKE_CURRENT_SOURCE_DIR}/include/${TARGET_DIRECTORY_NAME}/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/include/${TARGET_DIRECTORY_NAME}
         PATH_SUFFIXES
             ${TARGET_DIRECTORY_NAME}
 )

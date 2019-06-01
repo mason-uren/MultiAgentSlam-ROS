@@ -16,20 +16,20 @@ void Adapter::loadDefaultConfig() {
     configParser = make_unique<ConfigParser>();
     sharedMemory = make_unique<SharedMemory>();
 
-    std::cout << "Loading Distributed Slam Configuration..." << std::endl;
+    this->msg << "Loading Distributed Slam Configuration..." << std::endl;
     if (!configParser->loadJSONFromFile(CONFIG_PATH, &jsonFileConfig)) {
-        std::stringstream msg{};
-        msg << CONFIG_PATH << " is missing. \n";
-        msg << "Maybe the path to the JSON config needs to be modified. \n";
-        msg << "Exiting... " << __PRETTY_FUNCTION__ << std::endl;
-//        std::cerr << msg.str() << strerror(errno);
-        Logger::getInstance(*this->roverName)->error(msg.str());
+        this->err << CONFIG_PATH << " is missing. \n";
+        this->err << "Maybe the path to the JSON config needs to be modified. \n";
+        this->err << "Exiting... " << __PRETTY_FUNCTION__ << std::endl;
+        Logger::getInstance(*this->roverName)->error(this->err.str());
         exit(EXIT_FAILURE);
     }
     configParser->parseConfig(&(*systemConfig), &jsonFileConfig);
     systemConfig->block_id++;
     sharedMemory->writeMemoryIn(&(*systemConfig));
-    std::cout << "Configuration Parsed." << std::endl;
+    this->msg << "Configuration Parsed." << std::endl;
+    Logger::getInstance(*this->roverName)->status(msg.str());
+    msg.clear();
 }
 
 void Adapter::jsonInitialize() {
@@ -43,8 +43,6 @@ void Adapter::jsonInitialize() {
 //    }
 
     if (!this->roverName) {
-//        std::cerr << "Adapter must be aware of rover name before calling `Adapter::jsonInitialize`" << std::endl;
-//        std::cerr << "Check that `Adapter::setRoverName` is being called in the proper execution order." << std::endl;
         std::stringstream msg{};
         msg << "Adapter must be aware of rover name before calling `Adapter::jsonInitialize`\n";
         msg << "Check that `Adapter::setRoverName` is being called in the proper execution order.\n";
@@ -132,6 +130,9 @@ bool Adapter::publishTransformation(std::tuple<Pose, std::string> *transformatio
     bool ready{false};
     if ((ready = ActiveRovers::getInstance()->getRoverByName(*roverName).readyToPublish())) {
         *transformation = ActiveRovers::getInstance()->getRoverByName(*this->roverName).publish();
+
+        std::cout << __PRETTY_FUNCTION__ << std::endl;
+        std::cout << "\tReceiver (ofPT) : " << *this->roverName << "\tSender : " << get<1>(*transformation) << std::endl;
         // Save transformation locally
         SlamAdapter::getInstance()->updateTransformationByRover(get<0>(*transformation), *this->roverName);
     }
@@ -164,11 +165,18 @@ void Adapter::featureSetHandler(const ros_slam_msgs::AuxFeatureSet::ConstPtr &au
                     reinterpret_cast<const Feature &>(auxFS->aux_feat_sets[i].set[1]),
                     reinterpret_cast<const Feature &>(auxFS->aux_feat_sets[i].set[2])
             }};
+            Signature auxSignature{
+                    auxFS->aux_feat_sets[i].uuid.signature.mapped_pt,
+                    std::vector<float>{
+                            auxFS->aux_feat_sets[i].uuid.signature.boundaries[0],
+                            auxFS->aux_feat_sets[i].uuid.signature.boundaries[1]
+                    }
+            };
             auto auxClassifier{
-                Classifier {
-                    auxFS->aux_feat_sets[i].uuid.area,
-                    auxFS->aux_feat_sets[i].uuid.orientation,
-                    auxFS->aux_feat_sets[i].uuid.signature
+                Classifier{
+                        auxFS->aux_feat_sets[i].uuid.area,
+                        auxFS->aux_feat_sets[i].uuid.orientation,
+                        auxSignature
                 }
             };
             if (!this->isSameFeatureSet(auxRoverName, auxClassifier)) {
@@ -208,8 +216,8 @@ void Adapter::transformationHandler(const ros_slam_msgs::TransformationPairs::Co
     }
 }
 
-bool Adapter::isSelf(const uint16_t &targetRoverIdx) {
-    return targetRoverIdx == getRoverAddress(*this->roverName);
+bool Adapter::isSelf(const int &targetRoverIdx) {
+    return targetRoverIdx != BAD_ROVER_IDX && targetRoverIdx == getRoverAddress(*this->roverName);
 }
 
 bool Adapter::isSameBelief(const std::string &targetRover, const Pose &pose) {

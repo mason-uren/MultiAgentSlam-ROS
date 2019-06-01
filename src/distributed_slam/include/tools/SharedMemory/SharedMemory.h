@@ -14,7 +14,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 
-#include <include/SharedMemoryStructs.h>
+#include <shared_structs/SharedMemoryStructs.h>
 #include <unistd.h>
 #include <zconf.h>
 

@@ -2866,7 +2866,10 @@ void slamPublishFeatureSet(
     // Publish Classifier
     fsToPublish.aux_feat_sets[index].uuid.area = classifier.area;
     fsToPublish.aux_feat_sets[index].uuid.orientation = classifier.orientation;
-    fsToPublish.aux_feat_sets[index].uuid.signature = classifier.signature;
+    // Publish Signature
+    fsToPublish.aux_feat_sets[index].uuid.signature.mapped_pt = classifier.signature.point;
+    fsToPublish.aux_feat_sets[index].uuid.signature.boundaries[0] = classifier.signature.bounds.at(0);
+    fsToPublish.aux_feat_sets[index].uuid.signature.boundaries[1] = classifier.signature.bounds.at(1);
 
     featureSetPublisher.publish(fsToPublish);
 
@@ -2903,7 +2906,6 @@ void slamFeatureSetHandler(const ros_slam_msgs::AuxFeatureSet::ConstPtr &auxFeat
 }
 
 void slamTransformationHandler(const ros_slam_msgs::TransformationPairs::ConstPtr &transformationPairs) {
-    std::cout << "Transformation trigger" << std::endl;
     Adapter::getInstance()->transformationHandler(transformationPairs);
 }
 

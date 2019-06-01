@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 
-message(STATUS)
-message(STATUS ======================)
+message("\n")
+message(STATUS "======================")
 message(STATUS "distributed_slam - SETUP")
 message(STATUS "CMAKE_VERSION ${CMAKE_VERSION}")
 message(STATUS ======================)
@@ -34,11 +34,6 @@ message(STATUS "CMAKE_MODULE_PATH: ${CMAKE_MODULE_PATH}")
 ###################################################
 # Find external libraries/headers
 ###################################################
-#add_subdirectory(${PROJECT_PATH}/include/interfaces)
-#add_subdirectory(${PROJECT_PATH}/include/nholmann_json)
-#add_subdirectory(${PROJECT_PATH}/include/shared_structs)
-#add_subdirectory(${PROJECT_PATH}/include/templates)
-
 include("cmake/modules/Boost.cmake")
 include("cmake/modules/FindEigen3.cmake")
 include("cmake/modules/FindMKL.cmake")
@@ -165,10 +160,16 @@ install(
 # Export from the build tree
 ###################################################
 
+
+###################################################
+# Test Environment
+###################################################
+include(${CMAKE_CURRENT_SOURCE_DIR}/tests/CMakeLists.txt)
+
 message(STATUS ======================)
 message(STATUS "distributed_slam - FINISHED")
 message(STATUS ======================)
-message(STATUS)
+message("\n")
 
 
 

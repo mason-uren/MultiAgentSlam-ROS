@@ -6,9 +6,10 @@
 #define C_SHAREDSTRUCT_H
 
 #include <algorithm>
+#include <vector>
 #include <iostream>
 
-#include <include/enum.h>
+#include <better_enum/enum.h>
 
 #include "SLAMConfigIn.h"
 
@@ -20,6 +21,7 @@ constexpr uint16_t SONAR_MAX_RANGE = UINT16_C(3);
 //constexpr uint16_t SIGNATURE_MAX = UINT16_C(100);
 constexpr uint16_t ELEMENT_SIZE = UINT16_C(3);
 constexpr float ROS_INTERVAL = 0.1;
+constexpr int BAD_ROVER_IDX = -1;
 
 
 /**
@@ -66,11 +68,35 @@ BETTER_ENUM(rover_names, uint16_t,
 /**
  * C++ "Structs"
  */
+class Signature {
+public:
+    Signature(const float &pt,
+              const std::vector<float> &bounds) :
+          point(pt),
+          bounds(bounds)
+    {}
+    Signature() = default;
+    ~Signature() = default;
+
+    float point{};
+    std::vector<float> bounds{};
+
+    Signature& operator=(const Signature &rhs) {
+        point = rhs.point;
+        bounds = rhs.bounds;
+        return *this;
+    }
+    bool operator==(const Signature &rhs) const {
+        return (point == rhs.point) &&
+               (bounds == rhs.bounds);
+    }
+};
+
 class Classifier {
 public:
     Classifier(const float &area,
                const float &orientation,
-               const float &signature) :
+               const Signature &signature) :
         area(area),
         orientation(orientation),
         signature(signature)
@@ -80,7 +106,7 @@ public:
 
     float area{};
     float orientation{};
-    float signature{};
+    Signature signature{};
 
     Classifier& operator=(const Classifier &rhs) {
         orientation = rhs.orientation;
@@ -227,7 +253,7 @@ class Feature {
 public:
     Feature() = default;
     Feature(const uint16_t &idx,
-            const float &correspondence,
+            const Signature &correspondence,
             const Ray &incidentRay,
             const Pose &pose) :
         idx(idx),
@@ -236,7 +262,7 @@ public:
         pose(pose)
     {}
     uint16_t idx{}; // TODO I don't like this here (doesn't relate to feature)
-    float correspondence{};
+    Signature correspondence{};
     Ray incidentRay{};
     Pose pose{};
 
@@ -276,13 +302,17 @@ inline std::string & lower(std::string &name) {
     return name;
 }
 
-inline uint16_t getRoverAddress(const std::string &name) {
-    auto copy{name};
-    return rover_names::_from_string(upper(copy).c_str());
+inline int getRoverAddress(const std::string &name) {
+    if (!name.empty()) {
+        auto copy{name};
+        return rover_names::_from_string(upper(copy).c_str());
+    }
+    return BAD_ROVER_IDX;
 }
 
 inline std::string getRoverName(const uint16_t &idx) {
-    return rover_names::_from_integral(idx)._to_string();
+    std::string rName{rover_names::_from_integral(idx)._to_string()};
+    return lower(rName);
 }
 
 #endif //C_SHAREDSTRUCT_H

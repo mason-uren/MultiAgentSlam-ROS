@@ -11,8 +11,8 @@
 #include <cstddef>
 #include <functional>
 
-#include <include/SharedMemoryStructs.h>
-#include <include/Node/Node.h>
+#include <shared_structs/SharedMemoryStructs.h>
+#include <tools/Node/Node.h>
 
 #include <boost/math/distributions/normal.hpp>
 

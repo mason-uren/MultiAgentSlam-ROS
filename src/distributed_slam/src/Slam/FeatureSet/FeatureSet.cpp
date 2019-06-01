@@ -10,6 +10,7 @@ void FeatureSet::addToSet(const Feature &feature, const Pose &rPose) {
     incidentOrient[currFeatIdx] = rPose.theta;
     incrPtr();
     if (isSetFull()) {
+        std::cout << "Feature set FULL" << std::endl;
         analyzeFeats();
     }
 }
@@ -65,14 +66,16 @@ void FeatureSet::fsOrientation() {
 }
 
 void FeatureSet::fsSignature() {
-    static float signLowBound{std::numeric_limits<float>::max()};
-    static float signHighBound{std::numeric_limits<float>::min()};
+//    static float signLowBound{std::numeric_limits<float>::max()};
+//    static float signHighBound{std::numeric_limits<float>::min()};
 
-    auto signature{Equations::getInstance()->cantor(classifier.area, classifier.orientation)};
-    signLowBound = std::fmin(signLowBound, signature);
-    signHighBound = std::fmax(signature, signHighBound);
+    auto signature{Equations::getInstance()->szudzikMapping(classifier.area, classifier.orientation)};
+//    signLowBound = std::fmin(signLowBound, signature);
+//    signHighBound = std::fmax(signature, signHighBound);
+//
+    classifier.signature = signature;
 
-    classifier.signature =  Equations::getInstance()->normalizeValue(
-            signature, signLowBound, signHighBound
-    );
+//            Equations::getInstance()->normalizeValue(
+//            signature, std::numeric_limits<float>::min(), std::numeric_limits<float>::max()
+//    );
 }

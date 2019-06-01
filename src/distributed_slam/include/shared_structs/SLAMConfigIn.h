@@ -35,7 +35,6 @@ typedef struct {
 
 typedef struct {
     bool valid{};
-//    bool live{};
     int ID{};
     std::string name;
 } ROVER_CONFIG;

@@ -10,10 +10,10 @@
 #include <sstream>
 #include <array>
 
-#include <include/Filters/MeanFilter.h>
-#include <include/Filters/VarianceFilter.h>
-#include <include/Filters/CovarianceFilter.h>
-#include <include/SharedMemoryStructs.h>
+#include <templates/Filters/MeanFilter.h>
+#include <templates/Filters/VarianceFilter.h>
+#include <templates/Filters/CovarianceFilter.h>
+#include <shared_structs/SharedMemoryStructs.h>
 
 typedef struct {
     std::array<MeanFilter<float> *, ELEMENT_SIZE> means {{

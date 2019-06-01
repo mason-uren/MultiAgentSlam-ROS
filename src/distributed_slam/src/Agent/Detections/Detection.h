@@ -8,9 +8,9 @@
 #include <memory>
 #include <array>
 
-#include <include/IncidentRayInterface.h>
-#include <include/SLAMConfigIn.h>
-#include <include/Filters/FIRFilter.h>
+#include <interfaces/IncidentRayInterface.h>
+#include <shared_structs/SLAMConfigIn.h>
+#include <templates/Filters/FIRFilter.h>
 
 typedef struct {
     float left[FILTER_LENGTH]{};

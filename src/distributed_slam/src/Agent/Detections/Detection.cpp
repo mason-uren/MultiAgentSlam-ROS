@@ -5,8 +5,8 @@
 #include "Detection.h"
 
 bool Detection::hasIncidentRay() {
-//    return this->incidentRay->range < this->uppderDetectLimit;
-    return this->incidentRay->range < 0.6;
+    return this->incidentRay->range < this->upperDetectLimit;
+//    return this->incidentRay->range < 0.6;
 }
 
 Ray* Detection::getIncidentRay() {

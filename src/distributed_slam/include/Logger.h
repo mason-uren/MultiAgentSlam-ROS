@@ -17,7 +17,7 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/operations.hpp>
 
-#include <include/SharedMemoryStructs.h>
+#include <shared_structs/SharedMemoryStructs.h>
 
 constexpr char ROOT_PATH[] = "../MultiAgentSlam-ROS/src/distributed_slam/logs";
 constexpr char ERR_FILE[] = "/errors.txt";
@@ -28,8 +28,16 @@ constexpr char TRANS_FILE[] = "/transformations.txt";
 
 class Logger {
 public:
-    static Logger *getInstance(const std::string &rName) {
-        static Logger instance(rName);
+    static Logger *getInstance(const std::string &rName = "default", const std::string &filePath = "") {
+        static std::string roverName{};
+        static std::string rootPath{};
+        if (roverName.empty()) {
+            roverName = rName;
+        }
+        if (rootPath.empty()) {
+            rootPath = filePath;
+        }
+        static Logger instance(roverName, filePath);
         return &instance;
     }
     ~Logger() = default;
@@ -43,14 +51,19 @@ public:
     void record(const Pose &transformation, const std::string &targetRover);
     void clearErrorLog();
     void clearInfoLogs();
+    std::string getLoggerName();
+
+    // For testing environment ONLY
+    void logTo(const std::string &filePath, const std::string &msg);
 
 private:
-    explicit Logger(std::string rName) :
-        roverName(std::move(rName))
+    explicit Logger(std::string rName, std::string rPath) :
+        roverName(std::move(rName)),
+        rootPath(std::move(rPath))
     {
         std::cout << "Creating Logger for " << roverName << "..." << std::endl;
 
-        boost::filesystem::path dir(ROOT_PATH);
+        boost::filesystem::path dir(rootPath + "/logs");
         if (!boost::filesystem::exists(dir)) {
             if (boost::filesystem::create_directory(dir)) {
                 std::cout << "Directory <" << dir << "> created." << std::endl;
@@ -86,6 +99,7 @@ private:
     long getTime();
     void writeToFile(std::ofstream &file, const std::string &message);
 
+    std::string rootPath;
     std::string roverName;
 
     std::stringstream errPath;

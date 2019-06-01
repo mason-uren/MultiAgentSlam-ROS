@@ -31,11 +31,11 @@ bool RedBlackTree::findMLClassifier(const Classifier &classifier, uint16_t &inde
         }
 
         // Right child
-        if (classifier.signature > node->classifier.signature) {
+        if (classifier.signature.point > node->classifier.signature.point) {
             currNodePtr = node->rightChild;
         }
         // Left child
-        else if (classifier.signature < node->classifier.signature) {
+        else if (classifier.signature.point < node->classifier.signature.point) {
             currNodePtr = node->leftChild;
         }
         // Identical signatures
@@ -54,7 +54,7 @@ void RedBlackTree::addToTree(
     node->featureSet = features;
     node->saveLocationPtr(this->availableIndexPtr);
 
-    this->balanaceTree(node->classifier.signature);
+    this->balanaceTree(node->classifier.signature.point);
     this->incrimentPtr();
 }
 
@@ -210,12 +210,12 @@ void RedBlackTree::balanaceTree(const float &signature) {
             }
 
             // Stop if added node was found
-            if (iterator->classifier.signature == signature) {
+            if (iterator->classifier.signature.point == signature) {
                 break;
             }
 
             lastDir = direction;
-            direction = (iterator->classifier.signature < signature) ? dir::RIGHT : dir::LEFT;
+            direction = (iterator->classifier.signature.point < signature) ? dir::RIGHT : dir::LEFT;
 
             // Update Helpers
             if (grandparent) {
@@ -264,7 +264,7 @@ bool RedBlackTree::assignChildTo(const NODE_PTR &node_ptr, uint16_t *otherPtr) {
 void RedBlackTree::printTree(NODE_PTR *root, int level) {
     if (root->valid) {
         auto node{this->tree[root->node_ptr]};
-        std::cout << "Signature : " << node.classifier.signature << " (" << ((int) node.color) <<
+        std::cout << "Signature : " << node.classifier.signature.point << " (" << ((int) node.color) <<
             ") Level -> (" << level << ")" << std::endl;
         printTree(&node.leftChild, ++level);
         level--;

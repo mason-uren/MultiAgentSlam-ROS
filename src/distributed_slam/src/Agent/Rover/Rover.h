@@ -10,8 +10,8 @@
 #include <utility>
 #include <functional>
 
-#include <include/SLAMConfigIn.h>
-#include <include/RoverInterface.h>
+#include <shared_structs/SLAMConfigIn.h>
+#include <interfaces/RoverInterface.h>
 
 #include <boost/uuid/uuid_generators.hpp>
 
@@ -137,6 +137,7 @@ private:
 
     tuple<Pose, string> transformation{};
     bool canPublish{};
+    std::ostringstream msg{};
 
     bool debugReport = false;
 

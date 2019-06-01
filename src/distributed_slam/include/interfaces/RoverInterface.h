@@ -6,7 +6,7 @@
 #define C_ROVERINTERFACE_H
 
 #include <string>
-#include <include/SharedMemoryStructs.h>
+#include <shared_structs/SharedMemoryStructs.h>
 
 class RoverInterface {
 public:

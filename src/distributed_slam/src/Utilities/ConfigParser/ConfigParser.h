@@ -5,9 +5,9 @@
 #ifndef C_CONFIGPARSER_H
 #define C_CONFIGPARSER_H
 
-#include <include/SLAMConfigIn.h>
-#include <include/SharedMemoryStructs.h>
-#include <include/json.hpp>
+#include <shared_structs/SLAMConfigIn.h>
+#include <shared_structs/SharedMemoryStructs.h>
+#include <nholmann_json/json.hpp>
 
 #include <iostream>
 #include <sstream>

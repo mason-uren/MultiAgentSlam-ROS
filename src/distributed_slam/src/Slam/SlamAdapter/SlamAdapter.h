@@ -5,9 +5,9 @@
 #ifndef C_SLAMADAPTER_H
 #define C_SLAMADAPTER_H
 
-#include <include/SharedMemoryStructs.h>
-#include <include/SLAMConfigIn.h>
-#include <include/Transformation/Transformation.h>
+#include <shared_structs/SharedMemoryStructs.h>
+#include <shared_structs/SLAMConfigIn.h>
+#include <tools/Transformation/Transformation.h>
 
 #include "../../Agent/Rover/Rover.h"
 #include "../../Utilities/ActiveRovers/ActiveRovers.h"

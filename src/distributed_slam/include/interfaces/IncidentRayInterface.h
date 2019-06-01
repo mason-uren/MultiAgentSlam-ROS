@@ -5,7 +5,7 @@
 #ifndef C_INCIDENTRAY_H
 #define C_INCIDENTRAY_H
 
-#include <include/SharedMemoryStructs.h>
+#include <shared_structs/SharedMemoryStructs.h>
 
 class IncidentRayInterface {
 public:

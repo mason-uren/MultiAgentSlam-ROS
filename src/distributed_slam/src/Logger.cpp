@@ -9,6 +9,11 @@ void Logger::error(const std::string &message) {
     this->writeToFile(this->eLog, msg.str());
 }
 
+void Logger::status(const std::string &message) {
+    std::ostringstream msg{"[" + std::to_string(this->getTime()) + "]" + " INFO: " + message};
+    this->writeToFile(this->sLog, msg.str());
+}
+
 void Logger::record(const Belief &belief) {
     std::ostringstream message{};
     message << "[" << this->getTime() << "]: ";
@@ -30,7 +35,7 @@ void Logger::record(const std::array<Feature, FEATURE_LIMIT> &features, const Cl
     }
     message << classifer.area << ", "
             << classifer.orientation << ", "
-            << classifer.signature << std::endl;
+            << classifer.signature.point << std::endl;
     this->writeToFile(this->featureLog, message.str());
 }
 
@@ -86,6 +91,24 @@ void Logger::clearInfoLogs() {
     }
 }
 
+void Logger::logTo(const std::string &filePath, const std::string &msg) {
+    static std::ofstream file{};
+    if (!file.is_open()) {
+        auto fullPath{this->rootPath + filePath};
+        file.open(fullPath, std::ofstream::out);
+        if (!file.is_open()) {
+            std::cerr << __PRETTY_FUNCTION__ << std::endl;
+            std::cerr << "ERROR : Unable to open file <" << fullPath << ">" << std::endl;
+            std::cerr << "Exiting..." << std::endl;
+            exit(EXIT_FAILURE);
+        }
+        std::cout << "Creating file <" << fullPath << ">" << std::endl;
+    }
+    std::stringstream prefix{};
+    prefix << "[" << this->getTime() << "]: " << msg;
+    this->writeToFile(file, prefix.str());
+}
+
 long Logger::getTime() {
     return clock() - this->ticks;
 }
@@ -95,7 +118,4 @@ void Logger::writeToFile(std::ofstream &file, const std::string &message) {
     file.flush();
 }
 
-void Logger::status(const std::string &message) {
-    std::ostringstream msg{"[" + std::to_string(this->getTime()) + "]" + " INFO: " + message};
-    this->writeToFile(this->sLog, msg.str());
-}
+

@@ -19,6 +19,7 @@ add_message_files(
             Pose.msg
             TransformationPairs.msg
             Transformation.msg
+            Signature.msg
 )
 
 generate_messages(

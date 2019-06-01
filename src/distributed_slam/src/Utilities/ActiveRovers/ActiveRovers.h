@@ -7,8 +7,8 @@
 
 #include <unordered_map>
 
-#include <include/SLAMConfigIn.h>
-#include <include/RoverInterface.h>
+#include <shared_structs/SLAMConfigIn.h>
+#include <interfaces/RoverInterface.h>
 
 #include "../../Agent/Rover/Rover.h"
 

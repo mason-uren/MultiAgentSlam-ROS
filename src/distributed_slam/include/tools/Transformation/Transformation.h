@@ -8,8 +8,8 @@
 //#lib <SharedMemoryStructs.h>
 
 #include <vector>
-#include <include/SLAMConfigIn.h>
-#include <include/Filters/FIRFilter.h>
+#include <shared_structs/SLAMConfigIn.h>
+#include <templates/Filters/FIRFilter.h>
 
 class Transformation {
 public:

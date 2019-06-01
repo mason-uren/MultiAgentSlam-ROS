@@ -15,10 +15,10 @@
 #include <future>         // std::async, std::future
 #include <Eigen/Dense>
 
-#include <include/SharedMemoryStructs.h>
-#include <include/SLAMConfigIn.h>
-#include <include/Matrix/Matrix.h>
-#include <include/CPP14/cpp14_utils.h>
+#include <shared_structs/SharedMemoryStructs.h>
+#include <shared_structs/SLAMConfigIn.h>
+#include <templates/Matrix/Matrix.h>
+#include <tools/CPP14/cpp14_utils.h>
 
 #include "../../Agent/Moments/Moments.h"
 #include "../../Utilities/Equations/Equations.h"
@@ -26,6 +26,8 @@
 
 using std::unique_ptr;
 using std::make_unique;
+
+constexpr float BELL_PRIME_NUM = 877.0;
 
 enum relation {
     EQUIV = 0,
@@ -43,9 +45,11 @@ public:
         maxFeatures(seifConfig->maxFeatures),
         maxActiveFeatures(seifConfig->maxActiveFeatures),
         minFeatureDist(seifConfig->featureDistInM),
-        maxCorrespondence(Equations::getInstance()->cantor(
-                (seifConfig->featureDistInM * 2) * maxFeatures,
-                (seifConfig->featureDistInM * 2)) * maxFeatures), // Diameter of feature marker
+        maxCorrespondence(10000
+//                Equations::getInstance()->cantor(
+//                (seifConfig->featureDistInM * 2) * maxFeatures,
+//                (seifConfig->featureDistInM * 2)) * maxFeatures
+                ), // Diameter of feature marker
         recordedFeatures(new std::vector<Feature>(seifConfig->maxFeatures, Feature{})),
         activeFeatures(new std::vector<Feature>((u_long) maxActiveFeatures, Feature{})),
         toDeactivate(new Feature{}),
@@ -75,7 +79,8 @@ public:
             // Need to mark <x, y, theta> as observed
             (*informationMatrix)[i][i] = 1;
         }
-        toDeactivate->correspondence = std::numeric_limits<float>::min();
+        toDeactivate->correspondence.point = -std::numeric_limits<float>::max(); // TODO was positive min()
+        Equations::getInstance()->mapSparcity(seifConfig->featureDistInM);
     }
     ~Seif() = default;
 
@@ -114,7 +119,7 @@ private:
     void addFeature(Feature &feature);
     uint16_t &nextFeatureIndex();
     void organizeFeatures();
-    relation comparison(const float &identifier, const float &otherID);
+    relation comparison(const float &identifier, const Signature &otherID);
     bool isActiveFull();
     void updateDeltaPos(const Pose &featPose);
     void update_q();

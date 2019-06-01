@@ -61,7 +61,13 @@ void Rover::spareExtendedInformationFilter() {
     this->integrateFilteredPose(this->seif->stateEstimateUpdate());
     // TODO testing
     if (this->detection->hasIncidentRay()) {
-        this->seif->measurementUpdate(*this->detection->getIncidentRay());
+        auto ray{*this->detection->getIncidentRay()};
+        msg << __PRETTY_FUNCTION__ << std::endl;
+        msg << "\tFeature Found : " << std::endl;
+        msg << "\t\t Ray : Range -> " << ray.range << "\t Angle -> " << ray.angle << std::endl;
+        Logger::getInstance(this->name)->status(msg.str());
+        msg.clear();
+        this->seif->measurementUpdate(ray);
     }
     this->seif->sparsification();
 }
@@ -80,14 +86,14 @@ void Rover::integrateGlobalFS(const std::array<Feature, FEATURE_LIMIT> &foundFea
         this->localMap->getFeaturesFromNode(features, idx);
         transformation = tuple<Pose, string>(this->estimateMapTransformation(features, foundFeat), publisher);
         this->canPublish = true;
+
+        std::cout << __PRETTY_FUNCTION__ << std::endl;
+        std::cout << "\tReceiver (ofGT) : " << this->name << "\tSender : " << publisher << std::endl;
     }
 }
 
 bool Rover::readyToPublish() {
-    if (this->canPublish) {
-        return !(this->canPublish = !this->canPublish);
-    }
-    return this->canPublish;
+    return this->canPublish ? !(this->canPublish = !this->canPublish) : this->canPublish;
 
 
 }
