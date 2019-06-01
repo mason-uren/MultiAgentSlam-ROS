@@ -5,18 +5,19 @@
 #include "Detection.h"
 
 bool Detection::hasIncidentRay() {
-    return this->incidentRay->range < this->uppderDetectLimit;
+//    return this->incidentRay->range < this->uppderDetectLimit;
+    return this->incidentRay->range < 0.6;
 }
 
-RAY* Detection::getIncidentRay() {
+Ray* Detection::getIncidentRay() {
     return &(*this->incidentRay);
 }
 
-void Detection::setIncidentRay(RAY ray) {
+void Detection::setIncidentRay(Ray ray) {
     *this->incidentRay = ray;
 }
 
-void Detection::MLIncidentRay(const std::array<SONAR, 3> &sonar) {
+void Detection::MLIncidentRay(const std::array<Sonar, 3> &sonar) {
     for (auto ray : sonar) {
         this->addToFilter(ray);
     }
@@ -24,8 +25,14 @@ void Detection::MLIncidentRay(const std::array<SONAR, 3> &sonar) {
     this->inverseRayWeighting();
 }
 
-void Detection::addToFilter(const SONAR &ray) {
-    float range = (ray.observedRange < 0) ? 0 : ray.observedRange;
+void Detection::addToFilter(const Sonar &ray) {
+    float range =
+        std::fmin(
+                std::fmax(0, ray.observedRange),
+                SONAR_MAX_RANGE
+        );
+
+//    float range = (ray.observedRange < 0) ? 0 : ray.observedRange;
     float filtered;
     switch (ray.id) {
         case sonar_id::S_LEFT:

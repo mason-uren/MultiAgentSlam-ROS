@@ -43,10 +43,9 @@
 #include <ros_slam_msgs/AuxBeliefs.h>
 #include <ros_slam_msgs/TransformationPairs.h>
 // Adapter
-#include "../../distributed_slam/src/Adapter.h"
+#include <Adapter.h>
 // Logger
-#include "../../slam_logger/include/Logger.h"
-
+//#include <Logger.h>
 
 // Include Controllers
 //#include "LogicController.h"
@@ -235,7 +234,7 @@ ros::Subscriber transformationSubscriber;
 ros::Timer slamEventTrigger;
 // SLAM Global Variables
 static bool canReadLocation(true);
-static POSE slamRoverPose(POSE{});
+static Pose slamRoverPose(Pose{});
 
 
 // Timers
@@ -304,13 +303,13 @@ void slamFeatureSetHandler(const ros_slam_msgs::AuxFeatureSet::ConstPtr &auxFeat
 
 void slamTransformationHandler(const ros_slam_msgs::TransformationPairs::ConstPtr &transformationPairs);
 
-void slamPublishFeatureSet(const std::array<FEATURE, FEATURE_LIMIT> &featureSet, const CLASSIFIER &classifier);
+void slamPublishFeatureSet(const std::array<Feature, FEATURE_LIMIT> &featureSet, const Classifier &classifier);
 
-void slamPublishBelief(const BELIEF &belief);
+void slamPublishBelief(const Belief &belief);
 
-void slamPublishTransformation(const POSE &trans, const std::string &targetRover);
+void slamPublishTransformation(const Pose &trans, const std::string &targetRover);
 
-POSE ekfPose(const nav_msgs::Odometry::ConstPtr &kinematics);
+Pose ekfPose(const nav_msgs::Odometry::ConstPtr &kinematics);
 
 
 
@@ -2820,11 +2819,11 @@ void slamHandler(const ros::TimerEvent &event) {
     /*
      * Should only conditionally publish feature sets and transformations.
      */
-    std::tuple<std::array<FEATURE, FEATURE_LIMIT>, CLASSIFIER> FS{};
+    std::tuple<std::array<Feature, FEATURE_LIMIT>, Classifier> FS{};
     if (Adapter::getInstance()->publishFeatureSet(&FS)) {
         slamPublishFeatureSet(get<0>(FS), get<1>(FS));
     }
-    std::tuple<POSE, std::string> transfromation{};
+    std::tuple<Pose, std::string> transfromation{};
     if (Adapter::getInstance()->publishTransformation(&transfromation)) {
         slamPublishTransformation(get<0>(transfromation), get<1>(transfromation));
     }
@@ -2832,7 +2831,7 @@ void slamHandler(const ros::TimerEvent &event) {
 /**************************/
 /* Slam global publishers */
 /**************************/
-void slamPublishBelief(const BELIEF &belief) {
+void slamPublishBelief(const Belief &belief) {
     ros_slam_msgs::AuxBeliefs beliefsToPub;
     auto rName{Adapter::getInstance()->getLocalName()};
     auto index{getRoverAddress(rName)};
@@ -2850,7 +2849,9 @@ void slamPublishBelief(const BELIEF &belief) {
     Logger::getInstance(rName)->record(belief);
 }
 
-void slamPublishFeatureSet(const std::array<FEATURE, FEATURE_LIMIT> &featureSet, const CLASSIFIER &classifier) {
+void slamPublishFeatureSet(
+        const std::array<Feature, FEATURE_LIMIT> &featureSet,
+        const Classifier &classifier) {
     ros_slam_msgs::AuxFeatureSet fsToPublish;
     auto rName{Adapter::getInstance()->getLocalName()};
     auto index{getRoverAddress(rName)};
@@ -2873,7 +2874,7 @@ void slamPublishFeatureSet(const std::array<FEATURE, FEATURE_LIMIT> &featureSet,
     Logger::getInstance(rName)->record(featureSet, classifier);
 }
 
-void slamPublishTransformation(const POSE &trans, const std::string &targetRover) {
+void slamPublishTransformation(const Pose &trans, const std::string &targetRover) {
     ros_slam_msgs::TransformationPairs pairsToPublish;
     auto rName{Adapter::getInstance()->getLocalName()};
     auto index{getRoverAddress(rName)};
@@ -2902,6 +2903,7 @@ void slamFeatureSetHandler(const ros_slam_msgs::AuxFeatureSet::ConstPtr &auxFeat
 }
 
 void slamTransformationHandler(const ros_slam_msgs::TransformationPairs::ConstPtr &transformationPairs) {
+    std::cout << "Transformation trigger" << std::endl;
     Adapter::getInstance()->transformationHandler(transformationPairs);
 }
 
@@ -2912,7 +2914,7 @@ void slamKinematicsHandler(const nav_msgs::Odometry::ConstPtr &message) {
     if (canReadLocation) {
         Adapter::getInstance()->kinematicHandler(
                 ekfPose(message),
-                VELOCITY{.linear = linear_velocity, .angular = angular_velocity});
+                Velocity{linear_velocity, angular_velocity});
     }
 }
 
@@ -2920,13 +2922,13 @@ void slamSonarHandler(const sensor_msgs::Range::ConstPtr &sonarLeft,
         const sensor_msgs::Range::ConstPtr &sonarCenter,
         const sensor_msgs::Range::ConstPtr &sonarRight) {
 
-    Adapter::getInstance()->sonarHandler(std::array<SONAR, SONAR_LIMIT>{
-            SONAR{sonar_id::S_LEFT, sonarLeft->range},
-            SONAR{sonar_id::S_CENTER, sonarCenter->range},
-            SONAR{sonar_id::S_RIGHT, sonarRight->range}});
+    Adapter::getInstance()->sonarHandler(std::array<Sonar, SONAR_LIMIT>{
+            Sonar{sonar_id::S_LEFT, sonarLeft->range},
+            Sonar{sonar_id::S_CENTER, sonarCenter->range},
+            Sonar{sonar_id::S_RIGHT, sonarRight->range}});
 }
 
-POSE ekfPose(const nav_msgs::Odometry::ConstPtr &kinematics) {
+Pose ekfPose(const nav_msgs::Odometry::ConstPtr &kinematics) {
     //Get (x,y) location directly from pose
     //Get theta rotation by converting quaternion orientation to pitch/roll/yaw
     tf::Quaternion q(kinematics->pose.pose.orientation.x, kinematics->pose.pose.orientation.y,
@@ -2934,9 +2936,9 @@ POSE ekfPose(const nav_msgs::Odometry::ConstPtr &kinematics) {
     tf::Matrix3x3 m(q);
     double roll, pitch, yaw;
     m.getRPY(roll, pitch, yaw);
-    return POSE{
-        .x = static_cast<float>(kinematics->pose.pose.position.x + location_offset_ekf.x),
-        .y = static_cast<float>(kinematics->pose.pose.position.y + location_offset_ekf.y),
-        .theta = static_cast<float>(yaw)
+    return Pose{
+        static_cast<float>(kinematics->pose.pose.position.x + location_offset_ekf.x),
+        static_cast<float>(kinematics->pose.pose.position.y + location_offset_ekf.y),
+        static_cast<float>(yaw)
     };
 }

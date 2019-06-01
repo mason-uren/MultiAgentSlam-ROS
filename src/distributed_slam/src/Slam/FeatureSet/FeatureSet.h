@@ -10,36 +10,37 @@
 #include <tuple>
 
 #include <include/SharedMemoryStructs.h>
+#include <Logger.h>
 
 #include "../../Utilities/Equations/Equations.h"
 
 inline int idx(const int &i) { return i % FEATURE_LIMIT; };
 
 class FeatureSet {
-//    friend class Seif;
 public:
     static FeatureSet *getInstance() {
         static FeatureSet instance;
         return &instance;
     }
+    ~FeatureSet() = default;
+    FeatureSet(const FeatureSet &) = delete;
+    void operator=(const FeatureSet &) = delete;
 
-    bool operator==(const FeatureSet &rhs) const {
-        return classifier == rhs.classifier;
-    }
+//    bool operator==(const FeatureSet &rhs) const {
+//        return classifier == rhs.classifier;
+//    }
 
-    void addToSet(const FEATURE &feature, const POSE &rPose);
+    void addToSet(const Feature &feature, const Pose &rPose);
     bool readyToPublish();
-    std::tuple<std::array<FEATURE, FEATURE_LIMIT>, CLASSIFIER> publishSet();
+    std::tuple<std::array<Feature, FEATURE_LIMIT>, Classifier> publishSet();
 
 private:
     FeatureSet() :
-            set(std::array<FEATURE, FEATURE_LIMIT>()),
-            incidentOrient(std::array<float, FEATURE_LIMIT>()),
-            classifier(CLASSIFIER{}),
+            set(std::array<Feature, FEATURE_LIMIT>{Feature{}, Feature{}, Feature{}}),
+            incidentOrient(std::array<float, FEATURE_LIMIT>{}),
+            classifier(Classifier{}),
             currFeatIdx(0)
     {}
-    FeatureSet(const FeatureSet &) = delete;
-    void operator=(const FeatureSet &) = delete;
 
     void incrPtr();
     void analyzeFeats();
@@ -48,9 +49,9 @@ private:
     void fsOrientation();
     void fsSignature();
 
-    std::array<FEATURE, FEATURE_LIMIT> set;
+    std::array<Feature, FEATURE_LIMIT> set;
     std::array<float, FEATURE_LIMIT> incidentOrient;
-    CLASSIFIER classifier; // TODO classifier may have to be reset each time a feature set is built
+    Classifier classifier; // TODO classifier may have to be reset each time a feature set is built
     int currFeatIdx;
 
 

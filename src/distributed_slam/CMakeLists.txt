@@ -47,11 +47,13 @@ include("cmake/modules/FindMKL.cmake")
 #    cmake_policy(SET CMP0074 NEW)
 #endif()
 
-find_package(MKL MODULE REQUIRED)
+#find_package(MKL MODULE REQUIRED)
 find_package(Interfaces REQUIRED)
 find_package(JSON REQUIRED)
 find_package(SharedStructs REQUIRED)
 find_package(Templates REQUIRED)
+find_package(BetterEnum REQUIRED)
+find_package(Tools REQUIRED)
 
 find_package(catkin REQUIRED
         COMPONENTS
@@ -67,11 +69,14 @@ catkin_package(
             ros_slam_msgs
         DEPENDS
             Boost
+            Eigen3
             MKL
             Interfaces
             JSON
             SharedStructs
             Templates
+            BetterEnum
+            Tools
 )
 
 ###################################################
@@ -80,7 +85,6 @@ catkin_package(
 set(
         PROJECT_SOURCES
         ${CMAKE_CURRENT_LIST_DIR}/src/Agent/Detections/Detection.cpp
-        ${CMAKE_CURRENT_LIST_DIR}/src/Agent/Moments/Moments.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/Agent/Rover/Rover.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/Agent/Rover/RoverFactory.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/Slam/FeatureSet/FeatureSet.cpp
@@ -90,6 +94,7 @@ set(
         ${CMAKE_CURRENT_LIST_DIR}/src/Utilities/ConfigParser/ConfigParser.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/Utilities/Equations/Equations.cpp
         ${CMAKE_CURRENT_LIST_DIR}/src/Utilities/RedBlackTree/RedBlackTree.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/src/Logger.cpp
 )
 
 add_library(
@@ -107,7 +112,7 @@ target_include_directories(
         # Target
         ${LIBRARY_TARGET_NAME}
         PUBLIC
-            ${catkin_INCLUDE_DIRS}
+            include
             ${Boost_INCLUDE_DIRS}
             ${Eigen3_INCLUDE_DIRS}
             ${MKL_INCLUDE_DIRS}
@@ -115,9 +120,11 @@ target_include_directories(
             ${JSON_INCLUDE_DIRS}
             ${SharedStructs_INCLUDE_DIRS}
             ${Templates_INCLUDE_DIRS}
+            ${BetterEnum_INCLUDE_DIRS}
+            ${Tools_INCLUDE_DIRS}
+            ${catkin_INCLUDE_DIRS}
 )
 target_link_libraries(${LIBRARY_TARGET_NAME}
-        ${catkin_LIBRARIES}
         ${Boost_LIBRARIES}
         ${Eigen3_LIBRARIES}
         ${MKL_LIBRARIES}
@@ -125,6 +132,9 @@ target_link_libraries(${LIBRARY_TARGET_NAME}
         ${JSON_LIBRARIES}
         ${SharedStructs_LIBRARIES}
         ${Templates_LIBRARIES}
+        ${BetterEnum_LIBRARIES}
+        ${Tools_LIBRARIES}
+        ${catkin_LIBRARIES}
 )
 
 ###################################################
@@ -146,8 +156,9 @@ install(
             include/${LIBRARY_TARGET_NAME}
         DESTINATION
             ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
-        PATTERN
-            ".svn" EXCLUDE
+        FILES_MATCHING
+            PATTERN "*.h"
+            PATTERN ".svn" EXCLUDE
 )
 
 ###################################################

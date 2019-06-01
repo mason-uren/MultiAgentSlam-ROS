@@ -6,29 +6,6 @@
     <maintainer email="mason.uren600@myci.csuci.edu">Masters Thesis</maintainer>
     <license>BSD</license>
 
-    <!-- Url tags are optional, but multiple are allowed, one per tag -->
-    <!-- Optional attribute type can be: website, bugtracker, or repository -->
-    <!-- Example: -->
-    <!-- <url type="website">http://wiki.ros.org/swarmie_msgs</url> -->
-
-
-    <!-- Author tags are optional, multiple are allowed, one per tag -->
-    <!-- Authors do not have to be maintainers, but could be -->
-    <!-- Example: -->
-    <!-- <author email="jane.doe@example.com">Jane Doe</author> -->
-
-
-    <!-- The *_depend tags are used to specify dependencies -->
-    <!-- Dependencies can be catkin packages or system dependencies -->
-    <!-- Examples: -->
-    <!-- Use build_depend for packages you need at compile time: -->
-    <!--   <build_depend>message_generation</build_depend> -->
-    <!-- Use buildtool_depend for build tool packages: -->
-    <!--   <buildtool_depend>catkin</buildtool_depend> -->
-    <!-- Use run_depend for packages you need at runtime: -->
-    <!--   <run_depend>message_runtime</run_depend> -->
-    <!-- Use test_depend for packages you need only for testing: -->
-    <!--   <test_depend>gtest</test_depend> -->
     <buildtool_depend>catkin</buildtool_depend>
     <build_depend>ros_slam_msgs</build_depend>
 
@@ -39,6 +16,8 @@
     <build_depend>JSON</build_depend>
     <build_depend>SharedStructs</build_depend>
     <build_depend>Templates</build_depend>
+    <build_depend>BetterEnum</build_depend>
+    <build_depend>Tools</build_depend>
 
     <run_depend>ros_slam_msgs</run_depend>
     <run_depend>Boost</run_depend>
@@ -48,6 +27,8 @@
     <run_depend>JSON</run_depend>
     <run_depend>SharedStructs</run_depend>
     <run_depend>Templates</run_depend>
+    <run_depend>BetterEnum</run_depend>
+    <run_depend>Tools</run_depend>
 
     <!-- The export tag contains other, unspecified, tags -->
     <export>

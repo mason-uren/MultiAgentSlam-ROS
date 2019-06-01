@@ -1,4 +1,4 @@
-#include "Adapter.h"
+#include "../include/Adapter.h"
 
 using json = nlohmann::json;
 using lim_float = std::numeric_limits<float>;
@@ -18,10 +18,12 @@ void Adapter::loadDefaultConfig() {
 
     std::cout << "Loading Distributed Slam Configuration..." << std::endl;
     if (!configParser->loadJSONFromFile(CONFIG_PATH, &jsonFileConfig)) {
-        std::stringstream root;
-        root << CONFIG_PATH << " is missing. \n";
-        root << "Maybe the path to the JSON config needs to be modified. \n";
-        std::cerr << root.str() << strerror(errno);
+        std::stringstream msg{};
+        msg << CONFIG_PATH << " is missing. \n";
+        msg << "Maybe the path to the JSON config needs to be modified. \n";
+        msg << "Exiting... " << __PRETTY_FUNCTION__ << std::endl;
+//        std::cerr << msg.str() << strerror(errno);
+        Logger::getInstance(*this->roverName)->error(msg.str());
         exit(EXIT_FAILURE);
     }
     configParser->parseConfig(&(*systemConfig), &jsonFileConfig);
@@ -41,8 +43,13 @@ void Adapter::jsonInitialize() {
 //    }
 
     if (!this->roverName) {
-        std::cerr << "Adapter must be aware of rover name before calling `Adapter::jsonInitialize`" << std::endl;
-        std::cerr << "Check that `Adapter::setRoverName` is being called in the proper execution order." << std::endl;
+//        std::cerr << "Adapter must be aware of rover name before calling `Adapter::jsonInitialize`" << std::endl;
+//        std::cerr << "Check that `Adapter::setRoverName` is being called in the proper execution order." << std::endl;
+        std::stringstream msg{};
+        msg << "Adapter must be aware of rover name before calling `Adapter::jsonInitialize`\n";
+        msg << "Check that `Adapter::setRoverName` is being called in the proper execution order.\n";
+        msg << "Exiting... " << __PRETTY_FUNCTION__ << std::endl;
+        Logger::getInstance(*this->roverName)->error(msg.str());
         exit(EXIT_FAILURE);
     }
 
@@ -66,9 +73,9 @@ void Adapter::jsonInitialize() {
 
                 if (*this->roverName == roverConfig.name &&
                     (detectionConfig.valid && seifConfig.valid && localMapConfig.valid)) {
-                    detection = make_unique<Detection>(&detectionConfig);
-                    seif = make_unique<Seif>(&seifConfig);
-                    localMap = make_unique<RedBlackTree>(&localMapConfig);
+                    detection = unique_ptr<Detection>(new Detection(&detectionConfig));
+                    seif = unique_ptr<Seif>(new Seif(&seifConfig));
+                    localMap = unique_ptr<RedBlackTree>(new RedBlackTree(&localMapConfig));
                     rover->addDetection(&(*detection));
                     rover->addSeif(&(*seif));
                     rover->addLocalMap(&(*localMap));
@@ -77,8 +84,13 @@ void Adapter::jsonInitialize() {
                 }
 
                 ActiveRovers::getInstance()->addRover(*rover);
-                SlamAdapter::getInstance()->addTransformation(roverConfig.name, new Transformation());
-                SlamAdapter::getInstance()->addFeatureSet(roverConfig.name, new std::tuple<std::array<FEATURE, FEATURE_LIMIT>, CLASSIFIER>);
+                SlamAdapter::getInstance()->addTransformation(
+                        roverConfig.name,
+                        new Transformation{});
+                SlamAdapter::getInstance()->addFeatureSet(
+                        roverConfig.name,
+                        new Classifier{}
+                );
             }
         }
     }
@@ -88,11 +100,11 @@ void Adapter::setRoverName(const std::string &name) {
     *this->roverName = name;
 }
 
-void Adapter::kinematicHandler(const POSE &pose, const VELOCITY &vel) {
+void Adapter::kinematicHandler(const Pose &pose, const Velocity &vel) {
     SlamAdapter::getInstance()->updateKinematics(*roverName, pose, vel);
 }
 
-void Adapter::sonarHandler(const std::array<SONAR, 3> &sonar) {
+void Adapter::sonarHandler(const std::array<Sonar, 3> &sonar) {
     SlamAdapter::getInstance()->updateDetections(*this->roverName, sonar);
 }
 
@@ -100,14 +112,14 @@ void Adapter::slamHandler() {
     SlamAdapter::getInstance()->slamUpdate(*this->roverName);
 }
 
-BELIEF Adapter::publishBelief() {
-    return BELIEF {
-            .currentPose = *ActiveRovers::getInstance()->getRoverByName(*this->roverName).getCurrentPose(),
-            .roverConfidence = ActiveRovers::getInstance()->getRoverByName(*this->roverName).getConfidence()
+Belief Adapter::publishBelief() {
+    return Belief {
+            *ActiveRovers::getInstance()->getRoverByName(*this->roverName).getCurrentPose(),
+            ActiveRovers::getInstance()->getRoverByName(*this->roverName).getConfidence()
     };
 }
 
-bool Adapter::publishFeatureSet(tuple<array<FEATURE, 3>, CLASSIFIER> *set) {
+bool Adapter::publishFeatureSet(tuple<array<Feature, 3>, Classifier> *set) {
     bool ready{false};
     if ((ready = FeatureSet::getInstance()->readyToPublish())) {
         *set = FeatureSet::getInstance()->publishSet();
@@ -116,7 +128,7 @@ bool Adapter::publishFeatureSet(tuple<array<FEATURE, 3>, CLASSIFIER> *set) {
     return ready;
 }
 
-bool Adapter::publishTransformation(std::tuple<POSE, std::string> *transformation) {
+bool Adapter::publishTransformation(std::tuple<Pose, std::string> *transformation) {
     bool ready{false};
     if ((ready = ActiveRovers::getInstance()->getRoverByName(*roverName).readyToPublish())) {
         *transformation = ActiveRovers::getInstance()->getRoverByName(*this->roverName).publish();
@@ -130,10 +142,10 @@ void Adapter::auxilaryRoverHandler(const ros_slam_msgs::AuxBeliefs::ConstPtr &au
     for (auto i = uint(0); i < auxBeliefs->aux_beliefs.size(); i++) {
         if (!this->isSelf(i)) {
             auto auxRoverName{getRoverName(i)};
-            POSE pose{
-                .x = auxBeliefs->aux_beliefs[i].pose.x,
-                .y = auxBeliefs->aux_beliefs[i].pose.y,
-                .theta = auxBeliefs->aux_beliefs[i].pose.theta
+            Pose pose{
+                auxBeliefs->aux_beliefs[i].pose.x,
+                auxBeliefs->aux_beliefs[i].pose.y,
+                auxBeliefs->aux_beliefs[i].pose.theta
             };
             if (!this->isSameBelief(auxRoverName, pose)) {
                 auto confi{auxBeliefs->aux_beliefs[i].confidence};
@@ -147,18 +159,19 @@ void Adapter::featureSetHandler(const ros_slam_msgs::AuxFeatureSet::ConstPtr &au
     for (auto i = uint(0); i < auxFS->aux_feat_sets.size(); i++) {
         if (!this->isSelf(i)) {
             auto auxRoverName{getRoverName(i)};
-            auto auxFeatureSet{std::array<FEATURE, FEATURE_LIMIT>{
-                    reinterpret_cast<const FEATURE &>(auxFS->aux_feat_sets[i].set[0]),
-                    reinterpret_cast<const FEATURE &>(auxFS->aux_feat_sets[i].set[1]),
-                    reinterpret_cast<const FEATURE &>(auxFS->aux_feat_sets[i].set[2])
+            auto auxFeatureSet{std::array<Feature, FEATURE_LIMIT>{
+                    reinterpret_cast<const Feature &>(auxFS->aux_feat_sets[i].set[0]),
+                    reinterpret_cast<const Feature &>(auxFS->aux_feat_sets[i].set[1]),
+                    reinterpret_cast<const Feature &>(auxFS->aux_feat_sets[i].set[2])
             }};
-            auto auxClassifier{CLASSIFIER{
-                    .area = auxFS->aux_feat_sets[i].uuid.area,
-                    .orientation = auxFS->aux_feat_sets[i].uuid.orientation,
-                    .signature = auxFS->aux_feat_sets[i].uuid.signature
-            }};
-            std::tuple<std::array<FEATURE, FEATURE_LIMIT>, CLASSIFIER> targetFS{auxFeatureSet, auxClassifier};
-            if (!this->isSameFeatureSet(auxRoverName, targetFS)) {
+            auto auxClassifier{
+                Classifier {
+                    auxFS->aux_feat_sets[i].uuid.area,
+                    auxFS->aux_feat_sets[i].uuid.orientation,
+                    auxFS->aux_feat_sets[i].uuid.signature
+                }
+            };
+            if (!this->isSameFeatureSet(auxRoverName, auxClassifier)) {
                 SlamAdapter::getInstance()->logAuxilaryFeatureSet(
                         *this->roverName,
                         auxFeatureSet,
@@ -183,10 +196,10 @@ void Adapter::transformationHandler(const ros_slam_msgs::TransformationPairs::Co
     for (auto i = uint(0); i < transPairs->transformation_sets.size(); i++) {
         if (isSelf(getRoverAddress(transPairs->agent_pairs[i].partner))) {
             auto auxRoverName{getRoverName(i)};
-            auto transformation{POSE {
-                    .x = transPairs->transformation_sets[i].loc_translation.x,
-                    .y = transPairs->transformation_sets[i].loc_translation.y,
-                    .theta = transPairs->transformation_sets[i].orientation
+            auto transformation{Pose {
+                    transPairs->transformation_sets[i].loc_translation.x,
+                    transPairs->transformation_sets[i].loc_translation.y,
+                    transPairs->transformation_sets[i].orientation
             }};
             if (!this->isSameTransformation(auxRoverName, transformation)) {
                 SlamAdapter::getInstance()->updateTransformationByRover(transformation, auxRoverName);
@@ -199,23 +212,23 @@ bool Adapter::isSelf(const uint16_t &targetRoverIdx) {
     return targetRoverIdx == getRoverAddress(*this->roverName);
 }
 
-bool Adapter::isSameBelief(const std::string &targetRover, const POSE &pose) {
+bool Adapter::isSameBelief(const std::string &targetRover, const Pose &pose) {
     return *ActiveRovers::getInstance()->getRoverByName(targetRover).getCurrentPose() == pose;
 }
 
-// Purposely only checking CLASSIFIER; FEATURES incorporated incase extra checks are needed
+// Purposely only checking CLASSIFIER; FEATURES incorporated in-case extra checks are needed
 bool Adapter::isSameFeatureSet(const std::string &targetRover,
-                               const std::tuple<std::array<FEATURE, FEATURE_LIMIT>, CLASSIFIER> &set) {
+                               const Classifier &setClassifier) {
     auto featureSetToCheck{SlamAdapter::getInstance()->checkFeatureSet(targetRover)};
-    return get<1>(*featureSetToCheck) == get<1>(set);
+    return *featureSetToCheck == setClassifier;
 }
 
-bool Adapter::isSameTransformation(const std::string &targetRover, const POSE &trans) {
+bool Adapter::isSameTransformation(const std::string &targetRover, const Pose &trans) {
     auto transToCheck{SlamAdapter::getInstance()->checkTransformation(targetRover)};
-    return POSE{
-            .x = transToCheck->x_translation->getValue(),
-            .y = transToCheck->y_translation->getValue(),
-            .theta = transToCheck->orientation->getValue()
+    return Pose{
+            transToCheck->x_translation->getValue(),
+            transToCheck->y_translation->getValue(),
+            transToCheck->orientation->getValue()
     } == trans;
 }
 

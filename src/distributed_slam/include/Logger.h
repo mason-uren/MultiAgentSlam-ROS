@@ -1,5 +1,3 @@
-#include <utility>
-
 //
 // Created by Mason U'Ren on 2019-04-25.
 //
@@ -7,6 +5,7 @@
 #ifndef MULTIAGENTSLAM_LOGGER_H
 #define MULTIAGENTSLAM_LOGGER_H
 
+#include <utility>
 #include <iostream>
 #include <array>
 #include <fstream>
@@ -19,10 +18,10 @@
 #include <boost/filesystem/operations.hpp>
 
 #include <include/SharedMemoryStructs.h>
-#include <include/Tools/Transformation.h>
 
-constexpr char ROOT_PATH[] = "../MultiAgentSlam-ROS/src/slam_logger/logs";
+constexpr char ROOT_PATH[] = "../MultiAgentSlam-ROS/src/distributed_slam/logs";
 constexpr char ERR_FILE[] = "/errors.txt";
+constexpr char STATUS_FILE[] = "/status.txt";
 constexpr char BEL_FILE[] = "/beliefs.txt";
 constexpr char FEAT_FILE[] = "/features.txt";
 constexpr char TRANS_FILE[] = "/transformations.txt";
@@ -37,15 +36,16 @@ public:
     Logger(const Logger &) = delete;
     void operator=(const Logger &) = delete;
 
-    void report_err(const std::string &message);
-    void record(const BELIEF &belief);
-    void record(const std::array<FEATURE, FEATURE_LIMIT> &features, const CLASSIFIER &classifer);
-    void record(const POSE &transformation, const std::string &targetRover);
+    void error(const std::string &message);
+    void status(const std::string &message);
+    void record(const Belief &belief);
+    void record(const std::array<Feature, FEATURE_LIMIT> &features, const Classifier &classifer);
+    void record(const Pose &transformation, const std::string &targetRover);
     void clearErrorLog();
     void clearInfoLogs();
 
 private:
-    Logger(std::string rName) :
+    explicit Logger(std::string rName) :
         roverName(std::move(rName))
     {
         std::cout << "Creating Logger for " << roverName << "..." << std::endl;
@@ -65,11 +65,13 @@ private:
             }
         }
         errPath << dir.string() << ERR_FILE;
+        statusPath << dir.string() << STATUS_FILE;
         belPath << dir.string() << BEL_FILE;
         featPath << dir.string() << FEAT_FILE;
         transPath << dir.string() << TRANS_FILE;
 
         this->eLog.open(errPath.str(), std::ofstream::out);
+        this->sLog.open(statusPath.str(), std::ofstream::out);
         this->beliefLog.open(belPath.str(), std::ofstream::out);
         this->featureLog.open(featPath.str(), std::ofstream::out);
         this->transformationLog.open(transPath.str(), std::ofstream::out);
@@ -87,11 +89,13 @@ private:
     std::string roverName;
 
     std::stringstream errPath;
+    std::stringstream statusPath;
     std::stringstream belPath;
     std::stringstream featPath;
     std::stringstream transPath;
 
     std::ofstream eLog;
+    std::ofstream sLog;
     std::ofstream beliefLog;
     std::ofstream featureLog;
     std::ofstream transformationLog;

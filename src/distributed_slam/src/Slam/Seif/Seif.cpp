@@ -7,7 +7,7 @@
 using lim_float = std::numeric_limits<float>;
 
 // IMPORTANT: should not be accessed/used outside of Seif
-POSE Seif::rPose = POSE{};
+Pose Seif::rPose = Pose{};
 
 void Seif::printRoverPose() {
     std::cout << "R-Pose : (" <<
@@ -16,7 +16,7 @@ void Seif::printRoverPose() {
         Seif::rPose.theta << ")" << std::endl;
 }
 
-void Seif::motionUpdate(const VELOCITY &velocity) {
+void Seif::motionUpdate(const Velocity &velocity) {
     if (this->printMatrices) {
         std::cout << "F_X:" << std::endl;
         this->F_X->print();
@@ -32,26 +32,26 @@ void Seif::motionUpdate(const VELOCITY &velocity) {
     this->updateMuBar();
 }
 
-POSE Seif::stateEstimateUpdate() {
+Pose Seif::stateEstimateUpdate() {
     auto stateEstimate(*this->stateEstimate);
     this->integrateActiveFeatures();
     this->generateStateEstimate(&stateEstimate);
     rPose = {
-        .x = Equations::getInstance()->isZero(
+        Equations::getInstance()->isZero(
                 this->stateEstimate->at(num(pos_val::X))) ?
                         0 : this->stateEstimate->at(num(pos_val::X)),
-        .y = Equations::getInstance()->isZero(
+        Equations::getInstance()->isZero(
                 this->stateEstimate->at(num(pos_val::Y))) ?
                         0 : this->stateEstimate->at(num(pos_val::Y)),
-        .theta = Equations::getInstance()->wrapTheta(this->stateEstimate->at(num(pos_val::THETA)))
+        Equations::getInstance()->wrapTheta(this->stateEstimate->at(num(pos_val::THETA)))
     };
     return rPose;
 }
 
 // Must always run regardless of valid detection. Found features still need to
 // updated with new rover estimate.
-void Seif::measurementUpdate(const RAY &incidentRay) {
-    auto feature(FEATURE{});
+void Seif::measurementUpdate(const Ray &incidentRay) {
+    auto feature(Feature{});
     // Bad Feautre Struct : {range = -MAXFLOAT, angle = -MAXFLOAT}
     if (this->isNewFeature(incidentRay)) {
         this->deriveFeature(feature, incidentRay);
@@ -79,7 +79,7 @@ void Seif::sparsification() {
     this->updateInformationVector(&infoMat);
 }
 
-void Seif::updateDeltaDel(const VELOCITY &velocity) {
+void Seif::updateDeltaDel(const Velocity &velocity) {
     float ratio;
     auto thetaPrior(rPose.theta);
     auto theta((float) (velocity.angular * ROS_INTERVAL));
@@ -193,7 +193,7 @@ void Seif::integrateActiveFeatures() {
     auto resVec(static_cast<Matrix<float>>(this->informationVector->numRows()));
 
     for (long i = 0; i < std::fmin(this->featuresFound, this->maxActiveFeatures); i++) {
-        FEATURE *feature = &((*this->activeFeatures)[i]);
+        Feature *feature = &((*this->activeFeatures)[i]);
         if (!feature) {
             break;
         }
@@ -237,11 +237,11 @@ void Seif::generateStateEstimate(const Matrix<float> *stateEstimate) {
     }
 }
 
-bool Seif::isNewFeature(const RAY &incidentRay) {
+bool Seif::isNewFeature(const Ray &incidentRay) {
     return incidentRay.range != lim_float::min() && incidentRay.angle != lim_float::min();
 }
 
-void Seif::deriveFeature(FEATURE &feature, const RAY &incidentRay) {
+void Seif::deriveFeature(Feature &feature, const Ray &incidentRay) {
     auto xyCoords(Equations::getInstance()->originToPoint(
             incidentRay,
             {rPose.x, rPose.y, rPose.theta},
@@ -249,6 +249,8 @@ void Seif::deriveFeature(FEATURE &feature, const RAY &incidentRay) {
 
     feature.incidentRay = incidentRay;
     feature.pose = xyCoords;
+
+    // TODO may need to think how we normalize value
     feature.correspondence = Equations::getInstance()->normalizeValue(
             Equations::getInstance()->cantor(xyCoords.x, xyCoords.y),
             0, this->maxCorrespondence
@@ -278,6 +280,7 @@ bool Seif::hasBeenObserved(const float &correspondence) {
     bool finished = false;
     do {
         auto position((u_long) ((front && back) ? floor((front + back) / 2) : 0));
+        std::cout << __PRETTY_FUNCTION__ << " : POSITION -> " << position << std::endl;
         auto equivalence(comparison(correspondence, (*this->recordedFeatures)[position].correspondence));
         switch (equivalence) {
             case EQUIV:
@@ -300,7 +303,7 @@ bool Seif::hasBeenObserved(const float &correspondence) {
     return false;
 }
 
-void Seif::addFeature(FEATURE &feature) {
+void Seif::addFeature(Feature &feature) {
     feature.idx = this->nextFeatureIndex();
     auto idx(feature.idx);
     if (this->isActiveFull()) {
@@ -338,7 +341,7 @@ bool Seif::isActiveFull() {
     return this->featuresFound >= this->maxActiveFeatures;
 }
 
-void Seif::updateDeltaPos(const POSE &featPose) {
+void Seif::updateDeltaPos(const Pose &featPose) {
     this->deltaPosition->at(num(pos_val::X)) = featPose.x - rPose.x;
     this->deltaPosition->at(num(pos_val::Y)) = featPose.y - rPose.y;
 }
@@ -378,7 +381,7 @@ void Seif::updateH(const uint16_t &idx) {
     *this->H *= (1 / this->q);
 }
 
-void Seif::infoVecSummation(const FEATURE &feature) {
+void Seif::infoVecSummation(const Feature &feature) {
     Matrix<float> z_i{{feature.incidentRay.range}, {feature.incidentRay.angle}, {feature.correspondence}};
     auto H_T(*this->H); H_T.transpose();
     auto Q_inv(*this->measurementCov); Q_inv.invert();
@@ -414,7 +417,7 @@ Matrix<float> Seif::resolveProjection(const Matrix<float> *projection) {
     return static_cast<Matrix<>>(*this->informationMatrix * *projection * inverse * p_T * *this->informationMatrix);
 }
 
-Matrix<float> Seif::defineProjection(const FEATURE *feat, const bool &includePose) {
+Matrix<float> Seif::defineProjection(const Feature *feat, const bool &includePose) {
     Matrix<float> projection(this->F_X->numRows(), this->F_X->numCols());
     if (includePose) {
         projection[num(pos_val::X)][num(pos_val::X)] = 1;
@@ -431,7 +434,7 @@ Matrix<float> Seif::defineProjection(const FEATURE *feat, const bool &includePos
     return projection;
 }
 
-void Seif::makeInactive(FEATURE *toDeact) {
+void Seif::makeInactive(Feature *toDeact) {
     toDeact->correspondence = lim_float::min();
 }
 
@@ -444,7 +447,7 @@ void Seif::makeInactive(FEATURE *toDeact) {
  * @param other reference to a different feaure
  * @return is the correspondence of #feat lower than #other.
  */
-bool Seif::correspondenceSort(const FEATURE &feat, const FEATURE &other) {
+bool Seif::correspondenceSort(const Feature &feat, const Feature &other) {
     return feat.correspondence < other.correspondence;;
 }
 
@@ -457,12 +460,12 @@ bool Seif::correspondenceSort(const FEATURE &feat, const FEATURE &other) {
  * @param featB reference to a feature
  * @return is the relative distance between rover and #featA larger than that with #featB.
  */
-bool Seif::distanceSort(const FEATURE &featA, const FEATURE &featB) {
+bool Seif::distanceSort(const Feature &featA, const Feature &featB) {
     auto distA(Equations::getInstance()->distBetweenPts(featA.pose, rPose));
     auto distB(Equations::getInstance()->distBetweenPts(featB.pose, rPose));
     return distA > distB;
 }
 
-POSE Seif::getRoverPose() {
+Pose Seif::getRoverPose() {
     return rPose;
 }

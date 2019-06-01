@@ -18,7 +18,7 @@
 #include <include/SharedMemoryStructs.h>
 #include <include/SLAMConfigIn.h>
 #include <include/Matrix/Matrix.h>
-#include <include/Tools/cpp14_utils.h>
+#include <include/CPP14/cpp14_utils.h>
 
 #include "../../Agent/Moments/Moments.h"
 #include "../../Utilities/Equations/Equations.h"
@@ -37,10 +37,6 @@ inline constexpr uint16_t featIdx(const unsigned long &idx) { return 3 * idx + 3
 
 class Seif {
 public:
-    // Dummy constructor
-//    Seif() : N(0) {} // Not sure why N "must" be initialized
-
-
     explicit Seif(SEIF_CONFIG *seifConfig) :
         N(ELEMENT_SIZE + (ELEMENT_SIZE * seifConfig->maxFeatures)),
         featuresFound(0),
@@ -50,9 +46,9 @@ public:
         maxCorrespondence(Equations::getInstance()->cantor(
                 (seifConfig->featureDistInM * 2) * maxFeatures,
                 (seifConfig->featureDistInM * 2)) * maxFeatures), // Diameter of feature marker
-        recordedFeatures(new std::vector<FEATURE>(seifConfig->maxFeatures, FEATURE{})),
-        activeFeatures(new std::vector<FEATURE>((u_long) maxActiveFeatures, FEATURE{})),
-        toDeactivate(new FEATURE{}),
+        recordedFeatures(new std::vector<Feature>(seifConfig->maxFeatures, Feature{})),
+        activeFeatures(new std::vector<Feature>((u_long) maxActiveFeatures, Feature{})),
+        toDeactivate(new Feature{}),
         informationMatrix(new Matrix<>(N, N)),
         informationVector(new Matrix<>(N)),
         stateEstimate(new Matrix<>(N)),
@@ -83,11 +79,11 @@ public:
     }
     ~Seif() = default;
 
-    void motionUpdate(const VELOCITY &velocity);
-    POSE stateEstimateUpdate();
-    void measurementUpdate(const RAY &incidentRay);
+    void motionUpdate(const Velocity &velocity);
+    Pose stateEstimateUpdate();
+    void measurementUpdate(const Ray &incidentRay);
     void sparsification();
-    POSE getRoverPose();
+    Pose getRoverPose();
     void printRoverPose();
 
 private:
@@ -98,7 +94,7 @@ private:
     bool printMatrices = false;
 
     // Motion Update (func)
-    void updateDeltaDel(const VELOCITY &velocity);
+    void updateDeltaDel(const Velocity &velocity);
     void updatePsi();
     void updateLambda();
     void updatePhi();
@@ -112,36 +108,36 @@ private:
     void generateStateEstimate(const Matrix<> *stateEstimate);
 
     // Measurement Update (func)
-    bool isNewFeature(const RAY &incidentRay);
-    void deriveFeature(FEATURE &feature, const RAY &incidentRay);
+    bool isNewFeature(const Ray &incidentRay);
+    void deriveFeature(Feature &feature, const Ray &incidentRay);
     bool hasBeenObserved(const float &correspondence);
-    void addFeature(FEATURE &feature);
+    void addFeature(Feature &feature);
     uint16_t &nextFeatureIndex();
     void organizeFeatures();
     relation comparison(const float &identifier, const float &otherID);
     bool isActiveFull();
-    void updateDeltaPos(const POSE &featPose);
+    void updateDeltaPos(const Pose &featPose);
     void update_q();
     void updateZHat(const float &correspondence);
     void updateH(const uint16_t &idx);
-    void infoVecSummation(const FEATURE &feature);
+    void infoVecSummation(const Feature &feature);
     void infoMatrixSummation();
 
     // Sparsification (func)
     void updateInformationMatrix();
     void updateInformationVector(const Matrix<> *prevInfoMat);
     Matrix<> resolveProjection(const Matrix<> *projection);
-    Matrix<> defineProjection(const FEATURE *feat, const bool &includePose = true);
-    void makeInactive(FEATURE *toDeact);
+    Matrix<> defineProjection(const Feature *feat, const bool &includePose = true);
+    void makeInactive(Feature *toDeact);
 
     // Tools
-    static bool correspondenceSort(const FEATURE &feat, const FEATURE &other);
-    static bool distanceSort(const FEATURE &featA, const FEATURE &featB);
+    static bool correspondenceSort(const Feature &feat, const Feature &other);
+    static bool distanceSort(const Feature &featA, const Feature &featB);
 
     /**
      * Variables
      */
-    static POSE rPose;
+    static Pose rPose;
 
     const uint16_t N;
     uint16_t featuresFound;
@@ -149,9 +145,9 @@ private:
     int maxActiveFeatures;
     float minFeatureDist;
     float maxCorrespondence;
-    unique_ptr<std::vector<FEATURE>> recordedFeatures;
-    unique_ptr<std::vector<FEATURE>> activeFeatures;
-    unique_ptr<FEATURE> toDeactivate;
+    unique_ptr<std::vector<Feature>> recordedFeatures;
+    unique_ptr<std::vector<Feature>> activeFeatures;
+    unique_ptr<Feature> toDeactivate;
     unique_ptr<Matrix<>> informationMatrix;
     unique_ptr<Matrix<>> informationVector;
     unique_ptr<Matrix<>> stateEstimate;

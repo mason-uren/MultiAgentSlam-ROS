@@ -12,8 +12,8 @@ public:
     virtual ~IncidentRayInterface() = default;
 
     virtual bool hasIncidentRay() = 0;
-    virtual RAY *getIncidentRay() = 0;
-    virtual void setIncidentRay(RAY ray) = 0;
+    virtual Ray *getIncidentRay() = 0;
+    virtual void setIncidentRay(Ray ray) = 0;
 };
 
 #endif //C_INCIDENTRAY_H

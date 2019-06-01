@@ -1,15 +1,15 @@
 //
 // Created by csadmin on 5/22/19.
 //
+
 #include "../include/Logger.h"
 
-// TODO
-void Logger::report_err(const std::string &message) {
+void Logger::error(const std::string &message) {
     std::ostringstream msg{"[" + std::to_string(this->getTime()) + "]" + "ERROR: " + message};
     this->writeToFile(this->eLog, msg.str());
 }
 
-void Logger::record(const BELIEF &belief) {
+void Logger::record(const Belief &belief) {
     std::ostringstream message{};
     message << "[" << this->getTime() << "]: ";
     message << roverName << ", ";
@@ -20,7 +20,7 @@ void Logger::record(const BELIEF &belief) {
     this->writeToFile(this->beliefLog, message.str());
 }
 
-void Logger::record(const std::array<FEATURE, FEATURE_LIMIT> &features, const CLASSIFIER &classifer) {
+void Logger::record(const std::array<Feature, FEATURE_LIMIT> &features, const Classifier &classifer) {
     std::ostringstream message{};
     message << "[" << this->getTime() << "]: ";
     for (auto feature : features) {
@@ -34,7 +34,7 @@ void Logger::record(const std::array<FEATURE, FEATURE_LIMIT> &features, const CL
     this->writeToFile(this->featureLog, message.str());
 }
 
-void Logger::record(const POSE &transformation, const std::string &targetRover) {
+void Logger::record(const Pose &transformation, const std::string &targetRover) {
     std::ostringstream message{};
     message << "[" << this->getTime() << "]: ";
     message << this->roverName << ", " << targetRover << ", ";
@@ -93,4 +93,9 @@ long Logger::getTime() {
 void Logger::writeToFile(std::ofstream &file, const std::string &message) {
     file << message;
     file.flush();
+}
+
+void Logger::status(const std::string &message) {
+    std::ostringstream msg{"[" + std::to_string(this->getTime()) + "]" + " INFO: " + message};
+    this->writeToFile(this->sLog, msg.str());
 }

@@ -10,9 +10,11 @@
 #include <limits>
 #include <cstddef>
 #include <functional>
+
 #include <include/SharedMemoryStructs.h>
-#include <include/Tools/Node.h>
-#include <boost/math/distributions.hpp>
+#include <include/Node/Node.h>
+
+#include <boost/math/distributions/normal.hpp>
 
 #include "../../Utilities/Equations/Equations.h"
 
@@ -25,10 +27,6 @@ enum dir {
 
 class RedBlackTree {
 public:
-    // Dummy constructor
-//    RedBlackTree() = default;
-
-
     explicit RedBlackTree(LOCAL_MAP_CONFIG *localMapConfig) :
         availableIndexPtr(0),
         root(0),
@@ -37,10 +35,10 @@ public:
         minProbability((float) (localMapConfig->featureSetML * PDF_MAX)) {}
     ~RedBlackTree() = default;
 
-    bool findMLClassifier(const CLASSIFIER &classifier, uint16_t &index);
-    void addToTree(const CLASSIFIER &classifier, const std::array<FEATURE, FEATURE_LIMIT> &features);
+    bool findMLClassifier(const Classifier &classifier, uint16_t &index);
+    void addToTree(const Classifier &classifier, const std::array<Feature, FEATURE_LIMIT> &features);
     void resetTree();
-    void getFeaturesFromNode(std::array<FEATURE, FEATURE_LIMIT> &featuresToPopulate,
+    void getFeaturesFromNode(std::array<Feature, FEATURE_LIMIT> &featuresToPopulate,
             const uint16_t &nodeIndexPtr);
 
     // For testing purposes only!

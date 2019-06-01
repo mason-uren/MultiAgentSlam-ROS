@@ -16,7 +16,9 @@ Rover& ActiveRovers::getRoverByName(const std::string &name) {
 
     }
     catch (const std::out_of_range &error) {
-        std::cerr << "Rover name not found : " << error.what() << std::endl;
+        std::stringstream msg{};
+        msg << "Rover name not found : " << error.what() << std::endl;
+        msg << "Exiting... " << __PRETTY_FUNCTION__ << std::endl;
         exit(EXIT_FAILURE);
     }
 }
@@ -32,7 +34,9 @@ Rover& ActiveRovers::getRoverByID(const uint16_t &id) {
         };
         return this->getRoverByName(name);
     } catch (const std::out_of_range &error) {
-        std::cerr << "Rover id not found : " << error.what() << std::endl;
+        std::stringstream msg{};
+        msg << "Rover id not found : " << error.what() << std::endl;
+        msg << "Exiting... " << __PRETTY_FUNCTION__ << std::endl;
         exit(EXIT_FAILURE);
     }
 }
